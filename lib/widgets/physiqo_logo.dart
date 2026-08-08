@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 /// Physiqo logo widget — "Physiqo" wordmark with double-chevron mark.
@@ -23,7 +22,8 @@ class PhysiqoLogo extends StatelessWidget {
         // Wordmark
         Text(
           'Physiqo',
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: 'Vazirmatn',
             fontSize: height * 0.75,
             fontWeight: FontWeight.w700,
             color: AppTheme.textPrimary,

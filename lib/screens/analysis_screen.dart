@@ -6,112 +6,115 @@ class AnalysisScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Header ──────────────────────────────────
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_forward_ios, color: AppTheme.textPrimary, size: 20),
-                  ),
-                  const Spacer(),
-                  Column(
-                    children: [
-                      Text('نتایج تحلیل', style: AppTheme.headlineMd),
-                      Text(
-                        'تحلیل هوش مصنوعی | ۱۵ آبان',
-                        style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  const SizedBox(width: 20),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingXl),
-              // ─── Body illustration ────────────────────────
-              SizedBox(
-                height: 280,
-                child: CustomPaint(
-                  painter: _AnalysisBodyPainter(),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Legend ───────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Legend(color: AppTheme.textSecondary, label: 'نیاز به کار'),
-                  const SizedBox(width: AppTheme.spacingLg),
-                  _Legend(color: AppTheme.primary, label: 'قوی'),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Overall score ────────────────────────────
-              Text(
-                '۷۴',
-                style: AppTheme.displayLarge.copyWith(
-                  color: AppTheme.primary,
-                  fontSize: 64,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                'امتیاز کلی بدن',
-                style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Muscle breakdown ─────────────────────────
-              SizedBox(
-                height: 80,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: const [
-                    _ScoreCard(label: 'سینه', score: '۸۵', progress: 0.85),
-                    SizedBox(width: AppTheme.spacingSm),
-                    _ScoreCard(label: 'بازو', score: '۸۰', progress: 0.80),
-                    SizedBox(width: AppTheme.spacingSm),
-                    _ScoreCard(label: 'شکم', score: '۶۲', progress: 0.62),
-                    SizedBox(width: AppTheme.spacingSm),
-                    _ScoreCard(label: 'پا', score: '۵۸', progress: 0.58),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppTheme.spacingMd),
+                // ─── Header ──────────────────────────────────
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
+                    ),
+                    const Spacer(),
+                    Column(
+                      children: [
+                        Text('نتایج تحلیل', style: AppTheme.headlineMd),
+                        Text(
+                          'تحلیل هوش مصنوعی | ۱۵ آبان',
+                          style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 20),
                   ],
                 ),
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── CTA Button ───────────────────────────────
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: AppTheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    ),
-                    elevation: 0,
+                const SizedBox(height: AppTheme.spacingXl),
+                // ─── Body illustration ────────────────────────
+                SizedBox(
+                  height: 280,
+                  child: CustomPaint(
+                    painter: _AnalysisBodyPainter(),
+                    child: const SizedBox.expand(),
                   ),
-                  child: Text(
-                    'مشاهده برنامه تمرینی',
-                    style: AppTheme.bodyLg.copyWith(
-                      color: AppTheme.onPrimary,
-                      fontWeight: FontWeight.w700,
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+                // ─── Legend ───────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _Legend(color: AppTheme.textSecondary, label: 'نیاز به کار'),
+                    const SizedBox(width: AppTheme.spacingLg),
+                    _Legend(color: AppTheme.primary, label: 'قوی'),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── Overall score ────────────────────────────
+                Text(
+                  '۷۴',
+                  style: AppTheme.displayLarge.copyWith(
+                    color: AppTheme.primary,
+                    fontSize: 64,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  'امتیاز کلی بدن',
+                  style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── Muscle breakdown ─────────────────────────
+                SizedBox(
+                  height: 80,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: const [
+                      _ScoreCard(label: 'سینه', score: '۸۵', progress: 0.85),
+                      SizedBox(width: AppTheme.spacingSm),
+                      _ScoreCard(label: 'بازو', score: '۸۰', progress: 0.80),
+                      SizedBox(width: AppTheme.spacingSm),
+                      _ScoreCard(label: 'شکم', score: '۶۲', progress: 0.62),
+                      SizedBox(width: AppTheme.spacingSm),
+                      _ScoreCard(label: 'پا', score: '۵۸', progress: 0.58),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── CTA Button ───────────────────────────────
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: AppTheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      'مشاهده برنامه تمرینی',
+                      style: AppTheme.bodyLg.copyWith(
+                        color: AppTheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 100),
-            ],
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
         ),
       ),

@@ -49,7 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.all(AppTheme.gutter),
               child: Row(
                 children: [
-                  const Icon(Icons.arrow_forward_ios, color: AppTheme.textPrimary, size: 20),
+                  const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
                   const Spacer(),
                   Text('مربی هوش مصنوعی', style: AppTheme.headlineMd),
                   const Spacer(),

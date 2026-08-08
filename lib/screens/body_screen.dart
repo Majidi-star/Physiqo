@@ -89,7 +89,7 @@ class _BodyScreenState extends State<BodyScreen> {
                       flex: 2,
                       child: ListView.separated(
                         itemCount: _muscles.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: AppTheme.spacingSm),
+                        separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingSm),
                         itemBuilder: (context, index) {
                           final m = _muscles[index];
                           final isActive = _selectedMuscle == index;

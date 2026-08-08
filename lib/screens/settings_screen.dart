@@ -18,7 +18,7 @@ class SettingsScreen extends StatelessWidget {
               // ─── Header ──────────────────────────────────
               Row(
                 children: [
-                  const Icon(Icons.arrow_forward_ios, color: AppTheme.textPrimary, size: 20),
+                  const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
                   const Spacer(),
                   Text('تنظیمات', style: AppTheme.headlineMd),
                   const Spacer(),

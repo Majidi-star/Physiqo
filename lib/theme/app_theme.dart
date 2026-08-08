@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Physiqo Design System — Single source of truth for all visual tokens.
 /// Extracted from DESIGN.md and Google Stitch reference screens.
@@ -63,41 +62,47 @@ class AppTheme {
   }
 
   // ─── Typography (Vazirmatn for Farsi support) ─────────────────────
-  static TextStyle get displayLarge => GoogleFonts.vazirmatn(
+  static TextStyle get displayLarge => const TextStyle(
+    fontFamily: 'Vazirmatn',
     fontSize: 48,
     fontWeight: FontWeight.w700,
     color: textPrimary,
   );
 
-  static TextStyle get headlineLg => GoogleFonts.vazirmatn(
+  static TextStyle get headlineLg => const TextStyle(
+    fontFamily: 'Vazirmatn',
     fontSize: 32,
     fontWeight: FontWeight.w700,
     color: textPrimary,
     height: 40 / 32,
   );
 
-  static TextStyle get headlineMd => GoogleFonts.vazirmatn(
+  static TextStyle get headlineMd => const TextStyle(
+    fontFamily: 'Vazirmatn',
     fontSize: 24,
     fontWeight: FontWeight.w700,
     color: textPrimary,
     height: 32 / 24,
   );
 
-  static TextStyle get bodyLg => GoogleFonts.vazirmatn(
+  static TextStyle get bodyLg => const TextStyle(
+    fontFamily: 'Vazirmatn',
     fontSize: 16,
     fontWeight: FontWeight.w400,
     color: textPrimary,
     height: 24 / 16,
   );
 
-  static TextStyle get bodyMd => GoogleFonts.vazirmatn(
+  static TextStyle get bodyMd => const TextStyle(
+    fontFamily: 'Vazirmatn',
     fontSize: 14,
     fontWeight: FontWeight.w400,
     color: textPrimary,
     height: 20 / 14,
   );
 
-  static TextStyle get labelMd => GoogleFonts.vazirmatn(
+  static TextStyle get labelMd => const TextStyle(
+    fontFamily: 'Vazirmatn',
     fontSize: 12,
     fontWeight: FontWeight.w500,
     color: textPrimary,

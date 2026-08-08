@@ -30,88 +30,91 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Header ────────────────────────────────
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_forward_ios, color: AppTheme.textPrimary, size: 20),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppTheme.spacingMd),
+                // ─── Header ────────────────────────────────
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
+                    ),
+                    const Spacer(),
+                    Text('جزئیات حرکت', style: AppTheme.headlineMd),
+                    const Spacer(),
+                    const SizedBox(width: 20),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── Exercise animation area ───────────────
+                Container(
+                  height: 240,
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppTheme.outline),
                   ),
-                  const Spacer(),
-                  Text('جزئیات حرکت', style: AppTheme.headlineMd),
-                  const Spacer(),
-                  const SizedBox(width: 20),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Exercise animation area ───────────────
-              Container(
-                height: 240,
-                decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: AppTheme.outline),
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        painter: _ExerciseAnimationPainter(_controller.value),
+                        child: const SizedBox.expand(),
+                      );
+                    },
+                  ),
                 ),
-                child: AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: _ExerciseAnimationPainter(_controller.value),
-                      child: const SizedBox.expand(),
-                    );
-                  },
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── Exercise title ────────────────────────
+                Text('پرس سینه (میز تخت)', style: AppTheme.headlineMd),
+                const SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  'تقویت عضلات سینه، سرشانه جلو و سه‌سر بازو',
+                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                 ),
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Exercise title ────────────────────────
-              Text('پرس سینه (میز تخت)', style: AppTheme.headlineMd),
-              const SizedBox(height: AppTheme.spacingSm),
-              Text(
-                'تقویت عضلات سینه، سرشانه جلو و سه‌سر بازو',
-                style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Exercise details cards ────────────────
-              Row(
-                children: [
-                  Expanded(child: _DetailChip(label: 'ست‌ها', value: '۳')),
-                  const SizedBox(width: AppTheme.spacingSm),
-                  Expanded(child: _DetailChip(label: 'تکرار', value: '۱۲')),
-                  const SizedBox(width: AppTheme.spacingSm),
-                  Expanded(child: _DetailChip(label: 'استراحت', value: '۹۰ ثانیه')),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── How to perform ───────────────────────
-              Text('نحوه اجرا', style: AppTheme.headlineMd),
-              const SizedBox(height: AppTheme.spacingMd),
-              _StepItem(number: '۱', text: 'روی میز تخت دراز بکشید و هالتر را با فاصله عرض شانه بگیرید.'),
-              _StepItem(number: '۲', text: 'هالتر را آرام پایین بیاورید تا به سینه نزدیک شود.'),
-              _StepItem(number: '۳', text: 'هالتر را بالا بفرستید و دست‌ها را کامل صاف کنید.'),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Target muscles ───────────────────────
-              Text('عضلات هدف', style: AppTheme.headlineMd),
-              const SizedBox(height: AppTheme.spacingMd),
-              Wrap(
-                spacing: AppTheme.spacingSm,
-                runSpacing: AppTheme.spacingSm,
-                children: [
-                  _MuscleTag(label: 'سینه بزرگ', isPrimary: true),
-                  _MuscleTag(label: 'سرشانه جلو'),
-                  _MuscleTag(label: 'سه‌سر بازو'),
-                ],
-              ),
-              const SizedBox(height: 100),
-            ],
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── Exercise details cards ────────────────
+                Row(
+                  children: [
+                    Expanded(child: _DetailChip(label: 'ست‌ها', value: '۳')),
+                    const SizedBox(width: AppTheme.spacingSm),
+                    Expanded(child: _DetailChip(label: 'تکرار', value: '۱۲')),
+                    const SizedBox(width: AppTheme.spacingSm),
+                    Expanded(child: _DetailChip(label: 'استراحت', value: '۹۰ ثانیه')),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── How to perform ───────────────────────
+                Text('نحوه اجرا', style: AppTheme.headlineMd),
+                const SizedBox(height: AppTheme.spacingMd),
+                _StepItem(number: '۱', text: 'روی میز تخت دراز بکشید و هالتر را با فاصله عرض شانه بگیرید.'),
+                _StepItem(number: '۲', text: 'هالتر را آرام پایین بیاورید تا به سینه نزدیک شود.'),
+                _StepItem(number: '۳', text: 'هالتر را بالا بفرستید و دست‌ها را کامل صاف کنید.'),
+                const SizedBox(height: AppTheme.spacingLg),
+                // ─── Target muscles ───────────────────────
+                Text('عضلات هدف', style: AppTheme.headlineMd),
+                const SizedBox(height: AppTheme.spacingMd),
+                Wrap(
+                  spacing: AppTheme.spacingSm,
+                  runSpacing: AppTheme.spacingSm,
+                  children: [
+                    _MuscleTag(label: 'سینه بزرگ', isPrimary: true),
+                    _MuscleTag(label: 'سرشانه جلو'),
+                    _MuscleTag(label: 'سه‌سر بازو'),
+                  ],
+                ),
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
         ),
       ),
