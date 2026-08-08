@@ -11,6 +11,11 @@ import 'screens/focused_move_screen.dart';
 import 'widgets/physiqo_nav_bar.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Physiqo Error: ${details.exception}');
+  };
   runApp(const PhysiqoApp());
 }
 
