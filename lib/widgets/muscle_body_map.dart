@@ -229,19 +229,25 @@ class _BodyMapPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..color = AppTheme.primary;
 
-    // ── Group regions by category (and null) ────────────────────────────────
-    // Merge all sub-paths within the same category into ONE combined path.
-    // This is the key to eliminating internal muscle-striation lines:
-    // adjacent sub-regions that share an edge no longer draw a line there
-    // because they're rendered as a single unified shape.
+    // ── Group regions by category using boolean UNION ───────────────────────
+    // Path.addPath() only concatenates — the merged path still has all the
+    // internal sub-region boundary edges, which the fill reveals as jagged
+    // armor-plate facets.
+    // Path.combine(PathOperation.union) performs a true geometric boolean union
+    // so the result is one smooth outer silhouette with no internal seams.
     final Map<String?, Path> categoryPaths = {};
     for (final region in regions) {
       final key = region.category;
-      categoryPaths.putIfAbsent(key, Path.new);
-      categoryPaths[key]!.addPath(
-        _buildPath(region.path, scaleX, scaleY),
-        Offset.zero,
-      );
+      final regionPath = _buildPath(region.path, scaleX, scaleY);
+      if (!categoryPaths.containsKey(key)) {
+        categoryPaths[key] = regionPath;
+      } else {
+        categoryPaths[key] = Path.combine(
+          PathOperation.union,
+          categoryPaths[key]!,
+          regionPath,
+        );
+      }
     }
 
     // ── Pass 1: draw all inactive categories (stroke only, no fill) ─────────
