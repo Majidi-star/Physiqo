@@ -208,39 +208,55 @@ class _BodyMapPainter extends CustomPainter {
     final scaleX = size.width / _svgW;
     final scaleY = size.height / _svgH;
 
-    final basePaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = const Color(0xFF3A3A3C); // surfaceHigh
-
-    final accentPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = AppTheme.primary.withValues(alpha: 0.85);
-
-    final outlinePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.25
-      ..color = const Color(0xFF555558);
-
-    final accentOutlinePaint = Paint()
+    // Matching BodyIllustration style:
+    //   • Inactive = thin dim white stroke, no fill
+    //   • Active   = flat orange fill + slightly thicker orange stroke
+    final inactivePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = AppTheme.textPrimary.withValues(alpha: 0.2);
+
+    final activeFillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = AppTheme.primary.withValues(alpha: 0.75);
+
+    final activeStrokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.7
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..color = AppTheme.primary;
 
-    // Draw base silhouette layer (all regions, dimmed)
+    // ── Group regions by category (and null) ────────────────────────────────
+    // Merge all sub-paths within the same category into ONE combined path.
+    // This is the key to eliminating internal muscle-striation lines:
+    // adjacent sub-regions that share an edge no longer draw a line there
+    // because they're rendered as a single unified shape.
+    final Map<String?, Path> categoryPaths = {};
     for (final region in regions) {
-      final path = _buildPath(region.path, scaleX, scaleY);
-      canvas.drawPath(path, basePaint..color = const Color(0xFF2E2E30));
-      canvas.drawPath(path, outlinePaint);
+      final key = region.category;
+      categoryPaths.putIfAbsent(key, Path.new);
+      categoryPaths[key]!.addPath(
+        _buildPath(region.path, scaleX, scaleY),
+        Offset.zero,
+      );
     }
 
-    // Draw highlighted regions on top
-    for (final region in regions) {
-      final isActive = activeCategory != null && region.category == activeCategory;
-      if (isActive) {
-        final path = _buildPath(region.path, scaleX, scaleY);
-        canvas.drawPath(path, accentPaint);
-        canvas.drawPath(path, accentOutlinePaint);
+    // ── Pass 1: draw all inactive categories (stroke only, no fill) ─────────
+    for (final entry in categoryPaths.entries) {
+      final isActive = activeCategory != null && entry.key == activeCategory;
+      if (!isActive) {
+        canvas.drawPath(entry.value, inactivePaint);
       }
+    }
+
+    // ── Pass 2: draw active category on top (fill + stroke) ─────────────────
+    if (activeCategory != null && categoryPaths.containsKey(activeCategory)) {
+      final activePath = categoryPaths[activeCategory]!;
+      canvas.drawPath(activePath, activeFillPaint);
+      canvas.drawPath(activePath, activeStrokePaint);
     }
   }
 
@@ -248,6 +264,7 @@ class _BodyMapPainter extends CustomPainter {
   bool shouldRepaint(_BodyMapPainter old) =>
       old.activeCategory != activeCategory || old.regions != regions;
 }
+
 
 // ─── SVG path parser ──────────────────────────────────────────────────────────
 
