@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_logo.dart';
+import '../widgets/body_illustration.dart';
 
 class BodyScreen extends StatefulWidget {
   const BodyScreen({super.key});
@@ -11,16 +12,6 @@ class BodyScreen extends StatefulWidget {
 
 class _BodyScreenState extends State<BodyScreen> {
   int _selectedMuscle = 3; // شکم (Abs) active by default
-
-  static const _muscles = [
-    {'label': 'قبانی', 'icon': Icons.accessibility_new},
-    {'label': 'همیام', 'icon': Icons.accessibility_new},
-    {'label': 'مودعی', 'icon': Icons.accessibility_new},
-    {'label': 'شکم', 'icon': Icons.accessibility_new},
-    {'label': 'منواد', 'icon': Icons.accessibility_new},
-    {'label': 'فنکلی', 'icon': Icons.accessibility_new},
-    {'label': 'تسری', 'icon': Icons.accessibility_new},
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +37,7 @@ class _BodyScreenState extends State<BodyScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    // 3D Body wireframe placeholder
+                    // Unified Body Illustration
                     Expanded(
                       flex: 3,
                       child: Column(
@@ -56,9 +47,11 @@ class _BodyScreenState extends State<BodyScreen> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                               ),
-                              child: CustomPaint(
-                                painter: _BodyWireframePainter(),
-                                child: const SizedBox.expand(),
+                              child: BodyIllustration(
+                                highlightedMuscles: [
+                                  AppTheme.muscleCategories[_selectedMuscle]['label'] as String
+                                ],
+                                showGrid: true,
                               ),
                             ),
                           ),
@@ -88,10 +81,10 @@ class _BodyScreenState extends State<BodyScreen> {
                     Expanded(
                       flex: 2,
                       child: ListView.separated(
-                        itemCount: _muscles.length,
+                        itemCount: AppTheme.muscleCategories.length,
                         separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingSm),
                         itemBuilder: (context, index) {
-                          final m = _muscles[index];
+                          final m = AppTheme.muscleCategories[index];
                           final isActive = _selectedMuscle == index;
                           return GestureDetector(
                             onTap: () => setState(() => _selectedMuscle = index),
@@ -152,7 +145,7 @@ class _BodyScreenState extends State<BodyScreen> {
           children: [
             Text('Charlie', style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w600)),
             Text(
-              'قد / وزن',
+              'قد: ۱۷۵ سانتی‌متر / وزن: ۸۰ کیلوگرم',
               style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
             ),
           ],
@@ -166,55 +159,4 @@ class _BodyScreenState extends State<BodyScreen> {
       ],
     );
   }
-}
-
-/// Simplified body wireframe painter — draws a human silhouette outline.
-class _BodyWireframePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.textSecondary.withValues(alpha: 0.4)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    final cx = size.width / 2;
-    final h = size.height;
-
-    // Head
-    canvas.drawCircle(Offset(cx, h * 0.08), h * 0.04, paint);
-    // Neck
-    canvas.drawLine(Offset(cx, h * 0.12), Offset(cx, h * 0.16), paint);
-    // Shoulders
-    canvas.drawLine(Offset(cx - h * 0.12, h * 0.18), Offset(cx + h * 0.12, h * 0.18), paint);
-    // Torso
-    canvas.drawLine(Offset(cx - h * 0.12, h * 0.18), Offset(cx - h * 0.08, h * 0.45), paint);
-    canvas.drawLine(Offset(cx + h * 0.12, h * 0.18), Offset(cx + h * 0.08, h * 0.45), paint);
-    // Hips
-    canvas.drawLine(Offset(cx - h * 0.08, h * 0.45), Offset(cx + h * 0.08, h * 0.45), paint);
-    // Arms
-    canvas.drawLine(Offset(cx - h * 0.12, h * 0.18), Offset(cx - h * 0.18, h * 0.38), paint);
-    canvas.drawLine(Offset(cx + h * 0.12, h * 0.18), Offset(cx + h * 0.18, h * 0.38), paint);
-    // Legs
-    canvas.drawLine(Offset(cx - h * 0.06, h * 0.45), Offset(cx - h * 0.08, h * 0.75), paint);
-    canvas.drawLine(Offset(cx + h * 0.06, h * 0.45), Offset(cx + h * 0.08, h * 0.75), paint);
-    // Lower legs
-    canvas.drawLine(Offset(cx - h * 0.08, h * 0.75), Offset(cx - h * 0.09, h * 0.95), paint);
-    canvas.drawLine(Offset(cx + h * 0.08, h * 0.75), Offset(cx + h * 0.09, h * 0.95), paint);
-
-    // Draw cross-hatch grid lines for wireframe effect
-    final gridPaint = Paint()
-      ..color = AppTheme.textSecondary.withValues(alpha: 0.15)
-      ..strokeWidth = 0.5;
-
-    for (double y = h * 0.15; y < h * 0.5; y += h * 0.03) {
-      canvas.drawLine(
-        Offset(cx - h * 0.12, y),
-        Offset(cx + h * 0.12, y),
-        gridPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

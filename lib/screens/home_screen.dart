@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_logo.dart';
+import '../widgets/exercise_illustration.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -218,9 +219,9 @@ class _ExerciseCard extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                child: CustomPaint(
-                  painter: ExerciseCardPainter(title: title),
-                  child: const SizedBox.expand(),
+                child: ExerciseIllustration(
+                  title: title,
+                  isAnimated: false,
                 ),
               ),
             ),
@@ -257,94 +258,4 @@ class _ExerciseCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class ExerciseCardPainter extends CustomPainter {
-  final String title;
-  ExerciseCardPainter({required this.title});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.textPrimary
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final w = size.width;
-    final h = size.height;
-    final cx = w / 2;
-    final cy = h / 2;
-
-    if (title.contains('پرس سینه')) {
-      // Bench Press Drawing (Horizontal bench, body, barbell)
-      // Bench
-      canvas.drawLine(Offset(cx - 24, cy + 8), Offset(cx + 24, cy + 8), paint..strokeWidth = 1.5);
-      canvas.drawLine(Offset(cx - 20, cy + 8), Offset(cx - 20, cy + 24), paint);
-      canvas.drawLine(Offset(cx + 20, cy + 8), Offset(cx + 20, cy + 24), paint);
-
-      // Body lying down
-      canvas.drawCircle(Offset(cx + 14, cy + 2), 3, paint..style = PaintingStyle.stroke); // Head
-      canvas.drawLine(Offset(cx - 16, cy + 4), Offset(cx + 10, cy + 4), paint); // Torso
-      canvas.drawLine(Offset(cx - 16, cy + 4), Offset(cx - 20, cy + 16), paint); // Leg
-
-      // Barbell held up
-      canvas.drawLine(Offset(cx - 18, cy - 8), Offset(cx + 18, cy - 8), paint..color = AppTheme.primary..strokeWidth = 2);
-      // Weights
-      canvas.drawLine(Offset(cx - 18, cy - 12), Offset(cx - 18, cy - 4), paint..color = AppTheme.primary..strokeWidth = 4);
-      canvas.drawLine(Offset(cx + 18, cy - 12), Offset(cx + 18, cy - 4), paint..color = AppTheme.primary..strokeWidth = 4);
-
-      // Arms reaching up to barbell
-      canvas.drawLine(Offset(cx - 2, cy + 4), Offset(cx - 4, cy - 8), paint..color = AppTheme.textPrimary..strokeWidth = 1.5);
-      canvas.drawLine(Offset(cx + 8, cy + 4), Offset(cx + 10, cy - 8), paint);
-    } else if (title.contains('بالا سینه')) {
-      // Incline Bench Press Drawing (Incline bench, body, dumbbells)
-      // Incline Bench (~30 degrees)
-      canvas.drawLine(Offset(cx - 20, cy + 16), Offset(cx + 16, cy - 8), paint..strokeWidth = 1.5); // backrest
-      canvas.drawLine(Offset(cx - 20, cy + 16), Offset(cx - 8, cy + 16), paint); // seat
-      // Legs of bench
-      canvas.drawLine(Offset(cx - 14, cy + 16), Offset(cx - 14, cy + 26), paint);
-      canvas.drawLine(Offset(cx + 6, cy - 1), Offset(cx + 6, cy + 26), paint);
-
-      // Body reclining
-      canvas.drawCircle(Offset(cx + 10, cy - 12), 3, paint); // Head
-      canvas.drawLine(Offset(cx - 12, cy + 10), Offset(cx + 6, cy - 8), paint); // Torso
-      canvas.drawLine(Offset(cx - 12, cy + 10), Offset(cx - 16, cy + 22), paint); // Leg
-
-      // Dumbbells in hands
-      // Left arm and dumbbell
-      canvas.drawLine(Offset(cx - 2, cy + 1), Offset(cx - 6, cy - 10), paint); // Arm
-      canvas.drawLine(Offset(cx - 11, cy - 10), Offset(cx - 1, cy - 10), paint..color = AppTheme.primary..strokeWidth = 2); // DB bar
-      canvas.drawCircle(Offset(cx - 11, cy - 10), 2, paint..color = AppTheme.primary..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(cx - 1, cy - 10), 2, paint..color = AppTheme.primary..style = PaintingStyle.fill);
-
-      // Right arm and dumbbell
-      canvas.drawLine(Offset(cx + 2, cy - 2), Offset(cx + 6, cy - 13), paint..color = AppTheme.textPrimary..strokeWidth = 1.5); // Arm
-      canvas.drawLine(Offset(cx + 1, cy - 13), Offset(cx + 11, cy - 13), paint..color = AppTheme.primary..strokeWidth = 2); // DB bar
-      canvas.drawCircle(Offset(cx + 1, cy - 13), 2, paint..color = AppTheme.primary..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(cx + 11, cy - 13), 2, paint..color = AppTheme.primary..style = PaintingStyle.fill);
-    } else {
-      // Pec Deck Fly / Butterfly (Sitting body, machine pads/arms)
-      // Seat and backrest
-      canvas.drawLine(Offset(cx - 8, cy - 16), Offset(cx - 8, cy + 16), paint); // Backrest
-      canvas.drawLine(Offset(cx - 8, cy + 10), Offset(cx + 12, cy + 10), paint); // Seat
-      canvas.drawLine(Offset(cx + 8, cy + 10), Offset(cx + 8, cy + 24), paint); // Base leg
-
-      // Body sitting
-      canvas.drawCircle(Offset(cx - 2, cy - 10), 3, paint); // Head
-      canvas.drawLine(Offset(cx - 2, cy - 7), Offset(cx - 2, cy + 10), paint); // Torso
-      canvas.drawLine(Offset(cx - 2, cy + 10), Offset(cx + 10, cy + 22), paint); // Leg
-
-      // Machine pads/arms (Pec Deck)
-      canvas.drawLine(Offset(cx + 16, cy - 16), Offset(cx + 16, cy + 8), paint..color = AppTheme.primary..strokeWidth = 2); // right pad
-      canvas.drawLine(Offset(cx - 20, cy - 16), Offset(cx - 20, cy + 8), paint..color = AppTheme.primary..strokeWidth = 2); // left pad
-
-      // Arms holding pads
-      canvas.drawLine(Offset(cx - 2, cy - 2), Offset(cx - 20, cy - 2), paint..color = AppTheme.textPrimary..strokeWidth = 1.5); // left arm
-      canvas.drawLine(Offset(cx - 2, cy - 2), Offset(cx + 16, cy - 2), paint); // right arm
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

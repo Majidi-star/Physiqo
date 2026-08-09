@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_logo.dart';
+import '../widgets/exercise_illustration.dart';
 
 class MovesScreen extends StatefulWidget {
   const MovesScreen({super.key});
@@ -11,15 +12,6 @@ class MovesScreen extends StatefulWidget {
 
 class _MovesScreenState extends State<MovesScreen> {
   int _selectedCategory = 0;
-
-  static const _categories = [
-    {'icon': Icons.accessibility_new, 'label': 'سینه'},
-    {'icon': Icons.accessibility_new, 'label': 'پشت'},
-    {'icon': Icons.accessibility_new, 'label': 'پا'},
-    {'icon': Icons.accessibility_new, 'label': 'شکم'},
-    {'icon': Icons.accessibility_new, 'label': 'بازو'},
-    {'icon': Icons.accessibility_new, 'label': 'سرشانه'},
-  ];
 
   static const _exercises = [
     {'title': 'پرس سینه (میز تخت)', 'subtitle': 'تقویت عضلات سینه و سرشانه'},
@@ -45,7 +37,7 @@ class _MovesScreenState extends State<MovesScreen> {
               const SizedBox(height: AppTheme.spacingLg),
               // ─── Section title ─────────────────────────────
               Text(
-                'تمرینات ${_categories[_selectedCategory]['label']}',
+                'تمرینات ${AppTheme.muscleCategories[_selectedCategory]['label']}',
                 style: AppTheme.headlineMd,
               ),
               const SizedBox(height: AppTheme.spacingMd),
@@ -76,7 +68,7 @@ class _MovesScreenState extends State<MovesScreen> {
           children: [
             Text('Charlie', style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w600)),
             Text(
-              'Height: 175 cm / Weight: 80 kg',
+              'قد: ۱۷۵ سانتی‌متر / وزن: ۸۰ کیلوگرم',
               style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
             ),
           ],
@@ -95,8 +87,8 @@ class _MovesScreenState extends State<MovesScreen> {
     return Wrap(
       spacing: AppTheme.spacingSm,
       runSpacing: AppTheme.spacingSm,
-      children: List.generate(_categories.length, (index) {
-        final cat = _categories[index];
+      children: List.generate(AppTheme.muscleCategories.length, (index) {
+        final cat = AppTheme.muscleCategories[index];
         final isActive = _selectedCategory == index;
         return GestureDetector(
           onTap: () => setState(() => _selectedCategory = index),
@@ -149,15 +141,14 @@ class _MoveCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Row(
           children: [
-            // Illustration placeholder (white line-art style)
+            // Shared illustration rendering
             Container(
               width: 120,
               height: 100,
               color: AppTheme.surfaceHigh,
-              child: const Icon(
-                Icons.fitness_center,
-                color: AppTheme.textPrimary,
-                size: 40,
+              child: ExerciseIllustration(
+                title: title,
+                isAnimated: false,
               ),
             ),
             Expanded(

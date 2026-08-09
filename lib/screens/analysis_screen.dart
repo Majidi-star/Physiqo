@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/body_illustration.dart';
 
 class AnalysisScreen extends StatelessWidget {
   const AnalysisScreen({super.key});
@@ -40,11 +41,11 @@ class AnalysisScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.spacingXl),
                 // ─── Body illustration ────────────────────────
-                SizedBox(
+                const SizedBox(
                   height: 280,
-                  child: CustomPaint(
-                    painter: _AnalysisBodyPainter(),
-                    child: const SizedBox.expand(),
+                  child: BodyIllustration(
+                    highlightedMuscles: ['سینه', 'بازو', 'سرشانه'],
+                    showGrid: false,
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingMd),
@@ -189,55 +190,4 @@ class _ScoreCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Draws a stylized analysis body with highlighted muscle regions.
-class _AnalysisBodyPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final h = size.height;
-
-    // Base body outline in gray
-    final basePaint = Paint()
-      ..color = AppTheme.textSecondary.withValues(alpha: 0.5)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    // Highlighted muscles in orange
-    final highlightPaint = Paint()
-      ..color = AppTheme.primary.withValues(alpha: 0.7)
-      ..strokeWidth = 3.0
-      ..style = PaintingStyle.stroke;
-
-    // Head
-    canvas.drawCircle(Offset(cx, h * 0.06), h * 0.04, basePaint);
-    // Neck
-    canvas.drawLine(Offset(cx, h * 0.1), Offset(cx, h * 0.14), basePaint);
-    // Shoulders (highlighted)
-    canvas.drawLine(Offset(cx - h * 0.14, h * 0.16), Offset(cx + h * 0.14, h * 0.16), highlightPaint);
-    // Torso
-    canvas.drawLine(Offset(cx - h * 0.14, h * 0.16), Offset(cx - h * 0.10, h * 0.42), basePaint);
-    canvas.drawLine(Offset(cx + h * 0.14, h * 0.16), Offset(cx + h * 0.10, h * 0.42), basePaint);
-    // Chest (highlighted region)
-    canvas.drawLine(Offset(cx - h * 0.12, h * 0.20), Offset(cx + h * 0.12, h * 0.20), highlightPaint);
-    canvas.drawLine(Offset(cx - h * 0.11, h * 0.24), Offset(cx + h * 0.11, h * 0.24), highlightPaint);
-    // Arms (highlighted)
-    canvas.drawLine(Offset(cx - h * 0.14, h * 0.16), Offset(cx - h * 0.20, h * 0.36), highlightPaint);
-    canvas.drawLine(Offset(cx + h * 0.14, h * 0.16), Offset(cx + h * 0.20, h * 0.36), highlightPaint);
-    // Forearms
-    canvas.drawLine(Offset(cx - h * 0.20, h * 0.36), Offset(cx - h * 0.22, h * 0.50), basePaint);
-    canvas.drawLine(Offset(cx + h * 0.20, h * 0.36), Offset(cx + h * 0.22, h * 0.50), basePaint);
-    // Hips
-    canvas.drawLine(Offset(cx - h * 0.10, h * 0.42), Offset(cx + h * 0.10, h * 0.42), basePaint);
-    // Legs
-    canvas.drawLine(Offset(cx - h * 0.07, h * 0.42), Offset(cx - h * 0.09, h * 0.70), basePaint);
-    canvas.drawLine(Offset(cx + h * 0.07, h * 0.42), Offset(cx + h * 0.09, h * 0.70), basePaint);
-    // Lower legs
-    canvas.drawLine(Offset(cx - h * 0.09, h * 0.70), Offset(cx - h * 0.10, h * 0.92), basePaint);
-    canvas.drawLine(Offset(cx + h * 0.09, h * 0.70), Offset(cx + h * 0.10, h * 0.92), basePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
