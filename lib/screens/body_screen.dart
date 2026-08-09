@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
-import '../widgets/muscle_body_map.dart';
+import '../widgets/low_poly_body_widget.dart';
 
 class BodyScreen extends StatefulWidget {
   const BodyScreen({super.key});
@@ -70,7 +70,7 @@ class _BodyScreenState extends State<BodyScreen> {
                           // ── Interactive body map ──────────────────────────
                           Expanded(
                             flex: 3,
-                            child: MuscleBodyMap(
+                            child: LowPolyBodyWidget(
                               selectedCategory: _selectedLabel,
                               showFront: _showFront,
                               onToggleView: () => setState(() => _showFront = !_showFront),
