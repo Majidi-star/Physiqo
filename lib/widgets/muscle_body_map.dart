@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/muscle_paths.dart';
 import '../theme/app_theme.dart';
 
 // ─── Category → key mapping ─────────────────────────────────────────────────
@@ -11,11 +12,20 @@ const Map<String, String> _persianToCategory = {
   'سرشانه': 'shoulders',
 };
 
-// ─── Reference dimensions for the normalized coordinate system ──────────────
+// ─── SVG viewBox constants (from body-muscles BodyChart.js) ─────────────────
+// Front: "0 0 35 93"   Back: "37 0 35 93"
+// We normalise back paths by subtracting 37 from X so both fit in 0-35 space.
 const double _svgW = 35.0;
 const double _svgH = 93.0;
 
-/// Interactive anatomical body map with clean, minimal line-art silhouette.
+/// Interactive anatomical body map.
+///
+/// - [selectedCategory] : Persian label matching AppTheme.muscleCategories
+///   (e.g. 'سینه', 'پشت' …). Pass null to show no highlight.
+/// - [onCategoryTap]    : Called with a Persian category label when the user
+///   taps a highlighted region, or null if a non-categorised region is tapped.
+/// - [showFront]        : true = anterior view, false = posterior view.
+/// - [onToggleView]     : Called when the user taps the front/back toggle button.
 class MuscleBodyMap extends StatefulWidget {
   final String? selectedCategory;
   final ValueChanged<String?>? onCategoryTap;
@@ -70,21 +80,28 @@ class _MuscleBodyMapState extends State<MuscleBodyMap>
           : _persianToCategory[widget.selectedCategory];
 
   void _onTapUp(TapUpDetails details, BoxConstraints constraints) {
-    final w = constraints.maxWidth;
-    final h = constraints.maxHeight;
-    final scaleX = w / _svgW;
-    final scaleY = h / _svgH;
+    final regions = widget.showFront ? frontMuscleRegions : backMuscleRegions;
+    final scaleX = constraints.maxWidth / _svgW;
+    final scaleY = constraints.maxHeight / _svgH;
     final local = details.localPosition;
 
-    for (final category in _persianToCategory.values) {
-      final rawPath = _BodyPaths.categoryPath(category, widget.showFront);
-      final path = _buildScaledPath(rawPath, scaleX, scaleY);
-      if (path.contains(local)) {
+    // Convert tap position back to SVG coordinates
+    final svgX = local.dx / scaleX;
+    final svgY = local.dy / scaleY;
+
+    // Check paths in reverse order (topmost drawn = last in list)
+    for (final region in regions.reversed) {
+      final path = _buildPath(region.path, 1.0, 1.0);
+      if (path.contains(Offset(svgX, svgY))) {
         if (widget.onCategoryTap != null) {
+          // Find corresponding Persian label
           final persian = _persianToCategory.entries
-              .firstWhere((e) => e.value == category)
+              .firstWhere(
+                (e) => e.value == region.category,
+                orElse: () => const MapEntry('', ''),
+              )
               .key;
-          widget.onCategoryTap!(persian);
+          widget.onCategoryTap!(persian.isEmpty ? null : persian);
         }
         return;
       }
@@ -113,7 +130,9 @@ class _MuscleBodyMapState extends State<MuscleBodyMap>
                   child: CustomPaint(
                     size: Size(constraints.maxWidth, constraints.maxHeight),
                     painter: _BodyMapPainter(
-                      showFront: widget.showFront,
+                      regions: widget.showFront
+                          ? frontMuscleRegions
+                          : backMuscleRegions,
                       activeCategory: _activeKey,
                     ),
                   ),
@@ -176,284 +195,285 @@ class _ViewToggle extends StatelessWidget {
   }
 }
 
-// ─── Helper to scale a Path ──────────────────────────────────────────────────
-Path _buildScaledPath(Path src, double scaleX, double scaleY) {
-  final matrix = Matrix4.diagonal3Values(scaleX, scaleY, 1.0);
-  return src.transform(matrix.storage);
-}
-
 // ─── Custom Painter ───────────────────────────────────────────────────────────
 
 class _BodyMapPainter extends CustomPainter {
-  final bool showFront;
+  final List<MuscleRegion> regions;
   final String? activeCategory;
 
-  const _BodyMapPainter({required this.showFront, required this.activeCategory});
+  const _BodyMapPainter({required this.regions, required this.activeCategory});
 
   @override
   void paint(Canvas canvas, Size size) {
     final scaleX = size.width / _svgW;
     final scaleY = size.height / _svgH;
 
-    final inactivePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = AppTheme.textPrimary.withValues(alpha: 0.25);
+    // Paints for the base body illustration (detailed fine outlines)
+    final basePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = const Color(0xFF2E2E30);
 
+    final outlinePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.25
+      ..color = const Color(0xFF555558);
+
+    // Paints for the active category highlight
     final activeFillPaint = Paint()
       ..style = PaintingStyle.fill
-      ..color = AppTheme.primary.withValues(alpha: 0.15);
+      ..color = AppTheme.primary.withValues(alpha: 0.85);
 
     final activeStrokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = 0.6
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..color = AppTheme.primary;
 
-    // ── 1. Neutral Outline Layers (Head, Neck, Hands, Feet, Hips) ───────────
-    final head = _buildScaledPath(_BodyPaths.head(), scaleX, scaleY);
-    final neck = _buildScaledPath(_BodyPaths.neck(), scaleX, scaleY);
-    final hands = _buildScaledPath(_BodyPaths.hands(), scaleX, scaleY);
-    final feet = _buildScaledPath(_BodyPaths.feet(), scaleX, scaleY);
-
-    canvas.drawPath(head, inactivePaint);
-    canvas.drawPath(neck, inactivePaint);
-    canvas.drawPath(hands, inactivePaint);
-    canvas.drawPath(feet, inactivePaint);
-
-    if (showFront) {
-      final hips = _buildScaledPath(_BodyPaths.hips(), scaleX, scaleY);
-      canvas.drawPath(hips, inactivePaint);
+    // ── Pass 1: Draw the base body anatomical illustration (all regions) ─────
+    for (final region in regions) {
+      final path = _buildPath(region.path, scaleX, scaleY);
+      canvas.drawPath(path, basePaint);
+      canvas.drawPath(path, outlinePaint);
     }
 
-    // ── 2. Muscle Category Layers ───────────────────────────────────────────
-    final categories = ['shoulders', 'chest', 'abs', 'back', 'arms', 'legs'];
-    for (final cat in categories) {
-      final rawPath = _BodyPaths.categoryPath(cat, showFront);
-      // Skip categories not present on this view
-      if (rawPath.getBounds().isEmpty) continue;
+    // ── Pass 2: Draw the active category highlight on top (union fill only) ──
+    if (activeCategory != null) {
+      Path? activePath;
+      for (final region in regions) {
+        if (region.category == activeCategory) {
+          final regionPath = _buildPath(region.path, scaleX, scaleY);
+          if (activePath == null) {
+            activePath = regionPath;
+          } else {
+            try {
+              activePath = Path.combine(
+                PathOperation.union,
+                activePath,
+                regionPath,
+              );
+            } catch (_) {
+              // Safe fallback: append path if union operation fails/throws
+              activePath!.addPath(regionPath, Offset.zero);
+            }
+          }
+        }
+      }
 
-      final path = _buildScaledPath(rawPath, scaleX, scaleY);
-      final isActive = activeCategory == cat;
-
-      if (isActive) {
-        canvas.drawPath(path, activeFillPaint);
-        canvas.drawPath(path, activeStrokePaint);
-      } else {
-        canvas.drawPath(path, inactivePaint);
+      if (activePath != null) {
+        canvas.drawPath(activePath, activeFillPaint);
+        canvas.drawPath(activePath, activeStrokePaint);
       }
     }
   }
 
   @override
   bool shouldRepaint(_BodyMapPainter old) =>
-      old.activeCategory != activeCategory || old.showFront != showFront;
+      old.activeCategory != activeCategory || old.regions != regions;
 }
 
-// ─── Simple Human Body Paths ──────────────────────────────────────────────────
 
-class _BodyPaths {
-  static Path head() {
-    return Path()..addOval(Rect.fromCircle(center: const Offset(17.5, 9.0), radius: 4.5));
-  }
+// ─── SVG path parser ──────────────────────────────────────────────────────────
 
-  static Path neck() {
-    final path = Path();
-    path.moveTo(16.0, 13.5);
-    path.lineTo(16.0, 16.0);
-    path.lineTo(19.0, 16.0);
-    path.lineTo(19.0, 13.5);
-    path.close();
-    return path;
-  }
+/// Parses an SVG path string into a Flutter [Path].
+/// Supports: M, m, L, l, H, h, V, v, C, c, S, s, Q, q, Z, z
+Path _buildPath(String svgPath, double scaleX, double scaleY) {
+  final path = Path();
+  final commands = _tokenise(svgPath);
+  double cx = 0, cy = 0; // current position
+  double? lastCpX, lastCpY; // last control point (for S/s, T/t)
+  String lastCmd = '';
 
-  static Path hands() {
-    final path = Path();
-    // Left hand
-    path.addOval(Rect.fromLTRB(5.0, 56.0, 9.0, 61.0));
-    // Right hand
-    path.addOval(Rect.fromLTRB(26.0, 56.0, 30.0, 61.0));
-    return path;
-  }
+  for (final token in commands) {
+    final cmd = token.command;
+    final args = token.args;
+    int i = 0;
 
-  static Path feet() {
-    final path = Path();
-    // Left foot
-    path.moveTo(11.5, 87.0);
-    path.lineTo(9.5, 91.5);
-    path.lineTo(14.5, 91.5);
-    path.lineTo(14.5, 87.0);
-    path.close();
+    void moveTo(double x, double y) {
+      path.moveTo(x * scaleX, y * scaleY);
+      cx = x;
+      cy = y;
+    }
 
-    // Right foot
-    path.moveTo(23.5, 87.0);
-    path.lineTo(25.5, 91.5);
-    path.lineTo(20.5, 91.5);
-    path.lineTo(20.5, 87.0);
-    path.close();
-    return path;
-  }
+    void lineTo(double x, double y) {
+      path.lineTo(x * scaleX, y * scaleY);
+      cx = x;
+      cy = y;
+    }
 
-  static Path hips() {
-    final path = Path();
-    path.moveTo(12.2, 40.0);
-    path.lineTo(22.8, 40.0);
-    path.lineTo(20.0, 44.5);
-    path.lineTo(15.0, 44.5);
-    path.close();
-    return path;
-  }
+    void curveTo(double x1, double y1, double x2, double y2, double x, double y) {
+      path.cubicTo(
+        x1 * scaleX, y1 * scaleY,
+        x2 * scaleX, y2 * scaleY,
+        x * scaleX, y * scaleY,
+      );
+      lastCpX = x2;
+      lastCpY = y2;
+      cx = x;
+      cy = y;
+    }
 
-  static Path categoryPath(String category, bool showFront) {
-    final path = Path();
-    switch (category) {
-      case 'shoulders':
-        // Left Deltoid
-        path.moveTo(15.5, 16.0);
-        path.lineTo(8.0, 19.0);
-        path.lineTo(7.5, 26.0);
-        path.lineTo(12.0, 24.5);
-        path.close();
-
-        // Right Deltoid
-        path.moveTo(19.5, 16.0);
-        path.lineTo(27.0, 19.0);
-        path.lineTo(27.5, 26.0);
-        path.lineTo(23.0, 24.5);
-        path.close();
-        break;
-
-      case 'chest':
-        if (showFront) {
-          // Left Pec
-          path.moveTo(17.2, 16.0);
-          path.lineTo(12.5, 16.0);
-          path.lineTo(12.0, 24.5);
-          path.lineTo(17.2, 24.5);
-          path.close();
-
-          // Right Pec
-          path.moveTo(17.8, 16.0);
-          path.lineTo(22.5, 16.0);
-          path.lineTo(23.0, 24.5);
-          path.lineTo(17.8, 24.5);
-          path.close();
+    switch (cmd) {
+      case 'M':
+        // First pair → moveTo; subsequent pairs → implicit lineTo
+        {
+          bool first = true;
+          while (i + 1 < args.length + 1) {
+            final x = args[i++], y = args[i++];
+            if (first) {
+              moveTo(x, y);
+              first = false;
+            } else {
+              lineTo(x, y);
+            }
+          }
         }
         break;
-
-      case 'abs':
-        if (showFront) {
-          path.addRRect(RRect.fromRectAndRadius(
-            const Rect.fromLTRB(12.2, 25.5, 22.8, 40.0),
-            const Radius.circular(1.5),
-          ));
+      case 'm':
+        // Relative; first pair → relative moveTo; subsequent pairs → relative lineTo
+        {
+          bool first = true;
+          while (i + 1 < args.length + 1) {
+            final dx = args[i++], dy = args[i++];
+            if (first) {
+              moveTo(cx + dx, cy + dy);
+              first = false;
+            } else {
+              lineTo(cx + dx, cy + dy);
+            }
+          }
         }
         break;
-
-      case 'back':
-        if (!showFront) {
-          // Upper Back / Traps
-          path.moveTo(17.5, 13.5);
-          path.lineTo(15.5, 16.0);
-          path.lineTo(12.0, 23.0);
-          path.lineTo(17.5, 27.0);
-          path.lineTo(23.0, 23.0);
-          path.lineTo(19.5, 16.0);
-          path.close();
-
-          // Lats
-          path.moveTo(12.0, 23.0);
-          path.lineTo(11.5, 39.5);
-          path.lineTo(23.5, 39.5);
-          path.lineTo(23.0, 23.0);
-          path.lineTo(17.5, 27.0);
-          path.close();
+      case 'L':
+        while (i < args.length) {
+          lineTo(args[i++], args[i++]);
         }
         break;
-
-      case 'arms':
-        // Left Arm (upper arm + forearm)
-        path.moveTo(11.5, 25.5);
-        path.lineTo(11.5, 41.0);
-        path.lineTo(10.0, 56.0);
-        path.lineTo(7.0, 56.0);
-        path.lineTo(7.5, 41.0);
-        path.lineTo(7.5, 26.0);
+      case 'l':
+        while (i < args.length) {
+          lineTo(cx + args[i++], cy + args[i++]);
+        }
+        break;
+      case 'H':
+        while (i < args.length) {
+          lineTo(args[i++], cy);
+        }
+        break;
+      case 'h':
+        while (i < args.length) {
+          lineTo(cx + args[i++], cy);
+        }
+        break;
+      case 'V':
+        while (i < args.length) {
+          lineTo(cx, args[i++]);
+        }
+        break;
+      case 'v':
+        while (i < args.length) {
+          lineTo(cx, cy + args[i++]);
+        }
+        break;
+      case 'C':
+        while (i + 5 < args.length + 1) {
+          curveTo(args[i], args[i + 1], args[i + 2], args[i + 3], args[i + 4], args[i + 5]);
+          i += 6;
+        }
+        break;
+      case 'c':
+        while (i + 5 < args.length + 1) {
+          curveTo(cx + args[i], cy + args[i + 1], cx + args[i + 2],
+              cy + args[i + 3], cx + args[i + 4], cy + args[i + 5]);
+          i += 6;
+        }
+        break;
+      case 'S':
+        while (i + 3 < args.length + 1) {
+          final x1 = lastCmd == 'C' || lastCmd == 'c' || lastCmd == 'S' || lastCmd == 's'
+              ? 2 * cx - (lastCpX ?? cx)
+              : cx;
+          final y1 = lastCmd == 'C' || lastCmd == 'c' || lastCmd == 'S' || lastCmd == 's'
+              ? 2 * cy - (lastCpY ?? cy)
+              : cy;
+          curveTo(x1, y1, args[i], args[i + 1], args[i + 2], args[i + 3]);
+          i += 4;
+        }
+        break;
+      case 's':
+        while (i + 3 < args.length + 1) {
+          final x1 = lastCmd == 'C' || lastCmd == 'c' || lastCmd == 'S' || lastCmd == 's'
+              ? 2 * cx - (lastCpX ?? cx)
+              : cx;
+          final y1 = lastCmd == 'C' || lastCmd == 'c' || lastCmd == 'S' || lastCmd == 's'
+              ? 2 * cy - (lastCpY ?? cy)
+              : cy;
+          curveTo(x1, y1, cx + args[i], cy + args[i + 1],
+              cx + args[i + 2], cy + args[i + 3]);
+          i += 4;
+        }
+        break;
+      case 'Q':
+        while (i + 3 < args.length + 1) {
+          path.quadraticBezierTo(
+            args[i] * scaleX, args[i + 1] * scaleY,
+            args[i + 2] * scaleX, args[i + 3] * scaleY,
+          );
+          lastCpX = args[i];
+          lastCpY = args[i + 1];
+          cx = args[i + 2];
+          cy = args[i + 3];
+          i += 4;
+        }
+        break;
+      case 'q':
+        while (i + 3 < args.length + 1) {
+          path.quadraticBezierTo(
+            (cx + args[i]) * scaleX, (cy + args[i + 1]) * scaleY,
+            (cx + args[i + 2]) * scaleX, (cy + args[i + 3]) * scaleY,
+          );
+          lastCpX = cx + args[i];
+          lastCpY = cy + args[i + 1];
+          cx = cx + args[i + 2];
+          cy = cy + args[i + 3];
+          i += 4;
+        }
+        break;
+      case 'Z':
+      case 'z':
         path.close();
-
-        // Right Arm
-        path.moveTo(23.5, 25.5);
-        path.lineTo(23.5, 41.0);
-        path.lineTo(25.0, 56.0);
-        path.lineTo(28.0, 56.0);
-        path.lineTo(27.5, 41.0);
-        path.lineTo(27.5, 26.0);
-        path.close();
-        break;
-
-      case 'legs':
-        if (showFront) {
-          // Left Leg (thigh + calf)
-          path.moveTo(10.5, 44.5);
-          path.lineTo(11.5, 67.0);
-          path.lineTo(15.5, 67.0);
-          path.lineTo(16.0, 44.5);
-          path.close();
-
-          path.moveTo(11.5, 67.0);
-          path.lineTo(11.5, 87.0);
-          path.lineTo(14.5, 87.0);
-          path.lineTo(15.5, 67.0);
-          path.close();
-
-          // Right Leg
-          path.moveTo(24.5, 44.5);
-          path.lineTo(23.5, 67.0);
-          path.lineTo(19.5, 67.0);
-          path.lineTo(19.0, 44.5);
-          path.close();
-
-          path.moveTo(23.5, 67.0);
-          path.lineTo(23.5, 87.0);
-          path.lineTo(20.5, 87.0);
-          path.lineTo(19.5, 67.0);
-          path.close();
-        } else {
-          // Glutes
-          path.addRect(const Rect.fromLTRB(10.5, 39.5, 24.5, 46.5));
-          // Left Thigh
-          path.moveTo(10.5, 46.5);
-          path.lineTo(11.5, 67.0);
-          path.lineTo(16.0, 67.0);
-          path.lineTo(16.5, 46.5);
-          path.close();
-
-          // Left Calf
-          path.moveTo(11.5, 67.0);
-          path.lineTo(11.5, 87.0);
-          path.lineTo(14.5, 87.0);
-          path.lineTo(15.5, 67.0);
-          path.close();
-
-          // Right Thigh
-          path.moveTo(24.5, 46.5);
-          path.lineTo(23.5, 67.0);
-          path.lineTo(19.0, 67.0);
-          path.lineTo(18.5, 46.5);
-          path.close();
-
-          // Right Calf
-          path.moveTo(23.5, 67.0);
-          path.lineTo(23.5, 87.0);
-          path.lineTo(20.5, 87.0);
-          path.lineTo(19.5, 67.0);
-          path.close();
-        }
         break;
     }
-    return path;
+
+    if (cmd != 'Z' && cmd != 'z') lastCmd = cmd;
   }
+
+  return path;
+}
+
+// ─── SVG tokeniser ────────────────────────────────────────────────────────────
+
+class _PathToken {
+  final String command;
+  final List<double> args;
+  const _PathToken(this.command, this.args);
+}
+
+List<_PathToken> _tokenise(String d) {
+  final result = <_PathToken>[];
+  // Split by command letters
+  final regex = RegExp(r'([MmLlHhVvCcSsQqTtAaZz])([^MmLlHhVvCcSsQqTtAaZz]*)');
+  for (final match in regex.allMatches(d)) {
+    final cmd = match.group(1)!;
+    final raw = match.group(2)!.trim();
+    final nums = <double>[];
+    if (raw.isNotEmpty) {
+      // Numbers may be separated by commas, spaces, or sign changes
+      final numReg = RegExp(r'[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?');
+      for (final nm in numReg.allMatches(raw)) {
+        nums.add(double.parse(nm.group(0)!));
+      }
+    }
+    result.add(_PathToken(cmd, nums));
+  }
+  return result;
 }
