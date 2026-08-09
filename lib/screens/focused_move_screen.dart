@@ -1,9 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
-import '../widgets/exercise_illustration.dart';
+import '../models/exercise.dart';
+import '../repositories/exercise_repository.dart';
+import 'exercise_form_screen.dart';
 
-class FocusedMoveScreen extends StatelessWidget {
+class FocusedMoveScreen extends StatefulWidget {
   const FocusedMoveScreen({super.key});
+
+  @override
+  State<FocusedMoveScreen> createState() => _FocusedMoveScreenState();
+}
+
+class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
+  late Exercise _exercise;
+  bool _initialized = false;
+  bool _showConfirmDelete = false;
+  late ExerciseRepository _repository;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _exercise = ModalRoute.of(context)!.settings.arguments as Exercise;
+      _initRepository();
+      _initialized = true;
+    }
+  }
+
+  Future<void> _initRepository() async {
+    final prefs = await SharedPreferences.getInstance();
+    _repository = ExerciseRepository(prefs);
+  }
+
+  void _reloadExercise() {
+    final all = _repository.getAllExercises();
+    final updated = all.firstWhere((e) => e.id == _exercise.id, orElse: () => _exercise);
+    setState(() {
+      _exercise = updated;
+    });
+  }
+
+  Future<void> _deleteAndClose() async {
+    await _repository.deleteExercise(_exercise.id);
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _navigateToEdit() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExerciseFormScreen(
+          exercise: _exercise,
+          onSave: (updated) async {
+            await _repository.updateExercise(updated);
+            _reloadExercise();
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,85 +70,156 @@ class FocusedMoveScreen extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: AppTheme.spacingMd),
-                // ─── Header ────────────────────────────────
-                Row(
+          child: Column(
+            children: [
+              // Custom Header Row with Edit/Delete actions
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: 8),
+                child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
+                    // Back button on the right (start of row in RTL)
+                    IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios, color: AppTheme.textPrimary, size: 20),
+                      onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
                     Text('جزئیات حرکت', style: AppTheme.headlineMd),
                     const Spacer(),
-                    const SizedBox(width: 20),
+                    // Edit action button
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: AppTheme.textPrimary, size: 20),
+                      onPressed: _navigateToEdit,
+                    ),
+                    // Delete action button
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: AppTheme.error, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _showConfirmDelete = !_showConfirmDelete;
+                        });
+                      },
+                    ),
                   ],
                 ),
-                const SizedBox(height: AppTheme.spacingLg),
-                // ─── Exercise animation area ───────────────
+              ),
+              const Divider(color: AppTheme.outline, height: 1),
+              if (_showConfirmDelete)
                 Container(
-                  height: 240,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    border: Border.all(color: AppTheme.outline),
+                  color: AppTheme.surfaceHigh,
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: AppTheme.error, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'آیا از حذف این حرکت مطمئن هستید؟',
+                          style: AppTheme.bodyMd.copyWith(color: AppTheme.textPrimary),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _deleteAndClose,
+                        child: const Text('بله', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn')),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showConfirmDelete = false;
+                          });
+                        },
+                        child: const Text('خیر', style: TextStyle(color: AppTheme.textPrimary, fontFamily: 'Vazirmatn')),
+                      ),
+                    ],
                   ),
-                  child: const ExerciseIllustration(
-                    title: 'پرس سینه (میز تخت)',
-                    isAnimated: true,
+                ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppTheme.spacingMd),
+                      // ─── Exercise illustration area ───────────────
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          border: Border.all(color: AppTheme.outline),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.fitness_center,
+                            color: AppTheme.textPrimary,
+                            size: 64,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      // ─── Exercise title ────────────────────────
+                      Text(_exercise.name, style: AppTheme.headlineMd),
+                      const SizedBox(height: AppTheme.spacingSm),
+                      Text(
+                        _exercise.description,
+                        style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                      ),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      // ─── Exercise details cards ────────────────
+                      Row(
+                        children: [
+                          Expanded(child: _DetailChip(label: 'ست‌ها', value: '${_exercise.defaultSets}')),
+                          const SizedBox(width: AppTheme.spacingSm),
+                          Expanded(child: _DetailChip(label: 'تکرار', value: '${_exercise.defaultReps}')),
+                          const SizedBox(width: AppTheme.spacingSm),
+                          Expanded(child: _DetailChip(label: 'استراحت', value: '${_exercise.defaultRestSeconds} ثانیه')),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      // ─── Target muscles ───────────────────────
+                      Text('عضلات هدف و فرعی', style: AppTheme.headlineMd),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      Wrap(
+                        spacing: AppTheme.spacingSm,
+                        runSpacing: AppTheme.spacingSm,
+                        children: [
+                          // Primary muscle group tag
+                          _MuscleTag(
+                            label: _getMuscleGroupLabel(_exercise.primaryMuscleGroup),
+                            isPrimary: true,
+                          ),
+                          // Secondary muscle group tags
+                          for (final muscle in _exercise.secondaryMuscleGroups)
+                            _MuscleTag(label: muscle, isPrimary: false),
+                        ],
+                      ),
+                      const SizedBox(height: 100),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppTheme.spacingLg),
-                // ─── Exercise title ────────────────────────
-                Text('پرس سینه (میز تخت)', style: AppTheme.headlineMd),
-                const SizedBox(height: AppTheme.spacingSm),
-                Text(
-                  'تقویت عضلات سینه، سرشانه جلو و سه‌سر بازو',
-                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-                // ─── Exercise details cards ────────────────
-                Row(
-                  children: [
-                    Expanded(child: _DetailChip(label: 'ست‌ها', value: '۳')),
-                    const SizedBox(width: AppTheme.spacingSm),
-                    Expanded(child: _DetailChip(label: 'تکرار', value: '۱۲')),
-                    const SizedBox(width: AppTheme.spacingSm),
-                    Expanded(child: _DetailChip(label: 'استراحت', value: '۹۰ ثانیه')),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-                // ─── How to perform ───────────────────────
-                Text('نحوه اجرا', style: AppTheme.headlineMd),
-                const SizedBox(height: AppTheme.spacingMd),
-                _StepItem(number: '۱', text: 'روی میز تخت دراز بکشید و هالتر را با فاصله عرض شانه بگیرید.'),
-                _StepItem(number: '۲', text: 'هالتر را آرام پایین بیاورید تا به سینه نزدیک شود.'),
-                _StepItem(number: '۳', text: 'هالتر را بالا بفرستید و دست‌ها را کامل صاف کنید.'),
-                const SizedBox(height: AppTheme.spacingLg),
-                // ─── Target muscles ───────────────────────
-                Text('عضلات هدف', style: AppTheme.headlineMd),
-                const SizedBox(height: AppTheme.spacingMd),
-                Wrap(
-                  spacing: AppTheme.spacingSm,
-                  runSpacing: AppTheme.spacingSm,
-                  children: const [
-                    _MuscleTag(label: 'سینه بزرگ', isPrimary: true),
-                    _MuscleTag(label: 'سرشانه جلو'),
-                    _MuscleTag(label: 'سه‌سر بازو'),
-                  ],
-                ),
-                const SizedBox(height: 100),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  String _getMuscleGroupLabel(PrimaryMuscleGroup group) {
+    switch (group) {
+      case PrimaryMuscleGroup.chest:
+        return 'سینه';
+      case PrimaryMuscleGroup.back:
+        return 'پشت';
+      case PrimaryMuscleGroup.legs:
+        return 'پا';
+      case PrimaryMuscleGroup.shoulders:
+        return 'سرشانه';
+      case PrimaryMuscleGroup.arms:
+        return 'بازو';
+      case PrimaryMuscleGroup.abs:
+        return 'شکم';
+    }
   }
 }
 
@@ -107,46 +236,9 @@ class _DetailChip extends StatelessWidget {
       decoration: AppTheme.cardDecoration(),
       child: Column(
         children: [
-          Text(value, style: AppTheme.headlineMd.copyWith(color: AppTheme.primary)),
+          Text(value, style: AppTheme.bodyLg.copyWith(color: AppTheme.primary, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
           Text(label, style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary)),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepItem extends StatelessWidget {
-  final String number;
-  final String text;
-
-  const _StepItem({required this.number, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.spacingMd),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.primary, width: 1.5),
-            ),
-            child: Center(
-              child: Text(
-                number,
-                style: AppTheme.bodyMd.copyWith(color: AppTheme.primary, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppTheme.spacingSm),
-          Expanded(
-            child: Text(text, style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-          ),
         ],
       ),
     );

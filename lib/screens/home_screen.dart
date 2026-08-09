@@ -1,99 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
-import '../widgets/physiqo_logo.dart';
-import '../widgets/exercise_illustration.dart';
+import '../widgets/physiqo_header.dart';
+import '../models/exercise.dart';
+import '../repositories/exercise_repository.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late ExerciseRepository _repository;
+  bool _isLoading = true;
+  Exercise? _ex1;
+  Exercise? _ex2;
+  Exercise? _ex3;
+
+  @override
+  void initState() {
+    super.initState();
+    _initRepository();
+  }
+
+  Future<void> _initRepository() async {
+    final prefs = await SharedPreferences.getInstance();
+    _repository = ExerciseRepository(prefs);
+    _loadFeaturedExercises();
+  }
+
+  void _loadFeaturedExercises() {
+    final all = _repository.getAllExercises();
+    // Safely look up by ID or name
+    final e1 = all.firstWhere((e) => e.id == 'chest_1', orElse: () => all.first);
+    final e2 = all.firstWhere((e) => e.id == 'chest_5', orElse: () => all.first);
+    final e3 = all.firstWhere((e) => e.id == 'chest_6', orElse: () => all.first);
+
+    setState(() {
+      _ex1 = e1;
+      _ex2 = e2;
+      _ex3 = e3;
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Top Bar ───────────────────────────────────
-              _buildTopBar(),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Day Selector ──────────────────────────────
-              _buildDaySelector(),
-              const SizedBox(height: AppTheme.spacingSm),
-              // ─── Meta info ─────────────────────────────────
-              Text(
-                'زمان تخمینی کل: ۱ ساعت و ۳۵ دقیقه    تمرکز: سینه',
-                style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Section Header ────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('برنامه امروز', style: AppTheme.headlineMd),
-                  Text('۳ حرکت', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Exercise Cards ────────────────────────────
-              _ExerciseCard(
-                title: 'پرس سینه (میز تخت)',
-                muscle: 'سینه',
-                sets: '۳',
-                reps: '۱۲',
-                time: '۴۵ دقیقه',
-                isActive: true,
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              _ExerciseCard(
-                title: 'پرس بالا سینه دمبل',
-                muscle: 'سینه',
-                sets: '۳',
-                reps: '۱۲',
-                time: '۴۵ دقیقه',
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              _ExerciseCard(
-                title: 'پروانه دستگاه',
-                muscle: 'سینه',
-                sets: '۳',
-                reps: '۱۲',
-                time: '۴۶ دقیقه',
-              ),
-              const SizedBox(height: 100), // nav bar clearance
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Row(
-      children: [
-        const PhysiqoLogo(height: 24),
-        const Spacer(),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
           children: [
-            Text('Charlie', style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w600)),
-            Text(
-              'قد: ۱۷۵ سانتی‌متر / وزن: ۸۰ کیلوگرم',
-              style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+            PhysiqoHeader.profile(),
+            const Divider(color: AppTheme.outline, height: 1),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: AppTheme.spacingMd),
+                          // ─── Day Selector ──────────────────────────────
+                          _buildDaySelector(),
+                          const SizedBox(height: AppTheme.spacingSm),
+                          // ─── Meta info ─────────────────────────────────
+                          Text(
+                            'زمان تخمینی کل: ۱ ساعت و ۳۵ دقیقه    تمرکز: سینه',
+                            style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppTheme.spacingLg),
+                          // ─── Section Header ────────────────────────────
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('برنامه امروز', style: AppTheme.headlineMd),
+                              Text('۳ حرکت', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                            ],
+                          ),
+                          const SizedBox(height: AppTheme.spacingMd),
+                          // ─── Exercise Cards ────────────────────────────
+                          if (_ex1 != null)
+                            _ExerciseCard(
+                              exercise: _ex1!,
+                              isActive: true,
+                              onRefresh: _loadFeaturedExercises,
+                            ),
+                          const SizedBox(height: AppTheme.spacingSm),
+                          if (_ex2 != null)
+                            _ExerciseCard(
+                              exercise: _ex2!,
+                              onRefresh: _loadFeaturedExercises,
+                            ),
+                          const SizedBox(height: AppTheme.spacingSm),
+                          if (_ex3 != null)
+                            _ExerciseCard(
+                              exercise: _ex3!,
+                              onRefresh: _loadFeaturedExercises,
+                            ),
+                          const SizedBox(height: 100), // nav bar clearance
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
-        const SizedBox(width: 8),
-        const CircleAvatar(
-          radius: 18,
-          backgroundColor: AppTheme.surfaceHigh,
-          child: Icon(Icons.person, color: AppTheme.textSecondary, size: 20),
-        ),
-      ],
+      ),
     );
   }
 
@@ -184,32 +202,29 @@ class _DayDot extends StatelessWidget {
 }
 
 class _ExerciseCard extends StatelessWidget {
-  final String title;
-  final String muscle;
-  final String sets;
-  final String reps;
-  final String time;
+  final Exercise exercise;
   final bool isActive;
+  final VoidCallback onRefresh;
 
   const _ExerciseCard({
-    required this.title,
-    required this.muscle,
-    required this.sets,
-    required this.reps,
-    required this.time,
+    required this.exercise,
     this.isActive = false,
+    required this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).pushNamed('/focused_move'),
+      onTap: () async {
+        await Navigator.of(context).pushNamed('/focused_move', arguments: exercise);
+        onRefresh();
+      },
       child: Container(
         decoration: AppTheme.cardDecoration(active: isActive),
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         child: Row(
           children: [
-            // Custom line-art illustration per exercise
+            // Shared generic dumbbell icon placeholder
             Container(
               width: 80,
               height: 80,
@@ -217,11 +232,11 @@ class _ExerciseCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 color: AppTheme.surfaceHigh,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                child: ExerciseIllustration(
-                  title: title,
-                  isAnimated: false,
+              child: const Center(
+                child: Icon(
+                  Icons.fitness_center,
+                  color: AppTheme.textPrimary,
+                  size: 32,
                 ),
               ),
             ),
@@ -237,17 +252,25 @@ class _ExerciseCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                       color: AppTheme.surfaceHigh,
                     ),
-                    child: Text(muscle, style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary)),
+                    child: Text(
+                      _getMuscleGroupLabel(exercise.primaryMuscleGroup),
+                      style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(title, style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    exercise.name,
+                    style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
                   Text(
-                    'ست‌ها: $sets | تکرارها: $reps',
+                    'ست‌ها: ${exercise.defaultSets} | تکرارها: ${exercise.defaultReps}',
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                   ),
                   Text(
-                    'زمان تخمینی: $time',
+                    'زمان تخمینی: ${exercise.estimatedMinutes} دقیقه',
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                   ),
                 ],
@@ -257,5 +280,22 @@ class _ExerciseCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getMuscleGroupLabel(PrimaryMuscleGroup group) {
+    switch (group) {
+      case PrimaryMuscleGroup.chest:
+        return 'سینه';
+      case PrimaryMuscleGroup.back:
+        return 'پشت';
+      case PrimaryMuscleGroup.legs:
+        return 'پا';
+      case PrimaryMuscleGroup.shoulders:
+        return 'سرشانه';
+      case PrimaryMuscleGroup.arms:
+        return 'بازو';
+      case PrimaryMuscleGroup.abs:
+        return 'شکم';
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/body_illustration.dart';
+import '../widgets/physiqo_header.dart';
 
 class AnalysisScreen extends StatelessWidget {
   const AnalysisScreen({super.key});
@@ -12,34 +13,19 @@ class AnalysisScreen extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: AppTheme.spacingMd),
-                // ─── Header ──────────────────────────────────
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
-                    ),
-                    const Spacer(),
-                    Column(
-                      children: [
-                        Text('نتایج تحلیل', style: AppTheme.headlineMd),
-                        Text(
-                          'تحلیل هوش مصنوعی | ۱۵ آبان',
-                          style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    const SizedBox(width: 20),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.spacingXl),
+          child: Column(
+            children: [
+              PhysiqoHeader.back(
+                title: 'نتایج تحلیل',
+                subtitle: 'تحلیل هوش مصنوعی | ۱۵ آبان',
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: AppTheme.spacingMd),
                 // ─── Body illustration ────────────────────────
                 const SizedBox(
                   height: 280,
@@ -118,8 +104,11 @@ class AnalysisScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+),
+);
   }
 }
 

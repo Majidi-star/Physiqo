@@ -1,5 +1,11 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
+import '../widgets/physiqo_header.dart';
+import '../models/chat_message.dart';
+import '../models/chat_session.dart';
+import '../repositories/chat_repository.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -8,68 +14,297 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
-  final _messages = <_ChatMessage>[
-    _ChatMessage(
-      text: 'سلام! من مربی هوش مصنوعی شما هستم. چطور می‌تونم کمکتون کنم؟',
-      isBot: true,
-    ),
-  ];
+  late AnimationController _animationController;
+  late ChatRepository _repository;
+  bool _isLoading = true;
+  ChatSession? _activeSession;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+    _initRepository();
+  }
+
+  Future<void> _initRepository() async {
+    final prefs = await SharedPreferences.getInstance();
+    _repository = ChatRepository(prefs);
+    final sessions = _repository.getAllSessions();
+    if (sessions.isEmpty) {
+      final newSession = await _repository.createSession();
+      setState(() {
+        _activeSession = newSession;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _activeSession = sessions.first;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _messages.add(_ChatMessage(text: text, isBot: false));
-      _controller.clear();
-      // Simulated AI response
-      _messages.add(_ChatMessage(
-        text: 'ممنون از سوالت! بذار برنامه تمرینی مناسب رو برات طراحی کنم.',
-        isBot: true,
-      ));
+    if (text.isEmpty || _activeSession == null) return;
+
+    final userMsg = ChatMessage(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      role: ChatMessageRole.user,
+      content: text,
+      timestamp: DateTime.now(),
+    );
+
+    _controller.clear();
+    await _repository.addMessage(_activeSession!.id, userMsg);
+    _refreshActiveSession();
+
+    // Simulated AI response
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted && _activeSession != null) {
+        final botMsg = ChatMessage(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          role: ChatMessageRole.coach,
+          content: 'ممنون از سوالت! بذار برنامه تمرینی مناسب رو برات طراحی کنم.',
+          timestamp: DateTime.now(),
+        );
+        await _repository.addMessage(_activeSession!.id, botMsg);
+        _refreshActiveSession();
+      }
     });
+  }
+
+  Future<void> _handleQuickAction(String userMsgText, String botReplyText) async {
+    if (_activeSession == null) return;
+
+    final userMsg = ChatMessage(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      role: ChatMessageRole.user,
+      content: userMsgText,
+      timestamp: DateTime.now(),
+    );
+
+    await _repository.addMessage(_activeSession!.id, userMsg);
+    _refreshActiveSession();
+
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted && _activeSession != null) {
+        final botMsg = ChatMessage(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          role: ChatMessageRole.coach,
+          content: botReplyText,
+          timestamp: DateTime.now(),
+        );
+        await _repository.addMessage(_activeSession!.id, botMsg);
+        _refreshActiveSession();
+      }
+    });
+  }
+
+  void _refreshActiveSession() {
+    final sessions = _repository.getAllSessions();
+    final updated = sessions.firstWhere((s) => s.id == _activeSession?.id, orElse: () => _activeSession!);
+    setState(() {
+      _activeSession = updated;
+    });
+  }
+
+  Future<void> _startNewChat() async {
+    final newSession = await _repository.createSession();
+    setState(() {
+      _activeSession = newSession;
+    });
+  }
+
+  String _getRelativeTimestamp(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inSeconds < 60) {
+      return 'همین الان';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} دقیقه پیش';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} ساعت پیش';
+    } else {
+      return '${difference.inDays} روز پیش';
+    }
+  }
+
+  void _showHistorySheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final sessions = _repository.getAllSessions();
+
+            return Container(
+              padding: const EdgeInsets.all(AppTheme.gutter),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('تاریخچه گفتگوها', style: AppTheme.headlineMd),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: AppTheme.textPrimary),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(color: AppTheme.outline),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: sessions.length,
+                      itemBuilder: (context, index) {
+                        final session = sessions[index];
+                        final isSelected = session.id == _activeSession?.id;
+                        final lastMsg = session.messages.isNotEmpty
+                            ? session.messages.last.content
+                            : 'بدون پیام';
+                        final timeStr = _getRelativeTimestamp(session.updatedAt);
+
+                        return _SessionRow(
+                          session: session,
+                          isSelected: isSelected,
+                          lastMsgPreview: lastMsg,
+                          timeStr: timeStr,
+                          onSelect: () {
+                            setState(() {
+                              _activeSession = session;
+                            });
+                            Navigator.pop(context);
+                          },
+                          onRename: (newTitle) async {
+                            await _repository.renameSession(session.id, newTitle);
+                            setSheetState(() {});
+                            setState(() {
+                              if (_activeSession?.id == session.id) {
+                                _activeSession = _activeSession?.copyWith(title: newTitle);
+                              }
+                            });
+                          },
+                          onDelete: () async {
+                            await _repository.deleteSession(session.id);
+                            setSheetState(() {});
+                            final updated = _repository.getAllSessions();
+                            setState(() {
+                              if (updated.isNotEmpty) {
+                                _activeSession = updated.first;
+                              } else {
+                                _activeSession = null;
+                              }
+                            });
+                            if (_activeSession == null) {
+                              _startNewChat();
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Container(
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primary),
+        ),
+      );
+    }
+
+    final messages = _activeSession?.messages ?? [];
+    final showEmptyState = messages.isEmpty;
+
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
         child: Column(
           children: [
-            // ─── Header ────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.all(AppTheme.gutter),
+            PhysiqoHeader.back(title: 'مربی هوش مصنوعی'),
+            const Divider(color: AppTheme.outline, height: 1),
+            // Header control row (History & New Chat)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: 4),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppTheme.outline, width: 1),
+                ),
+              ),
               child: Row(
                 children: [
-                  const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
+                  // History button (RTL right side -> start of row)
+                  IconButton(
+                    icon: const Icon(Icons.history, color: AppTheme.textPrimary),
+                    onPressed: _showHistorySheet,
+                  ),
                   const Spacer(),
-                  Text('مربی هوش مصنوعی', style: AppTheme.headlineMd),
-                  const Spacer(),
-                  const SizedBox(width: 20),
+                  // New chat button (RTL left side -> end of row)
+                  IconButton(
+                    icon: const Icon(Icons.add_comment_outlined, color: AppTheme.primary),
+                    onPressed: _startNewChat,
+                  ),
                 ],
               ),
             ),
-            const Divider(color: AppTheme.outline, height: 1),
-            // ─── Messages ──────────────────────────────────
+            // Content Area
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(AppTheme.gutter),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[index];
-                  return _ChatBubble(message: msg);
-                },
-              ),
+              child: showEmptyState
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(AppTheme.gutter),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = messages[index];
+                        return _ChatBubble(
+                          message: msg,
+                          onEdit: () {},
+                          onDelete: () async {
+                            if (_activeSession != null) {
+                              await _repository.deleteMessage(_activeSession!.id, msg.id);
+                              _refreshActiveSession();
+                            }
+                          },
+                          onUpdateContent: (newContent) async {
+                            if (_activeSession != null) {
+                              await _repository.editMessage(_activeSession!.id, msg.id, newContent);
+                              _refreshActiveSession();
+                            }
+                          },
+                        );
+                      },
+                    ),
             ),
-            // ─── Input ─────────────────────────────────────
+            // Input Bar
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingSm),
               decoration: const BoxDecoration(
@@ -119,42 +354,531 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
+  Widget _buildEmptyState() {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 40),
+          // Pulsing AI Avatar / Orb Visual
+          SizedBox(
+            width: 160,
+            height: 160,
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _AiOrbPainter(animationValue: _animationController.value),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Greeting Message
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Text(
+              'سلام! من مربی هوش مصنوعی شما هستم. چطور می‌تونم کمکتون کنم؟',
+              style: AppTheme.bodyLg.copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.6,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Three Horizontal Quick-Action Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+            child: Row(
+              children: [
+                _QuickActionChip(
+                  label: 'اسکن بدن من',
+                  onTap: () => _handleQuickAction(
+                    'اسکن بدن من',
+                    'لطفاً به بخش اسکن بدن بروید و روی دکمه شروع اسکن کلیک کنید تا وضعیت بدن شما را تحلیل کنم.',
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingSm),
+                _QuickActionChip(
+                  label: 'برنامه این هفته',
+                  onTap: () => _handleQuickAction(
+                    'برنامه این هفته',
+                    'برنامه تمرینی این هفته شما آماده است. شامل تمرینات سینه، پشت و پا در روزهای زوج می‌باشد.',
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingSm),
+                _QuickActionChip(
+                  label: 'سوال درباره یک حرکت',
+                  onTap: () => _handleQuickAction(
+                    'سوال درباره یک حرکت',
+                    'درباره کدام حرکت ورزشی سوالی دارید؟ به عنوان مثال می‌توانید درباره نحوه اجرای درست حرکت پرس سینه بپرسید.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
 }
 
-class _ChatMessage {
-  final String text;
-  final bool isBot;
-  _ChatMessage({required this.text, required this.isBot});
-}
+class _QuickActionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
 
-class _ChatBubble extends StatelessWidget {
-  final _ChatMessage message;
-  const _ChatBubble({required this.message});
+  const _QuickActionChip({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: message.isBot ? Alignment.centerRight : Alignment.centerLeft,
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: message.isBot ? AppTheme.surface : AppTheme.primary,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: message.isBot
-              ? Border.all(color: AppTheme.outline, width: 1)
-              : null,
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          border: Border.all(color: AppTheme.outline),
         ),
         child: Text(
-          message.text,
+          label,
           style: AppTheme.bodyMd.copyWith(
-            color: message.isBot ? AppTheme.textPrimary : AppTheme.onPrimary,
+            color: AppTheme.primary,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
     );
+  }
+}
+
+class _ChatBubble extends StatefulWidget {
+  final ChatMessage message;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final Function(String) onUpdateContent;
+
+  const _ChatBubble({
+    required this.message,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onUpdateContent,
+  });
+
+  @override
+  State<_ChatBubble> createState() => _ChatBubbleState();
+}
+
+class _ChatBubbleState extends State<_ChatBubble> {
+  bool _showActions = false;
+  bool _isEditing = false;
+  bool _showConfirmDelete = false;
+  late TextEditingController _editController;
+
+  @override
+  void initState() {
+    super.initState();
+    _editController = TextEditingController(text: widget.message.content);
+  }
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCoach = widget.message.role == ChatMessageRole.coach;
+
+    return Align(
+      alignment: isCoach ? Alignment.centerRight : Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: isCoach ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        children: [
+          GestureDetector(
+            onLongPress: () {
+              if (!isCoach) {
+                setState(() {
+                  _showActions = !_showActions;
+                  _showConfirmDelete = false;
+                  _isEditing = false;
+                });
+              }
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
+              decoration: BoxDecoration(
+                color: isCoach
+                    ? AppTheme.surface
+                    : AppTheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: isCoach
+                    ? Border.all(color: AppTheme.outline, width: 1)
+                    : Border.all(color: AppTheme.primary.withValues(alpha: 0.3), width: 1),
+              ),
+              child: _isEditing
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _editController,
+                          style: AppTheme.bodyMd,
+                          maxLines: null,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isEditing = false;
+                                  _editController.text = widget.message.content;
+                                });
+                              },
+                              child: const Text('انصراف', style: TextStyle(color: AppTheme.textSecondary)),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                final text = _editController.text.trim();
+                                if (text.isNotEmpty) {
+                                  widget.onUpdateContent(text);
+                                }
+                                setState(() {
+                                  _isEditing = false;
+                                  _showActions = false;
+                                });
+                              },
+                              child: const Text('ثبت', style: TextStyle(color: AppTheme.primary)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.message.content,
+                          style: AppTheme.bodyMd.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        if (widget.message.isEdited) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'ویرایش شده',
+                            style: AppTheme.labelMd.copyWith(
+                              color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                              fontSize: 9,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+            ),
+          ),
+          if (_showActions && !isCoach && !_isEditing && !_showConfirmDelete)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0, left: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 16, color: AppTheme.textSecondary),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    onPressed: () {
+                      setState(() {
+                        _isEditing = true;
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 16, color: AppTheme.error),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    onPressed: () {
+                      setState(() {
+                        _showConfirmDelete = true;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          if (_showConfirmDelete && !_isEditing)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0, left: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceHigh,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('حذف شود؟', style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: widget.onDelete,
+                      child: Text('بله', style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _showConfirmDelete = false;
+                          _showActions = false;
+                        });
+                      },
+                      child: Text('خیر', style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SessionRow extends StatefulWidget {
+  final ChatSession session;
+  final bool isSelected;
+  final String lastMsgPreview;
+  final String timeStr;
+  final VoidCallback onSelect;
+  final Function(String) onRename;
+  final VoidCallback onDelete;
+
+  const _SessionRow({
+    required this.session,
+    required this.isSelected,
+    required this.lastMsgPreview,
+    required this.timeStr,
+    required this.onSelect,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  @override
+  State<_SessionRow> createState() => _SessionRowState();
+}
+
+class _SessionRowState extends State<_SessionRow> {
+  bool _isRenaming = false;
+  bool _showConfirmDelete = false;
+  late TextEditingController _renameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _renameController = TextEditingController(text: widget.session.title);
+  }
+
+  @override
+  void dispose() {
+    _renameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+      decoration: BoxDecoration(
+        color: widget.isSelected ? AppTheme.surfaceHigh : AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: widget.isSelected ? AppTheme.primary : AppTheme.outline,
+          width: 1,
+        ),
+      ),
+      child: ListTile(
+        onTap: _isRenaming || _showConfirmDelete ? null : widget.onSelect,
+        title: _isRenaming
+            ? Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _renameController,
+                      style: AppTheme.bodyMd,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                      ),
+                      autofocus: true,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.check, color: AppTheme.primary, size: 18),
+                    onPressed: () {
+                      final val = _renameController.text.trim();
+                      if (val.isNotEmpty) {
+                        widget.onRename(val);
+                      }
+                      setState(() {
+                        _isRenaming = false;
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 18),
+                    onPressed: () {
+                      setState(() {
+                        _isRenaming = false;
+                        _renameController.text = widget.session.title;
+                      });
+                    },
+                  ),
+                ],
+              )
+            : Text(
+                widget.session.title,
+                style: AppTheme.bodyLg.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: widget.isSelected ? AppTheme.primary : AppTheme.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+        subtitle: _showConfirmDelete
+            ? Row(
+                children: [
+                  Text('حذف شود؟', style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: widget.onDelete,
+                    child: Text('بله', style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _showConfirmDelete = false;
+                      });
+                    },
+                    child: Text('خیر', style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.lastMsgPreview,
+                      style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.timeStr,
+                    style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary, fontSize: 10),
+                  ),
+                ],
+              ),
+        trailing: _isRenaming || _showConfirmDelete
+            ? null
+            : PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
+                color: AppTheme.surfaceHigh,
+                onSelected: (val) {
+                  if (val == 'rename') {
+                    setState(() {
+                      _isRenaming = true;
+                    });
+                  } else if (val == 'delete') {
+                    setState(() {
+                      _showConfirmDelete = true;
+                    });
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Text('تغییر نام', style: TextStyle(color: AppTheme.textPrimary)),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('حذف گفتگو', style: TextStyle(color: AppTheme.error)),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _AiOrbPainter extends CustomPainter {
+  final double animationValue;
+
+  _AiOrbPainter({required this.animationValue});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppTheme.primary
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final whitePaint = Paint()
+      ..color = AppTheme.textPrimary
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final radius = size.width / 2 - 16;
+
+    // Draw central inner flat background
+    canvas.drawCircle(Offset(cx, cy), radius - 12, whitePaint..color = AppTheme.surfaceHigh..style = PaintingStyle.fill);
+    canvas.drawCircle(Offset(cx, cy), radius - 12, whitePaint..color = AppTheme.textSecondary.withValues(alpha: 0.3)..style = PaintingStyle.stroke);
+
+    // Inner flat sine wave
+    final path = Path();
+    path.moveTo(cx - 24, cy);
+    for (double x = -24; x <= 24; x += 1) {
+      final y = math.sin((x + animationValue * 360) * math.pi / 24) * 8 * math.sin(animationValue * math.pi);
+      path.lineTo(cx + x, cy + y);
+    }
+    canvas.drawPath(path, Paint()..color = AppTheme.primary..strokeWidth = 2.0..style = PaintingStyle.stroke);
+
+    // Outer dense radial spikes
+    final numSpikes = 80;
+    for (int i = 0; i < numSpikes; i++) {
+      final angle = (i * 2 * math.pi) / numSpikes + (animationValue * 2 * math.pi * 0.1);
+      final wave = math.sin(angle * 4 + animationValue * 2 * math.pi) * 0.5 + 0.5;
+      final spikeHeight = 4 + wave * 16;
+
+      final startX = cx + radius * math.cos(angle);
+      final startY = cy + radius * math.sin(angle);
+      final endX = cx + (radius + spikeHeight) * math.cos(angle);
+      final endY = cy + (radius + spikeHeight) * math.sin(angle);
+
+      canvas.drawLine(Offset(startX, startY), Offset(endX, endY), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AiOrbPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue;
   }
 }

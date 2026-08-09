@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/physiqo_header.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -9,25 +10,18 @@ class SettingsScreen extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Header ──────────────────────────────────
-              Row(
-                children: [
-                  const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 28),
-                  const Spacer(),
-                  Text('تنظیمات', style: AppTheme.headlineMd),
-                  const Spacer(),
-                  const SizedBox(width: 20),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingXl),
-              // ─── Profile card ─────────────────────────────
-              Container(
+        child: Column(
+          children: [
+            PhysiqoHeader.back(title: 'تنظیمات'),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppTheme.spacingMd),
+                    // ─── Profile card ─────────────────────────────
+                    Container(
                 decoration: AppTheme.cardDecoration(),
                 padding: const EdgeInsets.all(AppTheme.spacingMd),
                 child: Row(
@@ -92,7 +86,10 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ],
+  ),
+),
+);
   }
 }
 

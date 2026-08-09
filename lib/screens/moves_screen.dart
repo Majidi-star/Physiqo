@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
-import '../widgets/physiqo_logo.dart';
-import '../widgets/exercise_illustration.dart';
+import '../widgets/physiqo_header.dart';
+import '../models/exercise.dart';
+import '../repositories/exercise_repository.dart';
+import 'exercise_form_screen.dart';
 
 class MovesScreen extends StatefulWidget {
   const MovesScreen({super.key});
@@ -12,74 +15,140 @@ class MovesScreen extends StatefulWidget {
 
 class _MovesScreenState extends State<MovesScreen> {
   int _selectedCategory = 0;
-
-  static const _exercises = [
-    {'title': 'پرس سینه (میز تخت)', 'subtitle': 'تقویت عضلات سینه و سرشانه'},
-    {'title': 'پرس بالا سینه دمبل', 'subtitle': 'تقویت عضلات سینه و سرشانه'},
-    {'title': 'پروانه دستگاه', 'subtitle': 'تقویت عضلات سینه و سرشانه'},
-  ];
+  late ExerciseRepository _repository;
+  bool _isLoading = true;
+  List<Exercise> _exercises = [];
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppTheme.spacingMd),
-              _buildTopBar(),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Category chips ────────────────────────────
-              _buildCategoryGrid(),
-              const SizedBox(height: AppTheme.spacingLg),
-              // ─── Section title ─────────────────────────────
-              Text(
-                'تمرینات ${AppTheme.muscleCategories[_selectedCategory]['label']}',
-                style: AppTheme.headlineMd,
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-              // ─── Exercise list ─────────────────────────────
-              for (int i = 0; i < _exercises.length; i++) ...[
-                _MoveCard(
-                  title: _exercises[i]['title']!,
-                  subtitle: _exercises[i]['subtitle']!,
-                ),
-                if (i < _exercises.length - 1)
-                  const SizedBox(height: AppTheme.spacingSm),
-              ],
-              const SizedBox(height: 100),
-            ],
-          ),
+  void initState() {
+    super.initState();
+    _initRepository();
+  }
+
+  Future<void> _initRepository() async {
+    final prefs = await SharedPreferences.getInstance();
+    _repository = ExerciseRepository(prefs);
+    _loadExercises();
+  }
+
+  void _loadExercises() {
+    final category = _getMuscleGroupFromIndex(_selectedCategory);
+    setState(() {
+      _exercises = _repository.getExercisesByCategory(category);
+      _isLoading = false;
+    });
+  }
+
+  PrimaryMuscleGroup _getMuscleGroupFromIndex(int index) {
+    switch (index) {
+      case 0:
+        return PrimaryMuscleGroup.chest;
+      case 1:
+        return PrimaryMuscleGroup.back;
+      case 2:
+        return PrimaryMuscleGroup.legs;
+      case 3:
+        return PrimaryMuscleGroup.abs;
+      case 4:
+        return PrimaryMuscleGroup.arms;
+      case 5:
+        return PrimaryMuscleGroup.shoulders;
+      default:
+        return PrimaryMuscleGroup.chest;
+    }
+  }
+
+  void _navigateToAddExercise() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExerciseFormScreen(
+          onSave: (newEx) async {
+            await _repository.addExercise(newEx);
+            _loadExercises();
+          },
         ),
       ),
     );
   }
 
-  Widget _buildTopBar() {
-    return Row(
-      children: [
-        const PhysiqoLogo(height: 24),
-        const Spacer(),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text('Charlie', style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w600)),
-            Text(
-              'قد: ۱۷۵ سانتی‌متر / وزن: ۸۰ کیلوگرم',
-              style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-            ),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _navigateToAddExercise,
+        backgroundColor: AppTheme.primary,
+        icon: const Icon(Icons.add, color: AppTheme.onPrimary),
+        label: const Text(
+          'افزودن حرکت',
+          style: TextStyle(
+            color: AppTheme.onPrimary,
+            fontFamily: 'Vazirmatn',
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(width: 8),
-        const CircleAvatar(
-          radius: 18,
-          backgroundColor: AppTheme.surfaceHigh,
-          child: Icon(Icons.person, color: AppTheme.textSecondary, size: 20),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         ),
-      ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              PhysiqoHeader.profile(),
+              const Divider(color: AppTheme.outline, height: 1),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: AppTheme.primary),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: AppTheme.spacingMd),
+                            // ─── Category chips ────────────────────────────
+                            _buildCategoryGrid(),
+                            const SizedBox(height: AppTheme.spacingLg),
+                            // ─── Section title ─────────────────────────────
+                            Text(
+                              'تمرینات ${AppTheme.muscleCategories[_selectedCategory]['label']}',
+                              style: AppTheme.headlineMd,
+                            ),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            // ─── Exercise list ─────────────────────────────
+                            if (_exercises.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 40),
+                                child: Center(
+                                  child: Text(
+                                    'حرکتی در این دسته وجود ندارد.',
+                                    style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                  ),
+                                ),
+                              )
+                            else
+                              for (int i = 0; i < _exercises.length; i++) ...[
+                                _MoveCard(
+                                  exercise: _exercises[i],
+                                  onRefresh: _loadExercises,
+                                ),
+                                if (i < _exercises.length - 1)
+                                  const SizedBox(height: AppTheme.spacingSm),
+                              ],
+                            const SizedBox(height: 100),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -91,7 +160,12 @@ class _MovesScreenState extends State<MovesScreen> {
         final cat = AppTheme.muscleCategories[index];
         final isActive = _selectedCategory == index;
         return GestureDetector(
-          onTap: () => setState(() => _selectedCategory = index),
+          onTap: () {
+            setState(() {
+              _selectedCategory = index;
+              _loadExercises();
+            });
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
@@ -127,28 +201,34 @@ class _MovesScreenState extends State<MovesScreen> {
 }
 
 class _MoveCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
+  final Exercise exercise;
+  final VoidCallback onRefresh;
 
-  const _MoveCard({required this.title, required this.subtitle});
+  const _MoveCard({required this.exercise, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).pushNamed('/focused_move'),
+      onTap: () async {
+        await Navigator.of(context).pushNamed('/focused_move', arguments: exercise);
+        onRefresh();
+      },
       child: Container(
         decoration: AppTheme.cardDecoration(),
         clipBehavior: Clip.antiAlias,
         child: Row(
           children: [
-            // Shared illustration rendering
+            // Shared generic dumbbell icon placeholder
             Container(
-              width: 120,
-              height: 100,
+              width: 100,
+              height: 90,
               color: AppTheme.surfaceHigh,
-              child: ExerciseIllustration(
-                title: title,
-                isAnimated: false,
+              child: const Center(
+                child: Icon(
+                  Icons.fitness_center,
+                  color: AppTheme.textPrimary,
+                  size: 32,
+                ),
               ),
             ),
             Expanded(
@@ -157,12 +237,42 @@ class _MoveCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      exercise.name,
+                      style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      subtitle,
+                      exercise.description,
                       style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (exercise.secondaryMuscleGroups.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 4,
+                        children: exercise.secondaryMuscleGroups.take(2).map((m) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppTheme.outline),
+                            ),
+                            child: Text(
+                              m,
+                              style: AppTheme.labelMd.copyWith(
+                                fontSize: 9,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),

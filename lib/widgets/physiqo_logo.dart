@@ -12,6 +12,7 @@ class PhysiqoLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      textDirection: TextDirection.ltr,
       children: [
         // Chevron mark
         CustomPaint(
@@ -23,7 +24,7 @@ class PhysiqoLogo extends StatelessWidget {
         Text(
           'Physiqo',
           style: TextStyle(
-            fontFamily: 'Vazirmatn',
+            fontFamily: 'Inter',
             fontSize: height * 0.75,
             fontWeight: FontWeight.w700,
             color: AppTheme.textPrimary,
