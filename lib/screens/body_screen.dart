@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
-import '../widgets/low_poly_body_widget.dart';
+import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as fbps;
+import '../widgets/physiqo_interactive_body_svg.dart';
+import 'body_scan/scan_capture_flow.dart';
 
 class BodyScreen extends StatefulWidget {
   const BodyScreen({super.key});
@@ -14,8 +17,75 @@ class _BodyScreenState extends State<BodyScreen> {
   int _selectedMuscle = 2; // پا (Legs) active by default
   bool _showFront = true;
 
-  String get _selectedLabel =>
-      AppTheme.muscleCategories[_selectedMuscle]['label'] as String;
+  // Mapping between the 6 high-level categories and specific SVG muscles
+  static const Map<int, Set<fbps.Muscle>> _categoryToMuscles = {
+    0: {fbps.Muscle.chestLeft, fbps.Muscle.chestRight}, // سینه
+    1: { // پشت
+      fbps.Muscle.latsBackLeft,
+      fbps.Muscle.latsBackRight,
+      fbps.Muscle.lowerLatsBackLeft,
+      fbps.Muscle.lowerLatsBackRight,
+    },
+    2: { // پا
+      fbps.Muscle.quadsLeft,
+      fbps.Muscle.quadsRight,
+      fbps.Muscle.calvesLeft,
+      fbps.Muscle.calvesRight,
+      fbps.Muscle.hamstringsLeft,
+      fbps.Muscle.hamstringsRight,
+      fbps.Muscle.glutesLeft,
+      fbps.Muscle.glutesRight,
+    },
+    3: {fbps.Muscle.abs}, // شکم
+    4: { // بازو
+      fbps.Muscle.bicepsLeft,
+      fbps.Muscle.bicepsRight,
+      fbps.Muscle.tricepsLeft,
+      fbps.Muscle.tricepsRight,
+      fbps.Muscle.forearmsLeft,
+      fbps.Muscle.forearmsRight,
+    },
+    5: {fbps.Muscle.deltsLeft, fbps.Muscle.deltsRight, fbps.Muscle.trapsLeft, fbps.Muscle.trapsRight}, // سرشانه
+  };
+
+  void _onMuscleTapped(fbps.Muscle muscle) {
+    int matchedCategory = -1;
+    _categoryToMuscles.forEach((index, muscles) {
+      if (muscles.contains(muscle)) {
+        matchedCategory = index;
+      }
+    });
+
+    if (matchedCategory != -1) {
+      setState(() {
+        _selectedMuscle = matchedCategory;
+        // Auto-switch front/back view depending on where the tapped muscle lies
+        final isBackMuscle = [
+          fbps.Muscle.latsBackLeft,
+          fbps.Muscle.latsBackRight,
+          fbps.Muscle.lowerLatsBackLeft,
+          fbps.Muscle.lowerLatsBackRight,
+          fbps.Muscle.glutesLeft,
+          fbps.Muscle.glutesRight,
+          fbps.Muscle.hamstringsLeft,
+          fbps.Muscle.hamstringsRight,
+        ].contains(muscle);
+        _showFront = !isBackMuscle;
+      });
+    }
+  }
+
+  void _selectCategory(int index) {
+    setState(() {
+      _selectedMuscle = index;
+      // Auto-switch view direction based on selected category
+      if (index == 1) { // پشت (Back)
+        _showFront = false;
+      } else if (index == 0 || index == 3 || index == 5) { // سینه، شکم، سرشانه
+        _showFront = true;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +112,11 @@ class _BodyScreenState extends State<BodyScreen> {
                         ),
                         const Spacer(),
                         GestureDetector(
-                          onTap: () => Navigator.of(context).pushNamed('/analysis'),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ScanCaptureFlow(),
+                            ),
+                          ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
@@ -70,17 +144,27 @@ class _BodyScreenState extends State<BodyScreen> {
                           // ── Interactive body map ──────────────────────────
                           Expanded(
                             flex: 3,
-                            child: LowPolyBodyWidget(
-                              selectedCategory: _selectedLabel,
-                              showFront: _showFront,
-                              onToggleView: () => setState(() => _showFront = !_showFront),
-                              onCategoryTap: (persian) {
-                                if (persian == null) return;
-                                final idx = AppTheme.muscleCategories.indexWhere(
-                                  (m) => m['label'] == persian,
-                                );
-                                if (idx != -1) setState(() => _selectedMuscle = idx);
-                              },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                PhysiqoInteractiveBodySvg(
+                                  isFront: _showFront,
+                                  selectedMuscles: _categoryToMuscles[_selectedMuscle] ?? {},
+                                  onMuscleTap: _onMuscleTapped,
+                                  highlightColor: AppTheme.primary,
+                                  unselectedStrokeWidth: 1.0,
+                                  selectedStrokeWidth: 1.5,
+                                  fit: BoxFit.contain,
+                                  // Known limitation: package is male-only, using default male silhouette.
+                                ),
+                                Positioned(
+                                  bottom: 8,
+                                  child: _ViewToggle(
+                                    showFront: _showFront,
+                                    onToggle: () => setState(() => _showFront = !_showFront),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: AppTheme.spacingMd),
@@ -96,8 +180,7 @@ class _BodyScreenState extends State<BodyScreen> {
                                 final m = AppTheme.muscleCategories[index];
                                 final isActive = _selectedMuscle == index;
                                 return GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _selectedMuscle = index),
+                                  onTap: () => _selectCategory(index),
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 150),
                                     curve: Curves.easeOut,
@@ -118,12 +201,16 @@ class _BodyScreenState extends State<BodyScreen> {
                                       textDirection: TextDirection.rtl,
                                       child: Row(
                                         children: [
-                                          Icon(
-                                            m['icon'] as IconData,
-                                            size: 18,
-                                            color: isActive
-                                                ? AppTheme.primary
-                                                : AppTheme.textPrimary,
+                                          SvgPicture.asset(
+                                            m['svg'] as String,
+                                            width: 18,
+                                            height: 18,
+                                            colorFilter: ColorFilter.mode(
+                                              isActive
+                                                  ? AppTheme.primary
+                                                  : AppTheme.textPrimary,
+                                              BlendMode.srcIn,
+                                            ),
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
@@ -165,6 +252,53 @@ class _BodyScreenState extends State<BodyScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewToggle extends StatelessWidget {
+  final bool showFront;
+  final VoidCallback? onToggle;
+
+  const _ViewToggle({required this.showFront, this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onToggle,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: Border.all(color: AppTheme.outline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _pill('جلو', !showFront),
+            const SizedBox(width: 8),
+            _pill('پشت', showFront),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pill(String label, bool inactive) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: inactive ? Colors.transparent : AppTheme.primary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.labelMd.copyWith(
+          color: inactive ? AppTheme.textSecondary : AppTheme.onPrimary,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

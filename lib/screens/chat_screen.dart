@@ -68,6 +68,10 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     );
 
     _controller.clear();
+    
+    if (_activeSession!.messages.isEmpty) {
+      await _repository.saveNewSession(_activeSession!);
+    }
     await _repository.addMessage(_activeSession!.id, userMsg);
     _refreshActiveSession();
 
@@ -96,6 +100,9 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       timestamp: DateTime.now(),
     );
 
+    if (_activeSession!.messages.isEmpty) {
+      await _repository.saveNewSession(_activeSession!);
+    }
     await _repository.addMessage(_activeSession!.id, userMsg);
     _refreshActiveSession();
 
@@ -122,6 +129,9 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _startNewChat() async {
+    if (_activeSession != null && _activeSession!.messages.isEmpty) {
+      return;
+    }
     final newSession = await _repository.createSession();
     setState(() {
       _activeSession = newSession;
@@ -314,11 +324,31 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                 ),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  GestureDetector(
+                    onTap: _sendMessage,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.primary,
+                      ),
+                      child: const Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Icon(Icons.send, color: AppTheme.onPrimary, size: 18),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _controller,
                       style: AppTheme.bodyMd,
+                      minLines: 1,
+                      maxLines: 5,
+                      keyboardType: TextInputType.multiline,
                       decoration: InputDecoration(
                         hintText: 'پیام خود را بنویسید...',
                         hintStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
@@ -331,19 +361,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
                       onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppTheme.primary,
-                      ),
-                      child: const Icon(Icons.send, color: AppTheme.onPrimary, size: 18),
                     ),
                   ),
                 ],

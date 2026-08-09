@@ -13,6 +13,13 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.0
+  flutter_body_part_selector: ^1.2.1
+  flutter_svg: ^2.0.10+1
+  xml: ^6.6.1
+  camera: ^0.10.5+9
+  permission_handler: ^11.3.1
+  flutter_secure_storage: ^9.2.2
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
@@ -24,6 +31,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/icons/muscles/
 
   fonts:
     - family: Vazirmatn

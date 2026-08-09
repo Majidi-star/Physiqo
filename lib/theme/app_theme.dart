@@ -12,12 +12,12 @@ class AppTheme {
   AppTheme._();
 
   static const List<Map<String, dynamic>> muscleCategories = [
-    {'label': 'سینه', 'icon': Icons.accessibility_new},
-    {'label': 'پشت', 'icon': Icons.accessibility_new},
-    {'label': 'پا', 'icon': Icons.accessibility_new},
-    {'label': 'شکم', 'icon': Icons.accessibility_new},
-    {'label': 'بازو', 'icon': Icons.accessibility_new},
-    {'label': 'سرشانه', 'icon': Icons.accessibility_new},
+    {'label': 'سینه', 'svg': 'assets/icons/muscles/chest.svg'},
+    {'label': 'پشت', 'svg': 'assets/icons/muscles/back.svg'},
+    {'label': 'پا', 'svg': 'assets/icons/muscles/legs.svg'},
+    {'label': 'شکم', 'svg': 'assets/icons/muscles/abs.svg'},
+    {'label': 'بازو', 'svg': 'assets/icons/muscles/arms.svg'},
+    {'label': 'سرشانه', 'svg': 'assets/icons/muscles/shoulders.svg'},
   ];
 
   // ─── Colors ────────────────────────────────────────────────────────

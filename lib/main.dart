@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/moves_screen.dart';
@@ -8,6 +9,7 @@ import 'screens/body_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/focused_move_screen.dart';
+import 'screens/splash_screen.dart';
 import 'widgets/physiqo_nav_bar.dart';
 
 void main() {
@@ -19,8 +21,44 @@ void main() {
   runApp(const PhysiqoApp());
 }
 
-class PhysiqoApp extends StatelessWidget {
+class PhysiqoApp extends StatefulWidget {
   const PhysiqoApp({super.key});
+
+  static void setLocale(BuildContext context, Locale newLocale) {
+    _PhysiqoAppState? state = context.findAncestorStateOfType<_PhysiqoAppState>();
+    state?.setLocale(newLocale);
+  }
+
+  @override
+  State<PhysiqoApp> createState() => _PhysiqoAppState();
+}
+
+class _PhysiqoAppState extends State<PhysiqoApp> {
+  Locale _locale = const Locale('fa', 'IR');
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocale();
+  }
+
+  Future<void> _fetchLocale() async {
+    final prefs = await SharedPreferences.getInstance();
+    final langCode = prefs.getString('app_language');
+    if (langCode != null) {
+      if (langCode == 'en') {
+        setState(() => _locale = const Locale('en', 'US'));
+      } else {
+        setState(() => _locale = const Locale('fa', 'IR'));
+      }
+    }
+  }
+
+  void setLocale(Locale locale) {
+    setState(() {
+      _locale = locale;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,19 +66,19 @@ class PhysiqoApp extends StatelessWidget {
       title: 'Physiqo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      // Force RTL and Persian Locale
-      locale: const Locale('fa', 'IR'),
+      locale: _locale,
       supportedLocales: const [
         Locale('fa', 'IR'),
+        Locale('en', 'US'),
       ],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      initialRoute: '/',
+      home: SplashScreen(key: UniqueKey()),
       routes: {
-        '/': (context) => const MainShell(),
+        '/main': (context) => const MainShell(),
         '/analysis': (context) => const AnalysisScreen(),
         '/focused_move': (context) => const FocusedMoveScreen(),
       },

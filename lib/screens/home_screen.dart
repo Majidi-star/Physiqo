@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
+import '../widgets/circuit_timeline_painter.dart';
 import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
+import 'focused_move_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -89,7 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (_ex1 != null)
                             _ExerciseCard(
                               exercise: _ex1!,
-                              isActive: true,
                               onRefresh: _loadFeaturedExercises,
                             ),
                           const SizedBox(height: AppTheme.spacingSm),
@@ -137,22 +138,34 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: AppTheme.spacingSm),
           // Timeline row
-          SizedBox(
-            height: 36,
-            child: Row(
-              children: [
-                for (int i = 0; i < days.length; i++) ...[
-                  if (i > 0)
-                    Expanded(
-                      child: Container(
-                        height: 2,
-                        color: i <= 2 ? AppTheme.primary : AppTheme.outline,
-                      ),
-                    ),
-                  _DayDot(label: days[i], isActive: i == days.length - 1, isPast: i <= 2),
-                ],
-              ],
-            ),
+          Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 16,
+                child: CustomPaint(
+                  painter: CircuitTimelinePainter(
+                    color: AppTheme.primary,
+                    isRtl: false,
+                  ),
+                ),
+              ),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(days.length, (i) {
+                    return _DayDot(
+                      label: days[i],
+                      isActive: i == days.length - 1,
+                    );
+                  }),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -163,40 +176,31 @@ class _HomeScreenState extends State<HomeScreen> {
 class _DayDot extends StatelessWidget {
   final String label;
   final bool isActive;
-  final bool isPast;
 
   const _DayDot({
     required this.label,
     this.isActive = false,
-    this.isPast = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: isActive ? 12 : 8,
-          height: isActive ? 12 : 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isActive
-                ? AppTheme.primary
-                : isPast
-                    ? AppTheme.primary.withValues(alpha: 0.6)
-                    : AppTheme.surfaceHigh,
+    return SizedBox(
+      width: 32,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 16),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTheme.labelMd.copyWith(
+              fontSize: 9,
+              color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: AppTheme.labelMd.copyWith(
-            fontSize: 9,
-            color: isActive ? AppTheme.primary : AppTheme.textSecondary,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -216,7 +220,16 @@ class _ExerciseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        await Navigator.of(context).pushNamed('/focused_move', arguments: exercise);
+        await Navigator.of(context).pushNamed(
+          '/focused_move',
+          arguments: FocusedMoveScreenArgs(
+            exercise: exercise,
+            context: ExerciseDetailContext.scheduledWorkout,
+            sets: exercise.defaultSets,
+            reps: exercise.defaultReps,
+            restSeconds: exercise.defaultRestSeconds,
+          ),
+        );
         onRefresh();
       },
       child: Container(

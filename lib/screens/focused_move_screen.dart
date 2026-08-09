@@ -5,6 +5,24 @@ import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
 
+enum ExerciseDetailContext { database, scheduledWorkout }
+
+class FocusedMoveScreenArgs {
+  final Exercise exercise;
+  final ExerciseDetailContext context;
+  final int? sets;
+  final int? reps;
+  final int? restSeconds;
+
+  FocusedMoveScreenArgs({
+    required this.exercise,
+    required this.context,
+    this.sets,
+    this.reps,
+    this.restSeconds,
+  });
+}
+
 class FocusedMoveScreen extends StatefulWidget {
   const FocusedMoveScreen({super.key});
 
@@ -13,6 +31,7 @@ class FocusedMoveScreen extends StatefulWidget {
 }
 
 class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
+  late FocusedMoveScreenArgs _args;
   late Exercise _exercise;
   bool _initialized = false;
   bool _showConfirmDelete = false;
@@ -22,7 +41,8 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      _exercise = ModalRoute.of(context)!.settings.arguments as Exercise;
+      _args = ModalRoute.of(context)!.settings.arguments as FocusedMoveScreenArgs;
+      _exercise = _args.exercise;
       _initRepository();
       _initialized = true;
     }
@@ -85,20 +105,26 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                     const Spacer(),
                     Text('جزئیات حرکت', style: AppTheme.headlineMd),
                     const Spacer(),
-                    // Edit action button
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: AppTheme.textPrimary, size: 20),
-                      onPressed: _navigateToEdit,
-                    ),
-                    // Delete action button
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: AppTheme.error, size: 20),
-                      onPressed: () {
-                        setState(() {
-                          _showConfirmDelete = !_showConfirmDelete;
-                        });
-                      },
-                    ),
+                    if (_args.context == ExerciseDetailContext.database) ...[
+                      // Edit action button
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: AppTheme.textPrimary, size: 20),
+                        onPressed: _navigateToEdit,
+                      ),
+                      // Delete action button
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: AppTheme.error, size: 20),
+                        onPressed: () {
+                          setState(() {
+                            _showConfirmDelete = !_showConfirmDelete;
+                          });
+                        },
+                      ),
+                    ] else ...[
+                      // Empty space to maintain center alignment of title when icons are hidden
+                      const SizedBox(width: 40),
+                      const SizedBox(width: 40),
+                    ],
                   ],
                 ),
               ),
@@ -166,16 +192,18 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
                       // ─── Exercise details cards ────────────────
-                      Row(
-                        children: [
-                          Expanded(child: _DetailChip(label: 'ست‌ها', value: '${_exercise.defaultSets}')),
-                          const SizedBox(width: AppTheme.spacingSm),
-                          Expanded(child: _DetailChip(label: 'تکرار', value: '${_exercise.defaultReps}')),
-                          const SizedBox(width: AppTheme.spacingSm),
-                          Expanded(child: _DetailChip(label: 'استراحت', value: '${_exercise.defaultRestSeconds} ثانیه')),
-                        ],
-                      ),
-                      const SizedBox(height: AppTheme.spacingLg),
+                      if (_args.context == ExerciseDetailContext.scheduledWorkout) ...[
+                        Row(
+                          children: [
+                            Expanded(child: _DetailChip(label: 'ست‌ها', value: '${_args.sets ?? _exercise.defaultSets}')),
+                            const SizedBox(width: AppTheme.spacingSm),
+                            Expanded(child: _DetailChip(label: 'تکرار', value: '${_args.reps ?? _exercise.defaultReps}')),
+                            const SizedBox(width: AppTheme.spacingSm),
+                            Expanded(child: _DetailChip(label: 'استراحت', value: '${_args.restSeconds ?? _exercise.defaultRestSeconds} ثانیه')),
+                          ],
+                        ),
+                        const SizedBox(height: AppTheme.spacingLg),
+                      ],
                       // ─── Target muscles ───────────────────────
                       Text('عضلات هدف و فرعی', style: AppTheme.headlineMd),
                       const SizedBox(height: AppTheme.spacingMd),

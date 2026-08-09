@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
 import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
+import 'focused_move_screen.dart';
 
 class MovesScreen extends StatefulWidget {
   const MovesScreen({super.key});
@@ -179,10 +181,14 @@ class _MovesScreenState extends State<MovesScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  cat['icon'] as IconData,
-                  size: 18,
-                  color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+                SvgPicture.asset(
+                  cat['svg'] as String,
+                  width: 18,
+                  height: 18,
+                  colorFilter: ColorFilter.mode(
+                    isActive ? AppTheme.primary : AppTheme.textSecondary,
+                    BlendMode.srcIn,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -210,7 +216,13 @@ class _MoveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        await Navigator.of(context).pushNamed('/focused_move', arguments: exercise);
+        await Navigator.of(context).pushNamed(
+          '/focused_move',
+          arguments: FocusedMoveScreenArgs(
+            exercise: exercise,
+            context: ExerciseDetailContext.database,
+          ),
+        );
         onRefresh();
       },
       child: Container(

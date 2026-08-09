@@ -34,10 +34,15 @@ class ChatRepository {
       updatedAt: now,
       messages: [],
     );
-    final sessions = _loadSessions();
-    sessions.add(newSession);
-    await _saveSessions(sessions);
     return newSession;
+  }
+
+  Future<void> saveNewSession(ChatSession session) async {
+    final sessions = _loadSessions();
+    if (!sessions.any((s) => s.id == session.id)) {
+      sessions.add(session);
+      await _saveSessions(sessions);
+    }
   }
 
   List<ChatSession> getAllSessions() {

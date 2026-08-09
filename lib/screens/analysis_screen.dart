@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import '../widgets/body_illustration.dart';
+import '../widgets/body_part_heatmap.dart';
 import '../widgets/physiqo_header.dart';
+import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as fbps;
 
 class AnalysisScreen extends StatelessWidget {
   const AnalysisScreen({super.key});
@@ -26,12 +27,59 @@ class AnalysisScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: AppTheme.spacingMd),
-                // ─── Body illustration ────────────────────────
-                const SizedBox(
+                // ─── Body illustration (Heatmap) ──────────────
+                SizedBox(
                   height: 280,
-                  child: BodyIllustration(
-                    highlightedMuscles: ['سینه', 'بازو', 'سرشانه'],
-                    showGrid: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: BodyPartHeatmap(
+                          isFront: true,
+                          intensities: const {
+                            fbps.Muscle.chestLeft: 0.85,
+                            fbps.Muscle.chestRight: 0.85,
+                            fbps.Muscle.bicepsLeft: 0.80,
+                            fbps.Muscle.bicepsRight: 0.80,
+                            fbps.Muscle.tricepsLeft: 0.80,
+                            fbps.Muscle.tricepsRight: 0.80,
+                            fbps.Muscle.forearmsLeft: 0.80,
+                            fbps.Muscle.forearmsRight: 0.80,
+                            fbps.Muscle.abs: 0.62,
+                            fbps.Muscle.quadsLeft: 0.58,
+                            fbps.Muscle.quadsRight: 0.58,
+                            fbps.Muscle.calvesLeft: 0.58,
+                            fbps.Muscle.calvesRight: 0.58,
+                            fbps.Muscle.deltsLeft: 0.70,
+                            fbps.Muscle.deltsRight: 0.70,
+                            fbps.Muscle.trapsLeft: 0.70,
+                            fbps.Muscle.trapsRight: 0.70,
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: AppTheme.spacingMd),
+                      Expanded(
+                        child: BodyPartHeatmap(
+                          isFront: false,
+                          intensities: const {
+                            fbps.Muscle.latsBackLeft: 0.50,
+                            fbps.Muscle.latsBackRight: 0.50,
+                            fbps.Muscle.lowerLatsBackLeft: 0.50,
+                            fbps.Muscle.lowerLatsBackRight: 0.50,
+                            fbps.Muscle.glutesLeft: 0.58,
+                            fbps.Muscle.glutesRight: 0.58,
+                            fbps.Muscle.hamstringsLeft: 0.58,
+                            fbps.Muscle.hamstringsRight: 0.58,
+                            fbps.Muscle.tricepsLeft: 0.80,
+                            fbps.Muscle.tricepsRight: 0.80,
+                            fbps.Muscle.deltsLeft: 0.70,
+                            fbps.Muscle.deltsRight: 0.70,
+                            fbps.Muscle.trapsLeft: 0.70,
+                            fbps.Muscle.trapsRight: 0.70,
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingMd),
