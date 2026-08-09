@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
-import '../widgets/body_illustration.dart';
+import '../widgets/muscle_body_map.dart';
 
 class BodyScreen extends StatefulWidget {
   const BodyScreen({super.key});
@@ -11,7 +11,11 @@ class BodyScreen extends StatefulWidget {
 }
 
 class _BodyScreenState extends State<BodyScreen> {
-  int _selectedMuscle = 3; // شکم (Abs) active by default
+  int _selectedMuscle = 2; // پا (Legs) active by default
+  bool _showFront = true;
+
+  String get _selectedLabel =>
+      AppTheme.muscleCategories[_selectedMuscle]['label'] as String;
 
   @override
   Widget build(BuildContext context) {
@@ -28,98 +32,124 @@ class _BodyScreenState extends State<BodyScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: AppTheme.spacingLg),
-                    // Title
-                    Text(
-                      'عضلات هدف',
-                      style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
-                      textAlign: TextAlign.center,
+                    // Title row
+                    Row(
+                      textDirection: TextDirection.rtl,
+                      children: [
+                        Text(
+                          'عضلات هدف',
+                          style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).pushNamed('/analysis'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            child: Text(
+                              'تحلیل اسکن',
+                              style: AppTheme.bodyMd.copyWith(
+                                color: AppTheme.onPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppTheme.spacingMd),
-                    // ─── Body + Muscle selector ────────────────────
+
+                    // ─── Main content: Body map + muscle selector ────────────
                     Expanded(
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Unified Body Illustration
+                          // ── Interactive body map ──────────────────────────
                           Expanded(
                             flex: 3,
-                            child: Column(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                                    ),
-                                    child: BodyIllustration(
-                                      highlightedMuscles: [
-                                        AppTheme.muscleCategories[_selectedMuscle]['label'] as String
-                                      ],
-                                      showGrid: true,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: AppTheme.spacingSm),
-                                GestureDetector(
-                                  onTap: () => Navigator.of(context).pushNamed('/analysis'),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primary,
-                                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                                    ),
-                                    child: Text(
-                                      'تحلیل اسکن',
-                                      style: AppTheme.bodyMd.copyWith(
-                                        color: AppTheme.onPrimary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            child: MuscleBodyMap(
+                              selectedCategory: _selectedLabel,
+                              showFront: _showFront,
+                              onToggleView: () => setState(() => _showFront = !_showFront),
+                              onCategoryTap: (persian) {
+                                if (persian == null) return;
+                                final idx = AppTheme.muscleCategories.indexWhere(
+                                  (m) => m['label'] == persian,
+                                );
+                                if (idx != -1) setState(() => _selectedMuscle = idx);
+                              },
                             ),
                           ),
                           const SizedBox(width: AppTheme.spacingMd),
-                          // Muscle selector list
+
+                          // ── Muscle category selector list ─────────────────
                           Expanded(
                             flex: 2,
                             child: ListView.separated(
                               itemCount: AppTheme.muscleCategories.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingSm),
+                              separatorBuilder: (context2, i2) =>
+                                  const SizedBox(height: AppTheme.spacingSm),
                               itemBuilder: (context, index) {
                                 final m = AppTheme.muscleCategories[index];
                                 final isActive = _selectedMuscle == index;
                                 return GestureDetector(
-                                  onTap: () => setState(() => _selectedMuscle = index),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  onTap: () =>
+                                      setState(() => _selectedMuscle = index),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    curve: Curves.easeOut,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surface,
+                                      color: isActive
+                                          ? AppTheme.primary.withValues(alpha: 0.12)
+                                          : AppTheme.surface,
                                       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                                       border: Border.all(
-                                        color: isActive ? AppTheme.primary : AppTheme.outline,
+                                        color: isActive
+                                            ? AppTheme.primary
+                                            : AppTheme.outline,
                                       ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.chevron_left,
-                                          size: 16,
-                                          color: isActive ? AppTheme.primary : AppTheme.textSecondary,
-                                        ),
-                                        const Spacer(),
-                                        Text(
-                                          m['label'] as String,
-                                          style: AppTheme.bodyMd.copyWith(
-                                            color: isActive ? AppTheme.primary : AppTheme.textPrimary,
+                                    child: Directionality(
+                                      textDirection: TextDirection.rtl,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            m['icon'] as IconData,
+                                            size: 18,
+                                            color: isActive
+                                                ? AppTheme.primary
+                                                : AppTheme.textPrimary,
                                           ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Icon(
-                                          m['icon'] as IconData,
-                                          size: 20,
-                                          color: isActive ? AppTheme.primary : AppTheme.textPrimary,
-                                        ),
-                                      ],
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              m['label'] as String,
+                                              style: AppTheme.bodyMd.copyWith(
+                                                color: isActive
+                                                    ? AppTheme.primary
+                                                    : AppTheme.textPrimary,
+                                                fontWeight: isActive
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w400,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isActive)
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                color: AppTheme.primary,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
