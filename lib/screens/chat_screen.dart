@@ -6,6 +6,7 @@ import '../widgets/physiqo_header.dart';
 import '../models/chat_message.dart';
 import '../models/chat_session.dart';
 import '../repositories/chat_repository.dart';
+import '../l10n/translations.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -19,6 +20,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late ChatRepository _repository;
   bool _isLoading = true;
+  bool? _isLtrChat;
   ChatSession? _activeSession;
 
   @override
@@ -34,6 +36,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   Future<void> _initRepository() async {
     final prefs = await SharedPreferences.getInstance();
     _repository = ChatRepository(prefs);
+    _isLtrChat = prefs.getBool('chat_is_ltr');
     final sessions = _repository.getAllSessions();
     if (sessions.isEmpty) {
       final newSession = await _repository.createSession();
@@ -81,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
         final botMsg = ChatMessage(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
           role: ChatMessageRole.coach,
-          content: 'ممنون از سوالت! بذار برنامه تمرینی مناسب رو برات طراحی کنم.',
+          content: context.tr('chat_mock_reply'),
           timestamp: DateTime.now(),
         );
         await _repository.addMessage(_activeSession!.id, botMsg);
@@ -143,13 +146,13 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     final difference = now.difference(dateTime);
 
     if (difference.inSeconds < 60) {
-      return 'همین الان';
+      return context.tr('chat_time_just_now');
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} دقیقه پیش';
+      return context.tr('chat_time_mins_ago').replaceFirst('{}', difference.inMinutes.toString());
     } else if (difference.inHours < 24) {
-      return '${difference.inHours} ساعت پیش';
+      return context.tr('chat_time_hours_ago').replaceFirst('{}', difference.inHours.toString());
     } else {
-      return '${difference.inDays} روز پیش';
+      return context.tr('chat_time_days_ago').replaceFirst('{}', difference.inDays.toString());
     }
   }
 
@@ -173,7 +176,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('تاریخچه گفتگوها', style: AppTheme.headlineMd),
+                      Text(context.tr('chat_history'), style: AppTheme.headlineMd),
                       IconButton(
                         icon: const Icon(Icons.close, color: AppTheme.textPrimary),
                         onPressed: () => Navigator.pop(context),
@@ -190,7 +193,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                         final isSelected = session.id == _activeSession?.id;
                         final lastMsg = session.messages.isNotEmpty
                             ? session.messages.last.content
-                            : 'بدون پیام';
+                            : context.tr('chat_no_messages');
                         final timeStr = _getRelativeTimestamp(session.updatedAt);
 
                         return _SessionRow(
@@ -254,13 +257,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
     final messages = _activeSession?.messages ?? [];
     final showEmptyState = messages.isEmpty;
+    final isLtr = _isLtrChat ?? (Directionality.of(context) == TextDirection.ltr);
 
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
         child: Column(
           children: [
-            PhysiqoHeader.back(title: 'مربی هوش مصنوعی'),
+            PhysiqoHeader.back(title: context.tr('title_ai_coach')),
             const Divider(color: AppTheme.outline, height: 1),
             // Header control row (History & New Chat)
             Container(
@@ -286,84 +290,106 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            // Content Area
+            // Content Area & Input wrapped in Directionality
             Expanded(
-              child: showEmptyState
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(AppTheme.gutter),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = messages[index];
-                        return _ChatBubble(
-                          message: msg,
-                          onEdit: () {},
-                          onDelete: () async {
-                            if (_activeSession != null) {
-                              await _repository.deleteMessage(_activeSession!.id, msg.id);
-                              _refreshActiveSession();
-                            }
-                          },
-                          onUpdateContent: (newContent) async {
-                            if (_activeSession != null) {
-                              await _repository.editMessage(_activeSession!.id, msg.id, newContent);
-                              _refreshActiveSession();
-                            }
-                          },
-                        );
-                      },
+              child: Directionality(
+                textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: showEmptyState
+                          ? _buildEmptyState()
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(AppTheme.gutter),
+                              itemCount: messages.length,
+                              itemBuilder: (context, index) {
+                                final msg = messages[index];
+                                return _ChatBubble(
+                                  message: msg,
+                                  onEdit: () {},
+                                  onDelete: () async {
+                                    if (_activeSession != null) {
+                                      await _repository.deleteMessage(_activeSession!.id, msg.id);
+                                      _refreshActiveSession();
+                                    }
+                                  },
+                                  onUpdateContent: (newContent) async {
+                                    if (_activeSession != null) {
+                                      await _repository.editMessage(_activeSession!.id, msg.id, newContent);
+                                      _refreshActiveSession();
+                                    }
+                                  },
+                                );
+                              },
+                            ),
                     ),
-            ),
-            // Input Bar
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingSm),
-              decoration: const BoxDecoration(
-                color: AppTheme.surface,
-                border: Border(
-                  top: BorderSide(color: AppTheme.outline, width: 1),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      width: 40,
-                      height: 40,
+                    // Input Bar
+                    Container(
+                      padding: const EdgeInsets.all(AppTheme.spacingSm),
                       decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppTheme.primary,
-                      ),
-                      child: const Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: Icon(Icons.send, color: AppTheme.onPrimary, size: 18),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      style: AppTheme.bodyMd,
-                      minLines: 1,
-                      maxLines: 5,
-                      keyboardType: TextInputType.multiline,
-                      decoration: InputDecoration(
-                        hintText: 'پیام خود را بنویسید...',
-                        hintStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-                        filled: true,
-                        fillColor: AppTheme.surfaceHigh,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                          borderSide: BorderSide.none,
+                        color: AppTheme.surface,
+                        border: Border(
+                          top: BorderSide(color: AppTheme.outline, width: 1),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              style: AppTheme.bodyMd,
+                              minLines: 1,
+                              maxLines: 5,
+                              keyboardType: TextInputType.multiline,
+                              textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
+                              decoration: InputDecoration(
+                                hintText: context.tr('chat_write_message'),
+                                hintStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                filled: true,
+                                fillColor: AppTheme.surfaceHigh,
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.swap_horiz, color: AppTheme.textSecondary),
+                                  onPressed: () async {
+                                    final prefs = await SharedPreferences.getInstance();
+                                    setState(() {
+                                      _isLtrChat = !isLtr;
+                                    });
+                                    await prefs.setBool('chat_is_ltr', _isLtrChat!);
+                                  },
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              ),
+                              onSubmitted: (_) => _sendMessage(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _sendMessage,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppTheme.primary,
+                              ),
+                              child: Icon(
+                                Icons.send, 
+                                color: AppTheme.onPrimary, 
+                                size: 18,
+                                textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -396,7 +422,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Text(
-              'سلام! من مربی هوش مصنوعی شما هستم. چطور می‌تونم کمکتون کنم؟',
+              context.tr('chat_greeting'),
               style: AppTheme.bodyLg.copyWith(
                 fontWeight: FontWeight.w600,
                 height: 1.6,
@@ -412,26 +438,26 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
             child: Row(
               children: [
                 _QuickActionChip(
-                  label: 'اسکن بدن من',
+                  label: context.tr('chat_quick_scan'),
                   onTap: () => _handleQuickAction(
-                    'اسکن بدن من',
-                    'لطفاً به بخش اسکن بدن بروید و روی دکمه شروع اسکن کلیک کنید تا وضعیت بدن شما را تحلیل کنم.',
+                    context.tr('chat_quick_scan'),
+                    context.tr('chat_prompt_scan'),
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
                 _QuickActionChip(
-                  label: 'برنامه این هفته',
+                  label: context.tr('chat_quick_plan'),
                   onTap: () => _handleQuickAction(
-                    'برنامه این هفته',
-                    'برنامه تمرینی این هفته شما آماده است. شامل تمرینات سینه، پشت و پا در روزهای زوج می‌باشد.',
+                    context.tr('chat_quick_plan'),
+                    context.tr('chat_prompt_plan'),
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
                 _QuickActionChip(
-                  label: 'سوال درباره یک حرکت',
+                  label: context.tr('chat_quick_move'),
                   onTap: () => _handleQuickAction(
-                    'سوال درباره یک حرکت',
-                    'درباره کدام حرکت ورزشی سوالی دارید؟ به عنوان مثال می‌توانید درباره نحوه اجرای درست حرکت پرس سینه بپرسید.',
+                    context.tr('chat_quick_move'),
+                    context.tr('chat_prompt_form'),
                   ),
                 ),
               ],
@@ -566,7 +592,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
                                   _editController.text = widget.message.content;
                                 });
                               },
-                              child: const Text('انصراف', style: TextStyle(color: AppTheme.textSecondary)),
+                              child: Text(context.tr('chat_action_cancel'), style: TextStyle(color: AppTheme.textSecondary)),
                             ),
                             TextButton(
                               onPressed: () {
@@ -579,7 +605,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
                                   _showActions = false;
                                 });
                               },
-                              child: const Text('ثبت', style: TextStyle(color: AppTheme.primary)),
+                              child: Text(context.tr('chat_action_submit'), style: TextStyle(color: AppTheme.primary)),
                             ),
                           ],
                         ),
@@ -597,7 +623,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
                         if (widget.message.isEdited) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'ویرایش شده',
+                            context.tr('chat_edited'),
                             style: AppTheme.labelMd.copyWith(
                               color: AppTheme.textSecondary.withValues(alpha: 0.7),
                               fontSize: 9,
@@ -650,11 +676,11 @@ class _ChatBubbleState extends State<_ChatBubble> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('حذف شود؟', style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
+                    Text(context.tr('chat_delete_confirm'), style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: widget.onDelete,
-                      child: Text('بله', style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
+                      child: Text(context.tr('chat_yes'), style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
@@ -664,7 +690,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
                           _showActions = false;
                         });
                       },
-                      child: Text('خیر', style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),
+                      child: Text(context.tr('chat_no'), style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),
                     ),
                   ],
                 ),
@@ -779,11 +805,11 @@ class _SessionRowState extends State<_SessionRow> {
         subtitle: _showConfirmDelete
             ? Row(
                 children: [
-                  Text('حذف شود؟', style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
+                  Text(context.tr('chat_delete_confirm'), style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
                   const Spacer(),
                   TextButton(
                     onPressed: widget.onDelete,
-                    child: Text('بله', style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
+                    child: Text(context.tr('yes'), style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
                   ),
                   TextButton(
                     onPressed: () {
@@ -791,7 +817,7 @@ class _SessionRowState extends State<_SessionRow> {
                         _showConfirmDelete = false;
                       });
                     },
-                    child: Text('خیر', style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),
+                    child: Text(context.tr('no'), style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),
                   ),
                 ],
               )
@@ -829,13 +855,13 @@ class _SessionRowState extends State<_SessionRow> {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'rename',
-                    child: Text('تغییر نام', style: TextStyle(color: AppTheme.textPrimary)),
+                    child: Text(context.tr('chat_rename'), style: const TextStyle(color: AppTheme.textPrimary)),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'delete',
-                    child: Text('حذف گفتگو', style: TextStyle(color: AppTheme.error)),
+                    child: Text(context.tr('chat_delete_chat'), style: const TextStyle(color: AppTheme.error)),
                   ),
                 ],
               ),

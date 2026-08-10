@@ -1,0 +1,16 @@
+85: content: 'ممنون از سوالت! بذار برنامه تمرینی مناسب رو برات طراحی کنم.',
+147: return 'همین الان';
+149: return '${difference.inMinutes} دقیقه پیش';
+151: return '${difference.inHours} ساعت پیش';
+153: return '${difference.inDays} روز پیش';
+177: Text('تاریخچه گفتگوها', style: AppTheme.headlineMd),
+194: : 'بدون پیام';
+423: 'لطفاً به بخش اسکن بدن بروید و روی دکمه شروع اسکن کلیک کنید تا وضعیت بدن شما را تحلیل کنم.',
+431: 'برنامه تمرینی این هفته شما آماده است. شامل تمرینات سینه، پشت و پا در روزهای زوج می‌باشد.',
+439: 'درباره کدام حرکت ورزشی سوالی دارید؟ به عنوان مثال می‌توانید درباره نحوه اجرای درست حرکت پرس سینه بپرسید.',
+574: child: const Text('انصراف', style: TextStyle(color: AppTheme.textSecondary)),
+587: child: const Text('ثبت', style: TextStyle(color: AppTheme.primary)),
+605: 'ویرایش شده',
+658: Text('حذف شود؟', style: AppTheme.labelMd.copyWith(color: AppTheme.error)),
+662: child: Text('بله', style: AppTheme.labelMd.copyWith(color: AppTheme.error, fontWeight: FontWeight.bold)),
+672: child: Text('خیر', style: AppTheme.labelMd.copyWith(color: AppTheme.textPrimary)),

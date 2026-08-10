@@ -6,6 +6,8 @@ import '../widgets/circuit_timeline_painter.dart';
 import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
 import 'focused_move_screen.dart';
+import '../l10n/translations.dart';
+import 'package:shamsi_date/shamsi_date.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: AppTheme.spacingSm),
                           // ─── Meta info ─────────────────────────────────
                           Text(
-                            'زمان تخمینی کل: ۱ ساعت و ۳۵ دقیقه    تمرکز: سینه',
+                            context.tr('home_meta_info'),
                             style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                             textAlign: TextAlign.center,
                           ),
@@ -82,8 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('برنامه امروز', style: AppTheme.headlineMd),
-                              Text('۳ حرکت', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                              Text(context.tr('home_today_plan'), style: AppTheme.headlineMd),
+                              Text(context.tr('home_move_count'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                             ],
                           ),
                           const SizedBox(height: AppTheme.spacingMd),
@@ -117,8 +119,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDaySelector() {
-    final days = ['۱۰م', '۱۱م', '۱۲م', '۱۳م', '۱۴م', '۱۵م'];
-    return Container(
+    return Builder(
+      builder: (context) {
+        final now = DateTime.now();
+        final isFa = Localizations.localeOf(context).languageCode == 'fa';
+        
+        final List<String> days = [];
+        for (int i = 0; i < 6; i++) {
+          final date = now.add(Duration(days: i));
+          if (isFa) {
+            final jalali = Jalali.fromDateTime(date);
+            // Convert to Persian numerals if needed, but we can rely on standard formatting or font
+            days.add(jalali.day.toString());
+          } else {
+            days.add(date.day.toString());
+          }
+        }
+
+        String todayLabel;
+        if (isFa) {
+          final jalali = Jalali.fromDateTime(now);
+          final faMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+          todayLabel = 'امروز - ${jalali.day} ${faMonths[jalali.month - 1]}';
+        } else {
+          final enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          todayLabel = 'Today - ${enMonths[now.month - 1]} ${now.day}';
+        }
+
+        return Container(
       decoration: AppTheme.cardDecoration(active: true),
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingMd,
@@ -129,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'امروز',
+              todayLabel,
               style: AppTheme.bodyLg.copyWith(
                 color: AppTheme.primary,
                 fontWeight: FontWeight.w700,
@@ -169,6 +197,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+      },
     );
   }
 }
@@ -264,7 +294,7 @@ class _ExerciseCard extends StatelessWidget {
                       color: AppTheme.surfaceHigh,
                     ),
                     child: Text(
-                      _getMuscleGroupLabel(exercise.primaryMuscleGroup),
+                      _getMuscleGroupLabel(context, exercise.primaryMuscleGroup),
                       style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                     ),
                   ),
@@ -277,11 +307,11 @@ class _ExerciseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'ست‌ها: ${exercise.defaultSets} | تکرارها: ${exercise.defaultReps}',
+                    '${context.tr('home_sets')}${exercise.defaultSets}${context.tr('home_reps')}${exercise.defaultReps}',
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                   ),
                   Text(
-                    'زمان تخمینی: ${exercise.estimatedMinutes} دقیقه',
+                    '${context.tr('home_est_time')}${exercise.estimatedMinutes}${context.tr('home_mins')}',
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                   ),
                 ],
@@ -293,20 +323,20 @@ class _ExerciseCard extends StatelessWidget {
     );
   }
 
-  String _getMuscleGroupLabel(PrimaryMuscleGroup group) {
+  String _getMuscleGroupLabel(BuildContext context, PrimaryMuscleGroup group) {
     switch (group) {
       case PrimaryMuscleGroup.chest:
-        return 'سینه';
+        return context.tr('muscle_chest');
       case PrimaryMuscleGroup.back:
-        return 'پشت';
+        return context.tr('muscle_back');
       case PrimaryMuscleGroup.legs:
-        return 'پا';
+        return context.tr('muscle_legs');
       case PrimaryMuscleGroup.shoulders:
-        return 'سرشانه';
+        return context.tr('muscle_shoulders');
       case PrimaryMuscleGroup.arms:
-        return 'بازو';
+        return context.tr('muscle_arms');
       case PrimaryMuscleGroup.abs:
-        return 'شکم';
+        return context.tr('muscle_abs');
     }
   }
 }

@@ -92,6 +92,9 @@ class _PhysiqoAppState extends State<PhysiqoApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) {
+        return child!;
+      },
       home: SplashScreen(key: UniqueKey()),
       routes: {
         '/main': (context) => const MainShell(),

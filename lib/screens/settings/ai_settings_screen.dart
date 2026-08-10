@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/translations.dart';
 import '../../theme/app_theme.dart';
 import 'provider_management_screen.dart';
 import 'model_selection_screen.dart';
@@ -31,35 +32,35 @@ class AISettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingLg),
-              Text('راهنمای هوش مصنوعی', style: AppTheme.headlineMd),
+              Text(context.tr('ai_guide'), style: AppTheme.headlineMd),
               const SizedBox(height: AppTheme.spacingMd),
               Text(
-                'کلید API چیست؟',
+                context.tr('ai_guide_q1'),
                 style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
               ),
               const SizedBox(height: AppTheme.spacingSm),
               Text(
-                'کلید API یک رمز عبور مخصوص است که به اپلیکیشن اجازه می‌دهد به صورت مستقیم با سرورهای هوش مصنوعی ارتباط برقرار کند.',
+                context.tr('ai_guide_a1'),
                 style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.spacingMd),
               Text(
-                'چگونه تهیه کنم؟',
+                context.tr('ai_guide_q2'),
                 style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
               ),
               const SizedBox(height: AppTheme.spacingSm),
               Text(
-                'می‌توانید با مراجعه به سایت‌هایی مانند platform.openai.com یا کنسول گوگل، کلید اختصاصی خود را بسازید. کلیدهای شما فقط در همین دستگاه ذخیره می‌شوند و کاملاً امن هستند.',
+                context.tr('ai_guide_a2'),
                 style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.spacingMd),
               Text(
-                'انواع مدل‌ها',
+                context.tr('ai_guide_q3'),
                 style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
               ),
               const SizedBox(height: AppTheme.spacingSm),
               Text(
-                'مدل متنی: برای تولید برنامه‌های تمرینی و چت.\nمدل تصویری: برای آنالیز عکس‌های اسکن بدن.',
+                context.tr('ai_guide_a3'),
                 style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.spacingXl),
@@ -88,7 +89,7 @@ class AISettingsScreen extends StatelessWidget {
                       onPressed: () => _showHelpBottomSheet(context),
                     ),
                     Expanded(
-                      child: Text('هوش مصنوعی', textAlign: TextAlign.center, style: AppTheme.headlineMd),
+                      child: Text(context.tr('ai_settings_title'), textAlign: TextAlign.center, style: AppTheme.headlineMd),
                     ),
                     IconButton(
                       icon: const Icon(Icons.chevron_right, color: AppTheme.textPrimary, size: 32),
@@ -109,9 +110,9 @@ class AISettingsScreen extends StatelessWidget {
                           ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 8),
                             leading: const Icon(Icons.api, color: AppTheme.primary),
-                            title: Text('ارائه‌دهندگان API', style: AppTheme.bodyLg),
-                            subtitle: Text('مدیریت کلیدهای OpenAI, Anthropic و...', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                            trailing: const Icon(Icons.chevron_left, color: AppTheme.textSecondary, size: 20),
+                            title: Text(context.tr('ai_api_providers'), style: AppTheme.bodyLg),
+                            subtitle: Text(context.tr('ai_manage_keys'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                            trailing: Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary, size: 20),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -123,9 +124,9 @@ class AISettingsScreen extends StatelessWidget {
                           ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 8),
                             leading: const Icon(Icons.psychology, color: AppTheme.textPrimary),
-                            title: Text('انتخاب مدل', style: AppTheme.bodyLg),
-                            subtitle: Text('تنظیم مدل متنی و پردازش تصویر', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                            trailing: const Icon(Icons.chevron_left, color: AppTheme.textSecondary, size: 20),
+                            title: Text(context.tr('ai_select_model'), style: AppTheme.bodyLg),
+                            subtitle: Text(context.tr('ai_set_models_desc'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                            trailing: Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary, size: 20),
                             onTap: () {
                               Navigator.push(
                                 context,

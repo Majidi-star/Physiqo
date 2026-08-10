@@ -5,6 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
+import '../../l10n/translations.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// Represents the result of the body scan analysis.
 class AnalysisResult {
@@ -147,6 +149,26 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
     }
   }
 
+  Future<void> _pickFromGallery() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null && mounted) {
+        setState(() {
+          if (_step == CaptureStep.frontCapture) {
+            _frontPhoto = image;
+            _step = CaptureStep.frontPreview;
+          } else if (_step == CaptureStep.backCapture) {
+            _backPhoto = image;
+            _step = CaptureStep.backPreview;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Physiqo Gallery: Error picking photo: $e');
+    }
+  }
+
   void _confirmPhoto() {
     setState(() {
       if (_step == CaptureStep.frontPreview) {
@@ -209,7 +231,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: Directionality.of(context),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Container(
@@ -238,22 +260,22 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
     switch (_step) {
       case CaptureStep.frontCapture:
         return _buildCaptureView(
-          title: 'عکس نمای جلو بگیرید',
+          title: context.tr('scan_front_capture'),
           isFront: true,
         );
       case CaptureStep.frontPreview:
         return _buildPreviewView(
-          title: 'پیش‌نمایش نمای جلو',
+          title: context.tr('scan_front_preview'),
           photo: _frontPhoto!,
         );
       case CaptureStep.backCapture:
         return _buildCaptureView(
-          title: 'حالا عکس نمای پشت بگیرید',
+          title: context.tr('scan_back_capture'),
           isFront: false,
         );
       case CaptureStep.backPreview:
         return _buildPreviewView(
-          title: 'پیش‌نمایش نمای پشت',
+          title: context.tr('scan_back_preview'),
           photo: _backPhoto!,
         );
       case CaptureStep.analyzing:
@@ -281,8 +303,8 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
           ),
           const SizedBox(height: AppTheme.spacingMd),
           Text(
-            'برای گرفتن عکس جلو و پشت جهت تحلیل اسکن، لطفاً دسترسی دوربین را در تنظیمات گوشی فعال کنید.',
-            style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
+            context.tr('scan_camera_permission_desc'),
+            style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacingXl),
@@ -296,7 +318,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
               ),
               alignment: Alignment.center,
               child: Text(
-                'باز کردن تنظیمات',
+                context.tr('action_open_settings'),
                 style: AppTheme.bodyLg.copyWith(
                   color: AppTheme.onPrimary,
                   fontWeight: FontWeight.w700,
@@ -316,7 +338,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
               ),
               alignment: Alignment.center,
               child: Text(
-                'تلاش مجدد بررسی دسترسی',
+                context.tr('action_retry_permission'),
                 style: AppTheme.bodyLg.copyWith(
                   color: AppTheme.textSecondary,
                   fontWeight: FontWeight.w700,
@@ -385,25 +407,34 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
         ),
         Padding(
           padding: const EdgeInsets.all(AppTheme.spacingLg),
-          child: Center(
-            child: GestureDetector(
-              onTap: _takePhoto,
-              child: Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.textPrimary, width: 4),
-                ),
-                padding: const EdgeInsets.all(6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(width: 56), // balance space
+              GestureDetector(
+                onTap: _takePhoto,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: AppTheme.primary,
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.textPrimary, width: 4),
+                  ),
+                  padding: const EdgeInsets.all(6),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: AppTheme.primary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ),
-            ),
+              const SizedBox(width: AppTheme.spacingMd),
+              IconButton(
+                icon: const Icon(Icons.photo_library, size: 32, color: AppTheme.textPrimary),
+                onPressed: _pickFromGallery,
+              ),
+            ],
           ),
         ),
       ],
@@ -493,7 +524,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      'تلاش مجدد',
+                      context.tr('action_retry'),
                       style: AppTheme.bodyLg.copyWith(
                         color: AppTheme.textSecondary,
                         fontWeight: FontWeight.w700,
@@ -514,7 +545,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      'تایید',
+                      context.tr('confirm'),
                       style: AppTheme.bodyLg.copyWith(
                         color: AppTheme.onPrimary,
                         fontWeight: FontWeight.w700,
@@ -538,7 +569,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
           const CircularProgressIndicator(color: AppTheme.primary),
           const SizedBox(height: AppTheme.spacingLg),
           Text(
-            'در حال تحلیل...',
+            context.tr('scan_analyzing'),
             style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
             textAlign: TextAlign.center,
           ),

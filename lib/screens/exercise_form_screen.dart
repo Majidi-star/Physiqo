@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/exercise.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
+import '../l10n/translations.dart';
 
 class ExerciseFormScreen extends StatefulWidget {
   final Exercise? exercise;
@@ -30,19 +31,30 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
   late int _estimatedMinutes;
   late String _equipment;
 
+  bool _initialized = false;
+
   @override
   void initState() {
     super.initState();
     final ex = widget.exercise;
-    _name = ex?.name ?? '';
     _primaryMuscleGroup = ex?.primaryMuscleGroup ?? PrimaryMuscleGroup.chest;
-    _secondaryMuscleGroupsRaw = ex?.secondaryMuscleGroups.join('، ') ?? '';
-    _description = ex?.description ?? '';
     _defaultSets = ex?.defaultSets ?? 3;
     _defaultReps = ex?.defaultReps ?? 12;
     _defaultRestSeconds = ex?.defaultRestSeconds ?? 90;
     _estimatedMinutes = ex?.estimatedMinutes ?? 45;
     _equipment = ex?.equipment ?? '';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final ex = widget.exercise;
+      _name = ex != null ? context.tr(ex.name) : '';
+      _secondaryMuscleGroupsRaw = ex?.secondaryMuscleGroups.map((m) => context.tr(m)).join('، ') ?? '';
+      _description = ex != null ? context.tr(ex.description) : '';
+      _initialized = true;
+    }
   }
 
   void _submitForm() {
@@ -90,7 +102,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: isEditing ? 'ویرایش حرکت' : 'افزودن حرکت جدید',
+                title: isEditing ? context.tr('title_edit_exercise') : context.tr('title_new_exercise'),
               ),
               const Divider(color: AppTheme.outline, height: 1),
               Expanded(
@@ -102,46 +114,46 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // --- Name ---
-                        _buildSectionTitle('نام حرکت (فارسی)'),
+                        _buildSectionTitle(context.tr('form_exercise_name')),
                         _buildTextField(
                           initialValue: _name,
-                          hint: 'مانند: جلو بازو هالتر ایستاده',
+                          hint: context.tr('form_exercise_name_hint'),
                           onSaved: (val) => _name = val ?? '',
-                          validator: (val) => val == null || val.trim().isEmpty ? 'لطفاً نام حرکت را وارد کنید' : null,
+                          validator: (val) => val == null || val.trim().isEmpty ? context.tr('form_err_name') : null,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
                         // --- Muscle Group ---
-                        _buildSectionTitle('گروه عضلانی اصلی'),
+                        _buildSectionTitle(context.tr('form_primary_muscle')),
                         _buildDropdownField(),
                         const SizedBox(height: AppTheme.spacingMd),
 
                         // --- Secondary Muscle Tags ---
-                        _buildSectionTitle('عضلات فرعی و هدف (با کاما جدا کنید)'),
+                        _buildSectionTitle(context.tr('form_secondary_muscles')),
                         _buildTextField(
                           initialValue: _secondaryMuscleGroupsRaw,
-                          hint: 'مانند: راست شکمی، مورب شکمی',
+                          hint: context.tr('form_secondary_muscles_hint'),
                           onSaved: (val) => _secondaryMuscleGroupsRaw = val ?? '',
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
                         // --- Description ---
-                        _buildSectionTitle('توضیح کوتاه'),
+                        _buildSectionTitle(context.tr('form_short_desc')),
                         _buildTextField(
                           initialValue: _description,
-                          hint: 'مانند: تقویت عضلات سینه بزرگ و سرشانه',
+                          hint: context.tr('form_short_desc_hint'),
                           onSaved: (val) => _description = val ?? '',
-                          validator: (val) => val == null || val.trim().isEmpty ? 'لطفاً توضیح کوتاه را وارد کنید' : null,
+                          validator: (val) => val == null || val.trim().isEmpty ? context.tr('form_err_desc') : null,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
                         // --- Equipment ---
-                        _buildSectionTitle('تجهیزات مورد نیاز'),
+                        _buildSectionTitle(context.tr('form_equipment')),
                         _buildTextField(
                           initialValue: _equipment,
-                          hint: 'مانند: هالتر و میز تخت',
+                          hint: context.tr('form_equipment_hint'),
                           onSaved: (val) => _equipment = val ?? '',
-                          validator: (val) => val == null || val.trim().isEmpty ? 'لطفاً تجهیزات مورد نیاز را وارد کنید' : null,
+                          validator: (val) => val == null || val.trim().isEmpty ? context.tr('form_err_equip') : null,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
@@ -152,7 +164,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildSectionTitle('تعداد ست‌ها'),
+                                  _buildSectionTitle(context.tr('form_sets')),
                                   _buildNumberField(
                                     initialValue: _defaultSets,
                                     onSaved: (val) => _defaultSets = val ?? 3,
@@ -165,7 +177,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildSectionTitle('تعداد تکرارها'),
+                                  _buildSectionTitle(context.tr('form_reps')),
                                   _buildNumberField(
                                     initialValue: _defaultReps,
                                     onSaved: (val) => _defaultReps = val ?? 12,
@@ -183,7 +195,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildSectionTitle('زمان استراحت (ثانیه)'),
+                                  _buildSectionTitle(context.tr('form_rest_time')),
                                   _buildNumberField(
                                     initialValue: _defaultRestSeconds,
                                     onSaved: (val) => _defaultRestSeconds = val ?? 90,
@@ -196,7 +208,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildSectionTitle('زمان تخمینی (دقیقه)'),
+                                  _buildSectionTitle(context.tr('form_est_time')),
                                   _buildNumberField(
                                     initialValue: _estimatedMinutes,
                                     onSaved: (val) => _estimatedMinutes = val ?? 15,
@@ -221,7 +233,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                             elevation: 0,
                           ),
                           child: Text(
-                            isEditing ? 'ذخیره تغییرات' : 'ثبت حرکت جدید',
+                            isEditing ? context.tr('action_save_changes') : context.tr('action_save_new'),
                             style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
                           ),
                         ),

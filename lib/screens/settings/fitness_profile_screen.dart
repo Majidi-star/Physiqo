@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
@@ -12,6 +13,29 @@ class FitnessProfileScreen extends StatefulWidget {
 
 class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
   final UserProfile _profile = UserProfile.current();
+
+  String _mapVal(String? val) {
+    if (val == null || val.isEmpty) return context.tr('profile_not_set');
+    if (val == 'هیچ') return context.tr('profile_none');
+    final m = {
+      'مرد': 'gender_male',
+      'زن': 'gender_female',
+      'ترجیح میدهم نگویم': 'gender_prefer_not_to_say',
+      'مبتدی': 'exp_beginner',
+      'متوسط': 'exp_intermediate',
+      'پیشرفته': 'exp_advanced',
+      'افزایش حجم عضلانی': 'goal_muscle',
+      'کاهش چربی': 'goal_fat_loss',
+      'افزایش قدرت': 'goal_strength',
+      'استقامت': 'goal_endurance',
+      'حفظ فرم فعلی': 'goal_maintenance',
+      'سایر': 'goal_other',
+      'باشگاه کامل': 'equip_full_gym',
+      'وسایل خانگی': 'equip_home',
+      'بدون وسیله': 'equip_none',
+    };
+    return m.containsKey(val) ? context.tr(m[val]!) : val;
+  }
 
   void _showEditDialog({
     required String title,
@@ -48,7 +72,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('لغو', style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary)),
+                child: Text(context.tr('action_cancel'), style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary)),
               ),
               TextButton(
                 onPressed: () {
@@ -56,7 +80,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                   Navigator.pop(context);
                   setState(() {});
                 },
-                child: Text('ذخیره', style: AppTheme.bodyLg.copyWith(color: AppTheme.primary)),
+                child: Text(context.tr('action_save'), style: AppTheme.bodyLg.copyWith(color: AppTheme.primary)),
               ),
             ],
           ),
@@ -93,7 +117,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                   final isSelected = option == currentValue;
                   return ListTile(
                     title: Text(
-                      option,
+                      _mapVal(option),
                       style: AppTheme.bodyLg.copyWith(
                         color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -125,7 +149,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'پروفایل تناسب اندام',
+                title: context.tr('settings_fitness_profile'),
                 onBackTap: () => Navigator.of(context).pop(),
               ),
               Expanded(
@@ -140,10 +164,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                         child: Column(
                           children: [
                             _buildProfileItem(
-                              label: 'سن',
-                              value: _profile.age?.toString() ?? 'تعیین نشده',
+                              label: context.tr('profile_age'),
+                              value: _profile.age != null ? _profile.age.toString() : context.tr('profile_not_set'),
                               onTap: () => _showEditDialog(
-                                title: 'ویرایش سن',
+                                title: context.tr('profile_edit_age'),
                                 initialValue: _profile.age?.toString() ?? '',
                                 keyboardType: TextInputType.number,
                                 onSave: (val) {
@@ -153,10 +177,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
                             _buildProfileItem(
-                              label: 'جنسیت',
-                              value: _profile.gender ?? 'تعیین نشده',
+                              label: context.tr('profile_gender'),
+                              value: _mapVal(_profile.gender),
                               onTap: () => _showSelectionSheet(
-                                title: 'انتخاب جنسیت',
+                                title: context.tr('profile_select_gender'),
                                 options: ['مرد', 'زن', 'ترجیح میدهم نگویم'],
                                 currentValue: _profile.gender,
                                 onSelect: (val) => _profile.update(gender: val),
@@ -164,10 +188,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
                             _buildProfileItem(
-                              label: 'سطح تجربه',
-                              value: _profile.experienceLevel ?? 'تعیین نشده',
+                              label: context.tr('profile_experience'),
+                              value: _mapVal(_profile.experienceLevel),
                               onTap: () => _showSelectionSheet(
-                                title: 'سطح تجربه',
+                                title: context.tr('profile_select_experience'),
                                 options: ['مبتدی', 'متوسط', 'پیشرفته'],
                                 currentValue: _profile.experienceLevel,
                                 onSelect: (val) => _profile.update(experienceLevel: val),
@@ -175,10 +199,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
                             _buildProfileItem(
-                              label: 'هدف اصلی',
-                              value: _profile.primaryGoal ?? 'تعیین نشده',
+                              label: context.tr('profile_main_goal'),
+                              value: _mapVal(_profile.primaryGoal),
                               onTap: () => _showSelectionSheet(
-                                title: 'هدف اصلی',
+                                title: context.tr('profile_main_goal'),
                                 options: ['افزایش حجم عضلانی', 'کاهش چربی', 'افزایش قدرت', 'استقامت', 'حفظ فرم فعلی', 'سایر'],
                                 currentValue: _profile.primaryGoal,
                                 onSelect: (val) {
@@ -199,10 +223,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
                             _buildProfileItem(
-                              label: 'تجهیزات در دسترس',
-                              value: _profile.equipmentAccess ?? 'تعیین نشده',
+                              label: context.tr('profile_equipment'),
+                              value: _mapVal(_profile.equipmentAccess),
                               onTap: () => _showSelectionSheet(
-                                title: 'تجهیزات',
+                                title: context.tr('profile_equipment'),
                                 options: ['باشگاه کامل', 'وسایل خانگی', 'بدون وسیله'],
                                 currentValue: _profile.equipmentAccess,
                                 onSelect: (val) => _profile.update(equipmentAccess: val),
@@ -210,10 +234,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
                             _buildProfileItem(
-                              label: 'محدودیت‌ها یا آسیب‌دیدگی',
-                              value: _profile.limitations?.isNotEmpty == true ? _profile.limitations! : 'هیچ',
+                              label: context.tr('profile_limitations'),
+                              value: _profile.limitations?.isNotEmpty == true ? _profile.limitations! : context.tr('profile_none'),
                               onTap: () => _showEditDialog(
-                                title: 'محدودیت‌ها',
+                                title: context.tr('profile_limitations'),
                                 initialValue: _profile.limitations ?? '',
                                 keyboardType: TextInputType.text,
                                 onSave: (val) => _profile.update(limitations: val),
@@ -221,10 +245,10 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
                             _buildProfileItem(
-                              label: 'توضیحات اضافه',
-                              value: _profile.additionalNotes?.isNotEmpty == true ? _profile.additionalNotes! : 'هیچ',
+                              label: context.tr('profile_extra_details'),
+                              value: _profile.additionalNotes?.isNotEmpty == true ? _profile.additionalNotes! : context.tr('profile_none'),
                               onTap: () => _showEditDialog(
-                                title: 'توضیحات اضافه',
+                                title: context.tr('profile_extra_details'),
                                 initialValue: _profile.additionalNotes ?? '',
                                 keyboardType: TextInputType.multiline,
                                 maxLines: 4,
@@ -259,7 +283,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
             ),
             Text(value, style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
             const SizedBox(width: AppTheme.spacingSm),
-            const Icon(Icons.chevron_left, color: AppTheme.textSecondary, size: 20),
+            Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary, size: 20),
           ],
         ),
       ),

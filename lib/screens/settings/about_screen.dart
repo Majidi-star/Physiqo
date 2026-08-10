@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -63,20 +64,20 @@ class _AboutScreenState extends State<AboutScreen> {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingLg),
-              Text('شرایط استفاده و حریم خصوصی', style: AppTheme.headlineMd),
+              Text(context.tr('about_terms_privacy'), style: AppTheme.headlineMd),
               const SizedBox(height: AppTheme.spacingMd),
               Text(
-                'فیزیکو یک اپلیکیشن کاملاً آفلاین است. تمام اطلاعات شما (از جمله عکس‌های اسکن بدن) فقط در گوشی خودتان ذخیره می‌شود.',
+                context.tr('about_terms_desc1'),
                 style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.spacingSm),
               Text(
-                'تنها زمانی اطلاعات به خارج از دستگاه ارسال می‌شود که شما از کلید API هوش مصنوعی برای تولید برنامه تمرینی یا آنالیز اسکن استفاده کنید (که مستقیماً به سرور ارائه‌دهنده مثل OpenAI ارسال می‌شود).',
+                context.tr('about_terms_desc2'),
                 style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.spacingSm),
               Text(
-                'توجه: فیزیکو جایگزین پزشک یا متخصص آسیب‌شناسی ورزشی نیست. لطفاً قبل از شروع هرگونه برنامه تمرینی جدید، از سلامت جسمانی خود اطمینان حاصل کنید.',
+                context.tr('about_terms_desc3'),
                 style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
               ),
               const SizedBox(height: AppTheme.spacingXl),
@@ -97,7 +98,7 @@ class _AboutScreenState extends State<AboutScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'درباره فیزیکو',
+                title: context.tr('settings_about'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(
@@ -127,30 +128,40 @@ class _AboutScreenState extends State<AboutScreen> {
                           ),
                           const SizedBox(height: AppTheme.spacingSm),
                           Text(
-                            'نسخه $_version ($_buildNumber)',
+                            context.tr('about_version')
+                                .replaceAll('{version}', _version)
+                                .replaceAll('{build}', _buildNumber),
                             style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                           ),
                           const SizedBox(height: AppTheme.spacingXl),
                           Text(
-                            'فیزیکو یک اپلیکیشن پیشرفته تناسب اندام و بدنسازی است که با استفاده از هوش مصنوعی، تمرینات و آنالیزهای دقیق بدن را به شما ارائه می‌دهد.',
+                            context.tr('about_description'),
                             style: AppTheme.bodyLg,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppTheme.spacingMd),
+                          Text(
+                            context.tr('about_creator'),
+                            style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppTheme.spacingXl),
                           const Divider(color: AppTheme.outline),
                           ListTile(
                             leading: const Icon(Icons.code, color: AppTheme.textPrimary),
-                            title: Text('گیت‌هاب (متن‌باز)', style: AppTheme.bodyLg),
-                            trailing: const Icon(Icons.chevron_left, color: AppTheme.textSecondary),
+                            title: Text(context.tr('about_github'), style: AppTheme.bodyLg),
+                            subtitle: Text('github.com/Majidi-star', style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary), textDirection: TextDirection.ltr, textAlign: TextAlign.right),
+                            trailing: Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary),
                             contentPadding: EdgeInsets.zero,
                             onTap: () {
-                              _launchURL('https://github.com/Majidi-star/Physiqo'); // TODO: replace with exact repo if needed
+                              _launchURL('https://github.com/Majidi-star');
                             },
                           ),
                           ListTile(
                             leading: const Icon(Icons.email_outlined, color: AppTheme.textPrimary),
-                            title: Text('پشتیبانی', style: AppTheme.bodyLg),
-                            trailing: const Icon(Icons.chevron_left, color: AppTheme.textSecondary),
+                            title: Text(context.tr('about_support'), style: AppTheme.bodyLg),
+                            subtitle: Text('tsp10majidi@gmail.com', style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary), textDirection: TextDirection.ltr, textAlign: TextAlign.right),
+                            trailing: Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary),
                             contentPadding: EdgeInsets.zero,
                             onTap: () {
                               _launchURL('mailto:tsp10majidi@gmail.com');
@@ -158,8 +169,8 @@ class _AboutScreenState extends State<AboutScreen> {
                           ),
                           ListTile(
                             leading: const Icon(Icons.description_outlined, color: AppTheme.textPrimary),
-                            title: Text('شرایط استفاده', style: AppTheme.bodyLg),
-                            trailing: const Icon(Icons.chevron_left, color: AppTheme.textSecondary),
+                            title: Text(context.tr('about_terms'), style: AppTheme.bodyLg),
+                            trailing: Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary),
                             contentPadding: EdgeInsets.zero,
                             onTap: () {
                               _showTermsBottomSheet(context);

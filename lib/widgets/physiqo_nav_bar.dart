@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
@@ -38,14 +39,14 @@ class PhysiqoNavBar extends StatelessWidget {
             _NavItem(
               icon: Icons.home_outlined,
               activeIcon: Icons.home,
-              label: 'خانه',
+              label: context.tr('nav_home'),
               isActive: currentIndex == 0,
               onTap: () => onTap(0),
             ),
             _NavItem(
               icon: Icons.fitness_center_outlined,
               activeIcon: Icons.fitness_center,
-              label: 'تمرینات',
+              label: context.tr('nav_moves'),
               isActive: currentIndex == 1,
               onTap: () => onTap(1),
             ),
@@ -57,14 +58,14 @@ class PhysiqoNavBar extends StatelessWidget {
             _NavItem(
               icon: Icons.camera_alt_outlined,
               activeIcon: Icons.camera_alt,
-              label: 'اسکن بدن',
+              label: context.tr('nav_body_scan'),
               isActive: currentIndex == 3,
               onTap: () => onTap(3),
             ),
             _NavItem(
               icon: Icons.settings_outlined,
               activeIcon: Icons.settings,
-              label: 'تنظیمات',
+              label: context.tr('nav_settings'),
               isActive: currentIndex == 4,
               onTap: () => onTap(4),
             ),

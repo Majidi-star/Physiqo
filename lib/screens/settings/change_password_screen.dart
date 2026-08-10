@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
@@ -40,7 +41,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('رمز عبور با موفقیت تغییر یافت.', style: TextStyle(fontFamily: 'Vazirmatn'))),
+          SnackBar(content: Text(context.tr('pass_changed_success'), style: TextStyle(fontFamily: 'Vazirmatn'))),
         );
         Navigator.pop(context);
       }
@@ -88,7 +89,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'تغییر رمز عبور',
+                title: context.tr('title_change_password'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(

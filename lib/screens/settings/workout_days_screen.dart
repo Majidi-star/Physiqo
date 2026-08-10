@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
@@ -12,13 +13,13 @@ class WorkoutDaysScreen extends StatefulWidget {
 
 class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
   final List<String> _allDays = [
-    'شنبه',
-    'یکشنبه',
-    'دوشنبه',
-    'سه‌شنبه',
-    'چهارشنبه',
-    'پنج‌شنبه',
-    'جمعه'
+    'day_sat',
+    'day_sun',
+    'day_mon',
+    'day_tue',
+    'day_wed',
+    'day_thu',
+    'day_fri'
   ];
   List<String> _selectedDays = [];
   bool _isLoading = true;
@@ -31,8 +32,31 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
 
   Future<void> _loadDays() async {
     final prefs = await SharedPreferences.getInstance();
+    List<String> loadedDays = prefs.getStringList('workout_days') ?? [];
+    
+    // Auto-migrate old Persian strings to new keys
+    final migrationMap = {
+      'شنبه': 'day_sat',
+      'یکشنبه': 'day_sun',
+      'دوشنبه': 'day_mon',
+      'سه‌شنبه': 'day_tue',
+      'چهارشنبه': 'day_wed',
+      'پنج‌شنبه': 'day_thu',
+      'جمعه': 'day_fri'
+    };
+    bool migrated = false;
+    for (int i = 0; i < loadedDays.length; i++) {
+      if (migrationMap.containsKey(loadedDays[i])) {
+        loadedDays[i] = migrationMap[loadedDays[i]]!;
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      await prefs.setStringList('workout_days', loadedDays);
+    }
+
     setState(() {
-      _selectedDays = prefs.getStringList('workout_days') ?? [];
+      _selectedDays = loadedDays;
       _isLoading = false;
     });
   }
@@ -67,7 +91,7 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
         child: Row(
           children: [
             Expanded(
-              child: Text(day, style: AppTheme.bodyLg.copyWith(
+              child: Text(context.tr(day), style: AppTheme.bodyLg.copyWith(
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                 color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
               )),
@@ -92,7 +116,7 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'روزهای تمرین',
+                title: context.tr('settings_workout_days'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(
@@ -105,7 +129,7 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
                         children: [
                           const SizedBox(height: AppTheme.spacingLg),
                           Text(
-                            'روزهایی که قصد تمرین دارید را انتخاب کنید:',
+                            context.tr('workout_days_instruction'),
                             style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                           ),
                           const SizedBox(height: AppTheme.spacingLg),

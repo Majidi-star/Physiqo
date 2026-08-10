@@ -5,13 +5,15 @@ import '../widgets/physiqo_header.dart';
 import 'settings/fitness_profile_screen.dart';
 import 'settings/ai_settings_screen.dart';
 import 'settings/edit_profile_screen.dart';
-import 'settings/notifications_screen.dart';
-import 'settings/weight_unit_screen.dart';
+
+import 'settings/unit_system_screen.dart';
 import 'settings/default_rest_time_screen.dart';
 import 'settings/workout_days_screen.dart';
 import 'settings/language_screen.dart';
 import 'settings/about_screen.dart';
 import '../models/user_profile.dart';
+import '../utils/unit_utils.dart';
+import '../l10n/translations.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,7 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: SafeArea(
         child: Column(
           children: [
-            PhysiqoHeader.back(title: 'تنظیمات'),
+            PhysiqoHeader.back(title: context.tr('settings_title')),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
@@ -62,9 +64,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   children: [
                                     Text(profile.name, style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700)),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      'قد: ${profile.height} سانتی‌متر / وزن: ${profile.weight} کیلوگرم',
-                                      style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                    Builder(
+                                      builder: (context) {
+                                        final isMetric = profile.unitSystem == 'metric';
+                                        final hDouble = double.tryParse(profile.height) ?? 175.0;
+                                        final wDouble = double.tryParse(profile.weight) ?? 80.0;
+                                        
+                                        final hStr = isMetric 
+                                            ? '${profile.height} ${context.tr('settings_cm')}' 
+                                            : UnitUtils.formatCmToFtIn(hDouble);
+                                            
+                                        final wStr = isMetric 
+                                            ? '${profile.weight} ${context.tr('settings_kg')}' 
+                                            : '${UnitUtils.formatKgToLb(wDouble)} ${context.tr('settings_lb')}';
+                                            
+                                        return Text(
+                                          '${context.tr('settings_height')}: $hStr / ${context.tr('settings_weight')}: $wStr',
+                                          style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                        );
+                                      }
                                     ),
                                   ],
                                 ),
@@ -78,51 +96,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: AppTheme.spacingLg),
               // ─── Settings list ────────────────────────────
               _SettingsGroup(
-                title: 'تنظیمات حساب',
+                title: context.tr('settings_account'),
                 items: [
                   _SettingsItem(
                     icon: Icons.person_outline, 
-                    label: 'ویرایش پروفایل',
+                    label: context.tr('settings_edit_profile'),
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                     },
                   ),
-                  // TODO: re-introduce Change Password row once real auth exists
-                  _SettingsItem(
-                    icon: Icons.notifications_none, 
-                    label: 'اعلان‌ها',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
-                  ),
+
                 ],
               ),
               const SizedBox(height: AppTheme.spacingMd),
               _SettingsGroup(
-                title: 'تنظیمات تمرین',
+                title: context.tr('settings_workout'),
                 items: [
                   _SettingsItem(
                     icon: Icons.fitness_center, 
-                    label: 'واحد وزن',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WeightUnitScreen())),
+                    label: context.tr('settings_unit_system'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UnitSystemScreen())),
                   ),
                   _SettingsItem(
                     icon: Icons.timer_outlined, 
-                    label: 'زمان استراحت پیش‌فرض',
+                    label: context.tr('settings_rest_time'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DefaultRestTimeScreen())),
                   ),
                   _SettingsItem(
                     icon: Icons.calendar_today_outlined, 
-                    label: 'روزهای تمرین',
+                    label: context.tr('settings_workout_days'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WorkoutDaysScreen())),
                   ),
                 ],
               ),
               const SizedBox(height: AppTheme.spacingMd),
               _SettingsGroup(
-                title: 'پروفایل تناسب اندام',
+                title: context.tr('settings_fitness_profile'),
                 items: [
                   _SettingsItem(
                     icon: Icons.monitor_weight_outlined, 
-                    label: 'مشاهده و ویرایش پروفایل',
+                    label: context.tr('settings_view_edit_profile'),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -134,11 +147,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: AppTheme.spacingMd),
               _SettingsGroup(
-                title: 'هوش مصنوعی',
+                title: context.tr('settings_ai'),
                 items: [
                   _SettingsItem(
                     icon: Icons.psychology, 
-                    label: 'تنظیمات هوش مصنوعی',
+                    label: context.tr('settings_ai_settings'),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -150,21 +163,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: AppTheme.spacingMd),
               _SettingsGroup(
-                title: 'عمومی',
+                title: context.tr('settings_general'),
                 items: [
                   _SettingsItem(
                     icon: Icons.language, 
-                    label: 'زبان',
+                    label: context.tr('settings_language'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LanguageScreen())),
                   ),
                   _SettingsItem(
                     icon: Icons.info_outline, 
-                    label: 'درباره فیزیکو',
+                    label: context.tr('settings_about'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen())),
                   ),
                   _SettingsItem(
                     icon: Icons.logout,
-                    label: 'خروج از حساب',
+                    label: context.tr('settings_logout'),
                     isDestructive: true,
                   ),
                 ],

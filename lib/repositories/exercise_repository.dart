@@ -25,8 +25,15 @@ class ExerciseRepository {
       bool updated = false;
       for (final seedJson in defaultExercisesSeed) {
         final seedId = seedJson['id'] as String;
-        if (!cachedList.any((e) => e.id == seedId)) {
+        final index = cachedList.indexWhere((e) => e.id == seedId);
+        if (index == -1) {
           cachedList.add(Exercise.fromJson(seedJson));
+          updated = true;
+        } else {
+          // Force update default seeds to ensure language keys are applied
+          final existing = cachedList[index];
+          final fresh = Exercise.fromJson(seedJson);
+          cachedList[index] = fresh.copyWith(isHidden: existing.isHidden);
           updated = true;
         }
       }

@@ -1,10 +1,11 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import '../../models/user_profile.dart';
+import '../../utils/unit_utils.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -19,8 +20,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _heightController;
   late TextEditingController _weightController;
+  late TextEditingController _feetController;
+  late TextEditingController _inchesController;
   
-  String _weightUnit = 'kg';
   String? _photoPath;
   final ImagePicker _picker = ImagePicker();
 
@@ -28,17 +30,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: _profile.name);
-    _heightController = TextEditingController(text: _profile.height);
-    _weightController = TextEditingController(text: _profile.weight);
     _photoPath = _profile.photoPath;
-    _loadWeightUnit();
-  }
-
-  Future<void> _loadWeightUnit() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _weightUnit = prefs.getString('weight_unit') ?? 'kg';
-    });
+    
+    final isMetric = _profile.unitSystem == 'metric';
+    final hDouble = double.tryParse(_profile.height) ?? 175.0;
+    final wDouble = double.tryParse(_profile.weight) ?? 80.0;
+    
+    if (isMetric) {
+      _heightController = TextEditingController(text: _profile.height);
+      _weightController = TextEditingController(text: _profile.weight);
+      _feetController = TextEditingController();
+      _inchesController = TextEditingController();
+    } else {
+      _heightController = TextEditingController();
+      _weightController = TextEditingController(text: UnitUtils.kgToLb(wDouble).toStringAsFixed(1));
+      
+      final totalInches = UnitUtils.cmToInches(hDouble);
+      final feet = (totalInches / 12).floor();
+      final inches = (totalInches % 12).round();
+      _feetController = TextEditingController(text: feet.toString());
+      _inchesController = TextEditingController(text: inches.toString());
+    }
   }
 
   Future<void> _pickImage() async {
@@ -55,14 +67,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _feetController.dispose();
+    _inchesController.dispose();
     super.dispose();
   }
 
   void _saveProfile() {
+    final isMetric = _profile.unitSystem == 'metric';
+    String heightToSave = _profile.height;
+    String weightToSave = _profile.weight;
+    
+    if (isMetric) {
+      heightToSave = _heightController.text;
+      weightToSave = _weightController.text;
+    } else {
+      final feet = double.tryParse(_feetController.text) ?? 5.0;
+      final inches = double.tryParse(_inchesController.text) ?? 10.0;
+      final totalInches = (feet * 12) + inches;
+      heightToSave = UnitUtils.inchesToCm(totalInches).toStringAsFixed(1);
+      
+      final lb = double.tryParse(_weightController.text) ?? 175.0;
+      weightToSave = UnitUtils.lbToKg(lb).toStringAsFixed(1);
+    }
+    
     _profile.update(
       name: _nameController.text,
-      height: _heightController.text,
-      weight: _weightController.text,
+      height: heightToSave,
+      weight: weightToSave,
       photoPath: _photoPath,
     );
     Navigator.pop(context, true); // Return true to indicate change
@@ -100,6 +131,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMetric = _profile.unitSystem == 'metric';
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -108,7 +140,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'ویرایش پروفایل',
+                title: context.tr('settings_edit_profile'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(
@@ -149,11 +181,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
                       // ─── Form Fields ───────────────────────────────
-                      _buildTextField('نام', _nameController),
+                      _buildTextField(context.tr('profile_name_label'), _nameController),
                       const SizedBox(height: AppTheme.spacingMd),
-                      _buildTextField('قد', _heightController, type: TextInputType.number, suffix: 'cm'),
+                      if (isMetric)
+                        _buildTextField(context.tr('profile_height_label'), _heightController, type: TextInputType.number, suffix: 'cm')
+                      else
+                        Row(
+                          children: [
+                            Expanded(child: _buildTextField(context.tr('profile_height_ft_label'), _feetController, type: TextInputType.number, suffix: 'ft')),
+                            const SizedBox(width: AppTheme.spacingMd),
+                            Expanded(child: _buildTextField(context.tr('profile_inches_label'), _inchesController, type: TextInputType.number, suffix: 'in')),
+                          ]
+                        ),
                       const SizedBox(height: AppTheme.spacingMd),
-                      _buildTextField('وزن', _weightController, type: TextInputType.number, suffix: _weightUnit),
+                      _buildTextField(context.tr('profile_weight_label'), _weightController, type: TextInputType.number, suffix: isMetric ? 'kg' : 'lb'),
                       const SizedBox(height: 40),
                       // ─── Save Button ───────────────────────────────
                       SizedBox(
@@ -165,9 +206,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
                           ),
-                          child: const Text(
-                            'ذخیره تغییرات',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('action_save_changes'),
+                            style: const TextStyle(
                               color: AppTheme.onPrimary,
                               fontFamily: 'Vazirmatn',
                               fontWeight: FontWeight.bold,

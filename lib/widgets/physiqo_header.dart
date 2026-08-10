@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../models/user_profile.dart';
 import 'physiqo_logo.dart';
 import 'physiqo_back_button.dart';
+import '../l10n/translations.dart';
 
 /// A single unified header widget for all screens in the Physiqo app.
 /// Consolidates both the profile/logo header style and the back-title header style.
@@ -90,7 +91,7 @@ class PhysiqoHeader extends StatelessWidget implements PreferredSizeWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'قد: ${profile.height} / وزن: ${profile.weight}',
+                    '${context.tr('header_height')}: ${profile.height} / ${context.tr('header_weight')}: ${profile.weight}',
                     style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                   ),
                 ],

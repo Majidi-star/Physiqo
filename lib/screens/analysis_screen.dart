@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/body_part_heatmap.dart';
 import '../widgets/physiqo_header.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as fbps;
+import '../l10n/translations.dart';
 
 class AnalysisScreen extends StatelessWidget {
   const AnalysisScreen({super.key});
@@ -17,8 +18,8 @@ class AnalysisScreen extends StatelessWidget {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'نتایج تحلیل',
-                subtitle: 'تحلیل هوش مصنوعی | ۱۵ آبان',
+                title: context.tr('analysis_title'),
+                subtitle: context.tr('analysis_subtitle'),
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -87,15 +88,15 @@ class AnalysisScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _Legend(color: AppTheme.textSecondary, label: 'نیاز به کار'),
+                    _Legend(color: AppTheme.textSecondary, label: context.tr('analysis_needs_work')),
                     const SizedBox(width: AppTheme.spacingLg),
-                    _Legend(color: AppTheme.primary, label: 'قوی'),
+                    _Legend(color: AppTheme.primary, label: context.tr('analysis_strong')),
                   ],
                 ),
                 const SizedBox(height: AppTheme.spacingLg),
                 // ─── Overall score ────────────────────────────
                 Text(
-                  '۷۴',
+                  context.tr('analysis_score_overall'),
                   style: AppTheme.displayLarge.copyWith(
                     color: AppTheme.primary,
                     fontSize: 64,
@@ -103,7 +104,7 @@ class AnalysisScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 Text(
-                  'امتیاز کلی بدن',
+                  context.tr('analysis_overall_score_label'),
                   style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
                   textAlign: TextAlign.center,
                 ),
@@ -113,14 +114,14 @@ class AnalysisScreen extends StatelessWidget {
                   height: 80,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: const [
-                      _ScoreCard(label: 'سینه', score: '۸۵', progress: 0.85),
-                      SizedBox(width: AppTheme.spacingSm),
-                      _ScoreCard(label: 'بازو', score: '۸۰', progress: 0.80),
-                      SizedBox(width: AppTheme.spacingSm),
-                      _ScoreCard(label: 'شکم', score: '۶۲', progress: 0.62),
-                      SizedBox(width: AppTheme.spacingSm),
-                      _ScoreCard(label: 'پا', score: '۵۸', progress: 0.58),
+                    children: [
+                      _ScoreCard(label: context.tr('muscle_chest'), score: context.tr('analysis_score_chest'), progress: 0.85),
+                      const SizedBox(width: AppTheme.spacingSm),
+                      _ScoreCard(label: context.tr('muscle_arms'), score: context.tr('analysis_score_arms'), progress: 0.80),
+                      const SizedBox(width: AppTheme.spacingSm),
+                      _ScoreCard(label: context.tr('muscle_abs'), score: context.tr('analysis_score_abs'), progress: 0.62),
+                      const SizedBox(width: AppTheme.spacingSm),
+                      _ScoreCard(label: context.tr('muscle_legs'), score: context.tr('analysis_score_legs'), progress: 0.58),
                     ],
                   ),
                 ),
@@ -139,7 +140,7 @@ class AnalysisScreen extends StatelessWidget {
                       elevation: 0,
                     ),
                     child: Text(
-                      'مشاهده برنامه تمرینی',
+                      context.tr('analysis_view_plan'),
                       style: AppTheme.bodyLg.copyWith(
                         color: AppTheme.onPrimary,
                         fontWeight: FontWeight.w700,

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../l10n/translations.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -154,7 +155,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 );
               },
               child: Text(
-                'مربی هوشمند بدنسازی',
+                context.tr('smart_coach'),
                 style: AppTheme.bodyMd.copyWith(
                   color: AppTheme.textSecondary,
                   fontSize: 14,

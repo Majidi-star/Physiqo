@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
@@ -83,7 +84,7 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'زمان استراحت پیش‌فرض',
+                title: context.tr('settings_rest_time'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(
@@ -113,7 +114,7 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                                         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                                       ),
                                       child: Text(
-                                        'هوش مصنوعی تصمیم بگیرد',
+                                        context.tr('rest_mode_auto'),
                                         textAlign: TextAlign.center,
                                         style: AppTheme.bodyLg.copyWith(
                                           color: _mode == 'auto' ? AppTheme.onPrimary : AppTheme.textSecondary,
@@ -133,7 +134,7 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                                         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                                       ),
                                       child: Text(
-                                        'خودم تنظیم می‌کنم',
+                                        context.tr('rest_mode_manual'),
                                         textAlign: TextAlign.center,
                                         style: AppTheme.bodyLg.copyWith(
                                           color: _mode == 'manual' ? AppTheme.onPrimary : AppTheme.textSecondary,
@@ -153,9 +154,9 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                               decoration: AppTheme.cardDecoration(),
                               child: Column(
                                 children: [
-                                  _buildStepper('حداقل زمان (ثانیه)', _restMin, _decrementMin, _incrementMin),
+                                  _buildStepper(context.tr('rest_min_time_sec'), _restMin, _decrementMin, _incrementMin),
                                   const Divider(color: AppTheme.outline, height: 32),
-                                  _buildStepper('حداکثر زمان (ثانیه)', _restMax, _decrementMax, _incrementMax),
+                                  _buildStepper(context.tr('rest_max_time_sec'), _restMax, _decrementMax, _incrementMax),
                                 ],
                               ),
                             )
@@ -168,7 +169,7 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                                   const Icon(Icons.psychology, size: 64, color: AppTheme.primary),
                                   const SizedBox(height: AppTheme.spacingMd),
                                   Text(
-                                    'هوش مصنوعی با توجه به نوع حرکت، سنگینی وزنه و اهداف شما، زمان استراحت بهینه را محاسبه خواهد کرد.',
+                                    context.tr('rest_auto_desc'),
                                     style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
                                     textAlign: TextAlign.center,
                                   ),
@@ -185,8 +186,7 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
                               ),
-                              child: const Text(
-                                'ذخیره',
+                              child: Text(context.tr('action_save'),
                                 style: TextStyle(
                                   color: AppTheme.onPrimary,
                                   fontFamily: 'Vazirmatn',

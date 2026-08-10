@@ -19,6 +19,10 @@ class AIContextBuilder {
     final restMin = prefs.getInt('rest_time_min') ?? 45;
     final restMax = prefs.getInt('rest_time_max') ?? 90;
 
+    final activeProvider = prefs.getString('active_ai_provider');
+    final activeChatModel = activeProvider != null ? prefs.getString('active_chat_model_$activeProvider') : null;
+    final activeVisionModel = activeProvider != null ? prefs.getString('active_vision_model_$activeProvider') : null;
+
     return {
       'user_profile': {
         'name': profile.name,
@@ -40,6 +44,11 @@ class AIContextBuilder {
                 'min_seconds': restMin, 
                 'max_seconds': restMax,
               },
+      },
+      'ai_configuration': {
+        'provider': activeProvider,
+        'chat_model': activeChatModel,
+        'vision_model': activeVisionModel,
       },
     };
   }

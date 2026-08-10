@@ -1,17 +1,19 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
+import '../../models/user_profile.dart';
 
-class WeightUnitScreen extends StatefulWidget {
-  const WeightUnitScreen({super.key});
+class UnitSystemScreen extends StatefulWidget {
+  const UnitSystemScreen({super.key});
 
   @override
-  State<WeightUnitScreen> createState() => _WeightUnitScreenState();
+  State<UnitSystemScreen> createState() => _UnitSystemScreenState();
 }
 
-class _WeightUnitScreenState extends State<WeightUnitScreen> {
-  String _selectedUnit = 'kg';
+class _UnitSystemScreenState extends State<UnitSystemScreen> {
+  String _selectedSystem = 'metric';
   bool _isLoading = true;
 
   @override
@@ -23,21 +25,20 @@ class _WeightUnitScreenState extends State<WeightUnitScreen> {
   Future<void> _loadUnit() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedUnit = prefs.getString('weight_unit') ?? 'kg';
+      _selectedSystem = prefs.getString('unit_system') ?? 'metric';
       _isLoading = false;
     });
   }
 
-  Future<void> _updateUnit(String unit) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('weight_unit', unit);
+  Future<void> _updateUnit(String system) async {
+    UserProfile.current().update(unitSystem: system);
     setState(() {
-      _selectedUnit = unit;
+      _selectedSystem = system;
     });
   }
 
-  Widget _buildUnitOption(String title, String value) {
-    final isSelected = _selectedUnit == value;
+  Widget _buildUnitOption(String title, String subtitle, String value) {
+    final isSelected = _selectedSystem == value;
     return GestureDetector(
       onTap: () => _updateUnit(value),
       child: Container(
@@ -54,10 +55,19 @@ class _WeightUnitScreenState extends State<WeightUnitScreen> {
         child: Row(
           children: [
             Expanded(
-              child: Text(title, style: AppTheme.bodyLg.copyWith(
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
-              )),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTheme.bodyLg.copyWith(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
+                  )),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: AppTheme.bodyMd.copyWith(
+                    color: AppTheme.textSecondary,
+                  )),
+                ],
+              ),
             ),
             if (isSelected)
               const Icon(Icons.check_circle, color: AppTheme.primary, size: 24)
@@ -79,7 +89,7 @@ class _WeightUnitScreenState extends State<WeightUnitScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'واحد وزن',
+                title: context.tr('settings_unit_system'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(
@@ -91,8 +101,8 @@ class _WeightUnitScreenState extends State<WeightUnitScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: AppTheme.spacingLg),
-                          _buildUnitOption('کیلوگرم (kg)', 'kg'),
-                          _buildUnitOption('پوند (lb)', 'lb'),
+                          _buildUnitOption(context.tr('unit_metric_label'), context.tr('unit_metric_desc'), 'metric'),
+                          _buildUnitOption(context.tr('unit_imperial_label'), context.tr('unit_imperial_desc'), 'imperial'),
                         ],
                       ),
                     ),

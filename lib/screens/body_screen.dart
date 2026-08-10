@@ -5,6 +5,7 @@ import '../widgets/physiqo_header.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as fbps;
 import '../widgets/physiqo_interactive_body_svg.dart';
 import 'body_scan/scan_capture_flow.dart';
+import '../l10n/translations.dart';
 
 class BodyScreen extends StatefulWidget {
   const BodyScreen({super.key});
@@ -107,7 +108,7 @@ class _BodyScreenState extends State<BodyScreen> {
                       textDirection: TextDirection.rtl,
                       children: [
                         Text(
-                          'عضلات هدف',
+                          context.tr('body_target_muscles'),
                           style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
                         ),
                         const Spacer(),
@@ -124,7 +125,7 @@ class _BodyScreenState extends State<BodyScreen> {
                               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                             ),
                             child: Text(
-                              'تحلیل اسکن',
+                              context.tr('body_scan_analysis'),
                               style: AppTheme.bodyMd.copyWith(
                                 color: AppTheme.onPrimary,
                                 fontWeight: FontWeight.w700,
@@ -215,7 +216,7 @@ class _BodyScreenState extends State<BodyScreen> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              m['label'] as String,
+                                              context.tr(m['label'] as String),
                                               style: AppTheme.bodyMd.copyWith(
                                                 color: isActive
                                                     ? AppTheme.primary
@@ -278,9 +279,9 @@ class _ViewToggle extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _pill('جلو', !showFront),
+            _pill(context.tr('body_front'), !showFront),
             const SizedBox(width: 8),
-            _pill('پشت', showFront),
+            _pill(context.tr('body_back'), showFront),
           ],
         ),
       ),

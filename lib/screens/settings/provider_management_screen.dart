@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -64,19 +65,19 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
     Color testColor = AppTheme.textSecondary;
 
     Future<void> testConnection(StateSetter setDialogState) async {
-      setDialogState(() { testStatus = 'درحال بررسی...'; testColor = AppTheme.textSecondary; });
+      setDialogState(() { testStatus = context.tr('provider_testing'); testColor = AppTheme.textSecondary; });
       try {
         final uri = Uri.parse('${urlCtrl.text}/models');
         final response = await http.get(uri, headers: {
           'Authorization': 'Bearer ${keyCtrl.text}',
         }).timeout(const Duration(seconds: 5));
         if (response.statusCode == 200) {
-          setDialogState(() { testStatus = 'اتصال موفق'; testColor = Colors.green; });
+          setDialogState(() { testStatus = context.tr('provider_success'); testColor = Colors.green; });
         } else {
-          setDialogState(() { testStatus = 'خطا: ${response.statusCode}'; testColor = AppTheme.error; });
+          setDialogState(() { testStatus = context.tr('provider_error_code').replaceAll('{code}', response.statusCode.toString()); testColor = AppTheme.error; });
         }
       } catch (e) {
-        setDialogState(() { testStatus = 'خطای شبکه/آدرس'; testColor = AppTheme.error; });
+        setDialogState(() { testStatus = context.tr('provider_error_network'); testColor = AppTheme.error; });
       }
     }
 
@@ -89,7 +90,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
               textDirection: TextDirection.rtl,
               child: AlertDialog(
                 backgroundColor: AppTheme.surfaceHigh,
-                title: Text('افزودن ارائه‌دهنده', style: AppTheme.headlineMd),
+                title: Text(context.tr('title_add_provider'), style: AppTheme.headlineMd),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -110,7 +111,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                         }).toList(),
                       ),
                       const SizedBox(height: AppTheme.spacingMd),
-                      _buildTextField('نام (مثلاً OpenAI)', nameCtrl),
+                      _buildTextField(context.tr('provider_name_hint'), nameCtrl),
                       const SizedBox(height: AppTheme.spacingMd),
                       _buildTextField('Base URL', urlCtrl, textDirection: TextDirection.ltr),
                       const SizedBox(height: AppTheme.spacingMd),
@@ -123,7 +124,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.surface,
                             ),
-                            child: const Text('تست اتصال', style: TextStyle(color: AppTheme.textPrimary)),
+                            child: Text(context.tr('action_test_connection'), style: TextStyle(color: AppTheme.textPrimary)),
                           ),
                           const SizedBox(width: AppTheme.spacingMd),
                           if (testStatus != null)
@@ -136,7 +137,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text('لغو', style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary)),
+                    child: Text(context.tr('action_cancel'), style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary)),
                   ),
                   TextButton(
                     onPressed: () {
@@ -145,7 +146,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                         Navigator.pop(context);
                       }
                     },
-                    child: Text('ذخیره', style: AppTheme.bodyLg.copyWith(color: AppTheme.primary)),
+                    child: Text(context.tr('action_save'), style: AppTheme.bodyLg.copyWith(color: AppTheme.primary)),
                   ),
                 ],
               ),
@@ -183,7 +184,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'مدیریت ارائه‌دهندگان',
+                title: context.tr('title_provider_management'),
                 onBackTap: () => Navigator.of(context).pop(),
               ),
               Expanded(
@@ -197,7 +198,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _showAddProviderDialog,
                           icon: const Icon(Icons.add, color: AppTheme.textPrimary),
-                          label: Text('افزودن ارائه‌دهنده جدید', style: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary)),
+                          label: Text(context.tr('btn_add_new_provider'), style: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.surfaceHigh,
                             padding: const EdgeInsets.symmetric(vertical: 16),

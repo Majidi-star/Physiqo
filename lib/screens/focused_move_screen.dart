@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
+import '../l10n/translations.dart';
 
 enum ExerciseDetailContext { database, scheduledWorkout }
 
@@ -103,7 +104,7 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
-                    Text('جزئیات حرکت', style: AppTheme.headlineMd),
+                    Text(context.tr('focused_move_details'), style: AppTheme.headlineMd),
                     const Spacer(),
                     if (_args.context == ExerciseDetailContext.database) ...[
                       // Edit action button
@@ -139,13 +140,13 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'آیا از حذف این حرکت مطمئن هستید؟',
+                          context.tr('focused_move_delete_confirm'),
                           style: AppTheme.bodyMd.copyWith(color: AppTheme.textPrimary),
                         ),
                       ),
                       TextButton(
                         onPressed: _deleteAndClose,
-                        child: const Text('بله', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn')),
+                        child: Text(context.tr('yes'), style: const TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn')),
                       ),
                       const SizedBox(width: 8),
                       TextButton(
@@ -154,7 +155,7 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                             _showConfirmDelete = false;
                           });
                         },
-                        child: const Text('خیر', style: TextStyle(color: AppTheme.textPrimary, fontFamily: 'Vazirmatn')),
+                        child: Text(context.tr('no'), style: const TextStyle(color: AppTheme.textPrimary, fontFamily: 'Vazirmatn')),
                       ),
                     ],
                   ),
@@ -183,11 +184,10 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
-                      // ─── Exercise title ────────────────────────
-                      Text(_exercise.name, style: AppTheme.headlineMd),
+                      Text(context.tr(_exercise.name), style: AppTheme.headlineMd),
                       const SizedBox(height: AppTheme.spacingSm),
                       Text(
-                        _exercise.description,
+                        context.tr(_exercise.description),
                         style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
@@ -195,17 +195,17 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                       if (_args.context == ExerciseDetailContext.scheduledWorkout) ...[
                         Row(
                           children: [
-                            Expanded(child: _DetailChip(label: 'ست‌ها', value: '${_args.sets ?? _exercise.defaultSets}')),
+                            Expanded(child: _DetailChip(label: context.tr('focused_move_sets'), value: '${_args.sets ?? _exercise.defaultSets}')),
                             const SizedBox(width: AppTheme.spacingSm),
-                            Expanded(child: _DetailChip(label: 'تکرار', value: '${_args.reps ?? _exercise.defaultReps}')),
+                            Expanded(child: _DetailChip(label: context.tr('focused_move_reps'), value: '${_args.reps ?? _exercise.defaultReps}')),
                             const SizedBox(width: AppTheme.spacingSm),
-                            Expanded(child: _DetailChip(label: 'استراحت', value: '${_args.restSeconds ?? _exercise.defaultRestSeconds} ثانیه')),
+                            Expanded(child: _DetailChip(label: context.tr('focused_move_rest'), value: '${_args.restSeconds ?? _exercise.defaultRestSeconds}${context.tr('focused_move_seconds')}')),
                           ],
                         ),
                         const SizedBox(height: AppTheme.spacingLg),
                       ],
                       // ─── Target muscles ───────────────────────
-                      Text('عضلات هدف و فرعی', style: AppTheme.headlineMd),
+                      Text(context.tr('focused_move_target_muscles'), style: AppTheme.headlineMd),
                       const SizedBox(height: AppTheme.spacingMd),
                       Wrap(
                         spacing: AppTheme.spacingSm,
@@ -213,12 +213,12 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                         children: [
                           // Primary muscle group tag
                           _MuscleTag(
-                            label: _getMuscleGroupLabel(_exercise.primaryMuscleGroup),
+                            label: _getMuscleGroupLabel(context, _exercise.primaryMuscleGroup),
                             isPrimary: true,
                           ),
                           // Secondary muscle group tags
                           for (final muscle in _exercise.secondaryMuscleGroups)
-                            _MuscleTag(label: muscle, isPrimary: false),
+                            _MuscleTag(label: context.tr(muscle), isPrimary: false),
                         ],
                       ),
                       const SizedBox(height: 100),
@@ -233,20 +233,20 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
     );
   }
 
-  String _getMuscleGroupLabel(PrimaryMuscleGroup group) {
+  String _getMuscleGroupLabel(BuildContext context, PrimaryMuscleGroup group) {
     switch (group) {
       case PrimaryMuscleGroup.chest:
-        return 'سینه';
+        return context.tr('muscle_chest');
       case PrimaryMuscleGroup.back:
-        return 'پشت';
+        return context.tr('muscle_back');
       case PrimaryMuscleGroup.legs:
-        return 'پا';
+        return context.tr('muscle_legs');
       case PrimaryMuscleGroup.shoulders:
-        return 'سرشانه';
+        return context.tr('muscle_shoulders');
       case PrimaryMuscleGroup.arms:
-        return 'بازو';
+        return context.tr('muscle_arms');
       case PrimaryMuscleGroup.abs:
-        return 'شکم';
+        return context.tr('muscle_abs');
     }
   }
 }

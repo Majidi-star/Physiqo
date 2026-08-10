@@ -1,3 +1,4 @@
+import 'package:physiqo/l10n/translations.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
@@ -88,7 +89,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
           child: Column(
             children: [
               PhysiqoHeader.back(
-                title: 'زبان / Language',
+                title: context.tr('settings_language'),
                 onBackTap: () => Navigator.pop(context),
               ),
               Expanded(
@@ -100,8 +101,8 @@ class _LanguageScreenState extends State<LanguageScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: AppTheme.spacingLg),
-                          _buildLangOption('فارسی (Persian)', 'fa'),
-                          _buildLangOption('English (انگلیسی)', 'en'),
+                          _buildLangOption(context.tr('lang_fa_label'), 'fa'),
+                          _buildLangOption(context.tr('lang_en_label'), 'en'),
                         ],
                       ),
                     ),

@@ -13,6 +13,7 @@ class UserProfile extends ChangeNotifier {
   String? equipmentAccess;
   String? limitations;
   String? additionalNotes;
+  String unitSystem;
 
   UserProfile({
     required this.name,
@@ -26,6 +27,7 @@ class UserProfile extends ChangeNotifier {
     this.equipmentAccess,
     this.limitations,
     this.additionalNotes,
+    this.unitSystem = 'metric',
   });
 
   // Singleton pattern for state management
@@ -38,7 +40,8 @@ class UserProfile extends ChangeNotifier {
   UserProfile._internal()
       : name = 'Charlie',
         height = '۱۷۵',
-        weight = '۸۰' {
+        weight = '۸۰',
+        unitSystem = 'metric' {
     loadFromPrefs();
   }
 
@@ -55,6 +58,7 @@ class UserProfile extends ChangeNotifier {
     equipmentAccess = prefs.getString('user_equipmentAccess');
     limitations = prefs.getString('user_limitations');
     additionalNotes = prefs.getString('user_additionalNotes');
+    unitSystem = prefs.getString('unit_system') ?? 'metric';
     notifyListeners();
   }
 
@@ -72,6 +76,7 @@ class UserProfile extends ChangeNotifier {
     if (equipmentAccess != null) await prefs.setString('user_equipmentAccess', equipmentAccess!);
     if (limitations != null) await prefs.setString('user_limitations', limitations!);
     if (additionalNotes != null) await prefs.setString('user_additionalNotes', additionalNotes!);
+    await prefs.setString('unit_system', unitSystem);
   }
 
   void update({
@@ -86,6 +91,7 @@ class UserProfile extends ChangeNotifier {
     String? equipmentAccess,
     String? limitations,
     String? additionalNotes,
+    String? unitSystem,
   }) {
     if (name != null) this.name = name;
     if (height != null) this.height = height;
@@ -98,6 +104,7 @@ class UserProfile extends ChangeNotifier {
     if (equipmentAccess != null) this.equipmentAccess = equipmentAccess;
     if (limitations != null) this.limitations = limitations;
     if (additionalNotes != null) this.additionalNotes = additionalNotes;
+    if (unitSystem != null) this.unitSystem = unitSystem;
     
     saveToPrefs();
     notifyListeners();

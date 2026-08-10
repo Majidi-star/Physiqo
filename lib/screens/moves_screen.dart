@@ -7,6 +7,7 @@ import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
 import 'focused_move_screen.dart';
+import '../l10n/translations.dart';
 
 class MovesScreen extends StatefulWidget {
   const MovesScreen({super.key});
@@ -82,9 +83,9 @@ class _MovesScreenState extends State<MovesScreen> {
         onPressed: _navigateToAddExercise,
         backgroundColor: AppTheme.primary,
         icon: const Icon(Icons.add, color: AppTheme.onPrimary),
-        label: const Text(
-          'افزودن حرکت',
-          style: TextStyle(
+        label: Text(
+          context.tr('moves_add_exercise'),
+          style: const TextStyle(
             color: AppTheme.onPrimary,
             fontFamily: 'Vazirmatn',
             fontWeight: FontWeight.bold,
@@ -118,7 +119,7 @@ class _MovesScreenState extends State<MovesScreen> {
                             const SizedBox(height: AppTheme.spacingLg),
                             // ─── Section title ─────────────────────────────
                             Text(
-                              'تمرینات ${AppTheme.muscleCategories[_selectedCategory]['label']}',
+                              '${context.tr('moves_exercises_prefix')}${context.tr(AppTheme.muscleCategories[_selectedCategory]['label'] as String)}${context.tr('moves_exercises_suffix')}',
                               style: AppTheme.headlineMd,
                             ),
                             const SizedBox(height: AppTheme.spacingMd),
@@ -128,7 +129,7 @@ class _MovesScreenState extends State<MovesScreen> {
                                 padding: const EdgeInsets.symmetric(vertical: 40),
                                 child: Center(
                                   child: Text(
-                                    'حرکتی در این دسته وجود ندارد.',
+                                    context.tr('moves_empty_category'),
                                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                                   ),
                                 ),
@@ -192,7 +193,7 @@ class _MovesScreenState extends State<MovesScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  cat['label'] as String,
+                  context.tr(cat['label'] as String),
                   style: AppTheme.bodyMd.copyWith(
                     color: isActive ? AppTheme.primary : AppTheme.textPrimary,
                   ),
@@ -250,14 +251,14 @@ class _MoveCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      exercise.name,
+                      context.tr(exercise.name),
                       style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      exercise.description,
+                      context.tr(exercise.description),
                       style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -275,7 +276,7 @@ class _MoveCard extends StatelessWidget {
                               border: Border.all(color: AppTheme.outline),
                             ),
                             child: Text(
-                              m,
+                              context.tr(m),
                               style: AppTheme.labelMd.copyWith(
                                 fontSize: 9,
                                 color: AppTheme.textSecondary,
