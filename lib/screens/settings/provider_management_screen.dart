@@ -1,3 +1,4 @@
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../theme/app_theme.dart';
@@ -12,7 +13,7 @@ class ProviderManagementScreen extends StatefulWidget {
 
 class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
   final _storage = const FlutterSecureStorage();
-  Map<String, String> _providers = {}; // Key: name, Value: masked API key
+  Map<String, Map<String, String>> _providers = {}; // Key: name, Value: {url, key}
 
   final List<Map<String, String>> _prefills = [
     {'name': 'OpenAI', 'url': 'https://api.openai.com/v1'},
@@ -29,13 +30,13 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
 
   Future<void> _loadProviders() async {
     final all = await _storage.readAll();
-    final providers = <String, String>{};
+    final providers = <String, Map<String, String>>{};
     for (var key in all.keys) {
       if (key.startsWith('provider_')) {
         final name = key.replaceFirst('provider_', '');
-        final val = all[key] ?? '';
-        final masked = val.length > 8 ? '${val.substring(0, 4)}...${val.substring(val.length - 4)}' : '***';
-        providers[name] = masked;
+        final apiKey = all[key] ?? '';
+        final baseUrl = all['baseUrl_$name'] ?? '';
+        providers[name] = {'url': baseUrl, 'key': apiKey};
       }
     }
     setState(() {
@@ -55,10 +56,29 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
     _loadProviders();
   }
 
-  void _showAddProviderDialog() {
-    final nameCtrl = TextEditingController();
-    final urlCtrl = TextEditingController();
-    final keyCtrl = TextEditingController();
+  void _showAddProviderDialog({String? initialName, String? initialUrl, String? initialKey}) {
+    final nameCtrl = TextEditingController(text: initialName);
+    final urlCtrl = TextEditingController(text: initialUrl);
+    final keyCtrl = TextEditingController(text: initialKey);
+    String? testStatus;
+    Color testColor = AppTheme.textSecondary;
+
+    Future<void> testConnection(StateSetter setDialogState) async {
+      setDialogState(() { testStatus = 'درحال بررسی...'; testColor = AppTheme.textSecondary; });
+      try {
+        final uri = Uri.parse('${urlCtrl.text}/models');
+        final response = await http.get(uri, headers: {
+          'Authorization': 'Bearer ${keyCtrl.text}',
+        }).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          setDialogState(() { testStatus = 'اتصال موفق'; testColor = Colors.green; });
+        } else {
+          setDialogState(() { testStatus = 'خطا: ${response.statusCode}'; testColor = AppTheme.error; });
+        }
+      } catch (e) {
+        setDialogState(() { testStatus = 'خطای شبکه/آدرس'; testColor = AppTheme.error; });
+      }
+    }
 
     showDialog(
       context: context,
@@ -95,6 +115,21 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                       _buildTextField('Base URL', urlCtrl, textDirection: TextDirection.ltr),
                       const SizedBox(height: AppTheme.spacingMd),
                       _buildTextField('API Key', keyCtrl, isObscure: true, textDirection: TextDirection.ltr),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => testConnection(setDialogState),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.surface,
+                            ),
+                            child: const Text('تست اتصال', style: TextStyle(color: AppTheme.textPrimary)),
+                          ),
+                          const SizedBox(width: AppTheme.spacingMd),
+                          if (testStatus != null)
+                            Expanded(child: Text(testStatus!, style: AppTheme.bodyMd.copyWith(color: testColor))),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -130,8 +165,10 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-        enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
-        focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
+        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.textSecondary)),
+        focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
+        filled: true,
+        fillColor: AppTheme.surface,
       ),
     );
   }
@@ -170,11 +207,19 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
                       );
                     }
                     final name = _providers.keys.elementAt(index);
-                    final maskedKey = _providers[name]!;
+                    final data = _providers[name]!;
+                    final val = data['key'] ?? '';
+                    final maskedKey = val.length > 8 ? '${val.substring(0, 4)}...${val.substring(val.length - 4)}' : '***';
+                    
                     return Container(
                       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
                       decoration: AppTheme.cardDecoration(),
                       child: ListTile(
+                        onTap: () => _showAddProviderDialog(
+                          initialName: name,
+                          initialUrl: data['url'],
+                          initialKey: data['key'],
+                        ),
                         title: Text(name, style: AppTheme.bodyLg),
                         subtitle: Text(maskedKey, style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary), textDirection: TextDirection.ltr),
                         trailing: IconButton(

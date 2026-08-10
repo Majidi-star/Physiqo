@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -10,28 +11,45 @@ class PhysiqoLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLtr = Directionality.of(context) == TextDirection.ltr;
+
+    Widget chevron = CustomPaint(
+      size: Size(height * 0.7, height),
+      painter: _ChevronPainter(),
+    );
+
+    if (isLtr) {
+      chevron = Transform.rotate(
+        angle: math.pi,
+        child: chevron,
+      );
+    }
+
+    final textWidget = Text(
+      'Physiqo',
+      style: TextStyle(
+        fontFamily: 'Inter',
+        fontSize: height * 0.75,
+        fontWeight: FontWeight.w700,
+        color: AppTheme.textPrimary,
+        letterSpacing: 0.5,
+      ),
+    );
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       textDirection: TextDirection.ltr,
-      children: [
-        // Chevron mark
-        CustomPaint(
-          size: Size(height * 0.7, height),
-          painter: _ChevronPainter(),
-        ),
-        const SizedBox(width: 6),
-        // Wordmark
-        Text(
-          'Physiqo',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: height * 0.75,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
+      children: isLtr
+          ? [
+              textWidget,
+              const SizedBox(width: 6),
+              chevron,
+            ]
+          : [
+              chevron,
+              const SizedBox(width: 6),
+              textWidget,
+            ],
     );
   }
 }

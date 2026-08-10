@@ -11,7 +11,9 @@ class DefaultRestTimeScreen extends StatefulWidget {
 }
 
 class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
-  int _restTime = 60;
+  String _mode = 'auto'; // 'auto' or 'manual'
+  int _restMin = 45;
+  int _restMax = 90;
   bool _isLoading = true;
 
   @override
@@ -23,31 +25,52 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
   Future<void> _loadRestTime() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _restTime = prefs.getInt('default_rest_time') ?? 60;
+      _mode = prefs.getString('rest_time_mode') ?? 'auto';
+      _restMin = prefs.getInt('rest_time_min') ?? 45;
+      _restMax = prefs.getInt('rest_time_max') ?? 90;
       _isLoading = false;
     });
   }
 
   Future<void> _saveRestTime() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('default_rest_time', _restTime);
+    await prefs.setString('rest_time_mode', _mode);
+    await prefs.setInt('rest_time_min', _restMin);
+    await prefs.setInt('rest_time_max', _restMax);
     if (mounted) {
       Navigator.pop(context);
     }
   }
 
-  void _increment() {
-    setState(() {
-      _restTime += 5;
-    });
-  }
+  void _incrementMin() => setState(() { if (_restMin < _restMax - 5) _restMin += 5; });
+  void _decrementMin() => setState(() { if (_restMin > 5) _restMin -= 5; });
+  
+  void _incrementMax() => setState(() { _restMax += 5; });
+  void _decrementMax() => setState(() { if (_restMax > _restMin + 5) _restMax -= 5; });
 
-  void _decrement() {
-    setState(() {
-      if (_restTime > 5) {
-        _restTime -= 5;
-      }
-    });
+  Widget _buildStepper(String label, int value, VoidCallback onDec, VoidCallback onInc) {
+    return Column(
+      children: [
+        Text(label, style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+        const SizedBox(height: AppTheme.spacingMd),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: onDec,
+              icon: const Icon(Icons.remove_circle_outline, color: AppTheme.primary, size: 36),
+            ),
+            const SizedBox(width: AppTheme.spacingMd),
+            Text('$value', style: AppTheme.headlineLg.copyWith(fontSize: 40)),
+            const SizedBox(width: AppTheme.spacingMd),
+            IconButton(
+              onPressed: onInc,
+              icon: const Icon(Icons.add_circle_outline, color: AppTheme.primary, size: 36),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -69,42 +92,89 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                   : Padding(
                       padding: const EdgeInsets.all(AppTheme.gutter),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
+                          const SizedBox(height: AppTheme.spacingLg),
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: AppTheme.spacingLg),
-                            decoration: AppTheme.cardDecoration(),
-                            child: Column(
+                            padding: const EdgeInsets.all(AppTheme.spacingSm),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            ),
+                            child: Row(
                               children: [
-                                Text(
-                                  'زمان استراحت بین ست‌ها',
-                                  style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _mode = 'auto'),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                                      decoration: BoxDecoration(
+                                        color: _mode == 'auto' ? AppTheme.primary : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                      ),
+                                      child: Text(
+                                        'هوش مصنوعی تصمیم بگیرد',
+                                        textAlign: TextAlign.center,
+                                        style: AppTheme.bodyLg.copyWith(
+                                          color: _mode == 'auto' ? AppTheme.onPrimary : AppTheme.textSecondary,
+                                          fontWeight: _mode == 'auto' ? FontWeight.w700 : FontWeight.w400,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: AppTheme.spacingLg),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      onPressed: _decrement,
-                                      icon: const Icon(Icons.remove_circle_outline, color: AppTheme.primary, size: 40),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _mode = 'manual'),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+                                      decoration: BoxDecoration(
+                                        color: _mode == 'manual' ? AppTheme.primary : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                      ),
+                                      child: Text(
+                                        'خودم تنظیم می‌کنم',
+                                        textAlign: TextAlign.center,
+                                        style: AppTheme.bodyLg.copyWith(
+                                          color: _mode == 'manual' ? AppTheme.onPrimary : AppTheme.textSecondary,
+                                          fontWeight: _mode == 'manual' ? FontWeight.w700 : FontWeight.w400,
+                                        ),
+                                      ),
                                     ),
-                                    const SizedBox(width: AppTheme.spacingLg),
-                                    Text(
-                                      '$_restTime',
-                                      style: AppTheme.headlineLg.copyWith(fontSize: 48),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text('ثانیه', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                                    const SizedBox(width: AppTheme.spacingLg - 8),
-                                    IconButton(
-                                      onPressed: _increment,
-                                      icon: const Icon(Icons.add_circle_outline, color: AppTheme.primary, size: 40),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(height: AppTheme.spacingLg),
+                          if (_mode == 'manual')
+                            Container(
+                              padding: const EdgeInsets.all(AppTheme.spacingLg),
+                              decoration: AppTheme.cardDecoration(),
+                              child: Column(
+                                children: [
+                                  _buildStepper('حداقل زمان (ثانیه)', _restMin, _decrementMin, _incrementMin),
+                                  const Divider(color: AppTheme.outline, height: 32),
+                                  _buildStepper('حداکثر زمان (ثانیه)', _restMax, _decrementMax, _incrementMax),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.all(AppTheme.spacingLg),
+                              decoration: AppTheme.cardDecoration(),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.psychology, size: 64, color: AppTheme.primary),
+                                  const SizedBox(height: AppTheme.spacingMd),
+                                  Text(
+                                    'هوش مصنوعی با توجه به نوع حرکت، سنگینی وزنه و اهداف شما، زمان استراحت بهینه را محاسبه خواهد کرد.',
+                                    style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
                           const Spacer(),
                           SizedBox(
                             width: double.infinity,

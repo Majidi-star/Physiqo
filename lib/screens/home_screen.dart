@@ -207,12 +207,10 @@ class _DayDot extends StatelessWidget {
 
 class _ExerciseCard extends StatelessWidget {
   final Exercise exercise;
-  final bool isActive;
   final VoidCallback onRefresh;
 
   const _ExerciseCard({
     required this.exercise,
-    this.isActive = false,
     required this.onRefresh,
   });
 
@@ -233,7 +231,7 @@ class _ExerciseCard extends StatelessWidget {
         onRefresh();
       },
       child: Container(
-        decoration: AppTheme.cardDecoration(active: isActive),
+        decoration: AppTheme.cardDecoration(),
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         child: Row(
           children: [

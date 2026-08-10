@@ -18,6 +18,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
     required String initialValue,
     required TextInputType keyboardType,
     required Function(String) onSave,
+    int maxLines = 1,
   }) {
     final controller = TextEditingController(text: initialValue);
     showDialog(
@@ -31,14 +32,17 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
             content: TextField(
               controller: controller,
               keyboardType: keyboardType,
+              maxLines: maxLines,
               style: AppTheme.bodyLg,
               decoration: InputDecoration(
-                enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: AppTheme.outline),
+                enabledBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.textSecondary),
                 ),
-                focusedBorder: UnderlineInputBorder(
+                focusedBorder: const OutlineInputBorder(
                   borderSide: BorderSide(color: AppTheme.primary),
                 ),
+                filled: true,
+                fillColor: AppTheme.surface,
               ),
             ),
             actions: [
@@ -175,9 +179,22 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                               value: _profile.primaryGoal ?? 'تعیین نشده',
                               onTap: () => _showSelectionSheet(
                                 title: 'هدف اصلی',
-                                options: ['افزایش حجم عضلانی', 'کاهش چربی', 'افزایش قدرت', 'استقامت', 'حفظ فرم فعلی'],
+                                options: ['افزایش حجم عضلانی', 'کاهش چربی', 'افزایش قدرت', 'استقامت', 'حفظ فرم فعلی', 'سایر'],
                                 currentValue: _profile.primaryGoal,
-                                onSelect: (val) => _profile.update(primaryGoal: val),
+                                onSelect: (val) {
+                                  if (val == 'سایر') {
+                                    Future.delayed(const Duration(milliseconds: 300), () {
+                                      _showEditDialog(
+                                        title: 'هدف سفارشی',
+                                        initialValue: '',
+                                        keyboardType: TextInputType.text,
+                                        onSave: (customVal) => _profile.update(primaryGoal: customVal),
+                                      );
+                                    });
+                                  } else {
+                                    _profile.update(primaryGoal: val);
+                                  }
+                                },
                               ),
                             ),
                             const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
@@ -200,6 +217,18 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
                                 initialValue: _profile.limitations ?? '',
                                 keyboardType: TextInputType.text,
                                 onSave: (val) => _profile.update(limitations: val),
+                              ),
+                            ),
+                            const Divider(color: AppTheme.outline, height: 1, indent: AppTheme.spacingMd),
+                            _buildProfileItem(
+                              label: 'توضیحات اضافه',
+                              value: _profile.additionalNotes?.isNotEmpty == true ? _profile.additionalNotes! : 'هیچ',
+                              onTap: () => _showEditDialog(
+                                title: 'توضیحات اضافه',
+                                initialValue: _profile.additionalNotes ?? '',
+                                keyboardType: TextInputType.multiline,
+                                maxLines: 4,
+                                onSave: (val) => _profile.update(additionalNotes: val),
                               ),
                             ),
                           ],

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/moves_screen.dart';
@@ -12,8 +15,21 @@ import 'screens/focused_move_screen.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/physiqo_nav_bar.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  tz.initializeTimeZones();
+  String timeZoneName = 'Asia/Tehran';
+  try {
+    const platform = MethodChannel('com.physiqo.app/timezone');
+    final String? tzName = await platform.invokeMethod<String>('getLocalTimezone');
+    if (tzName != null) {
+      timeZoneName = tzName;
+    }
+  } catch (e) {
+    debugPrint('Could not get timezone, defaulting to $timeZoneName');
+  }
+  tz.setLocalLocation(tz.getLocation(timeZoneName));
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint('Physiqo Error: ${details.exception}');

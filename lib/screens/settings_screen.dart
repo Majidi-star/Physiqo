@@ -1,10 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
 import 'settings/fitness_profile_screen.dart';
 import 'settings/ai_settings_screen.dart';
 import 'settings/edit_profile_screen.dart';
-import 'settings/change_password_screen.dart';
 import 'settings/notifications_screen.dart';
 import 'settings/weight_unit_screen.dart';
 import 'settings/default_rest_time_screen.dart';
@@ -39,35 +39,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const SizedBox(height: AppTheme.spacingMd),
                     // ─── Profile card ─────────────────────────────
-                    Container(
-                decoration: AppTheme.cardDecoration(),
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 28,
-                      backgroundColor: AppTheme.surfaceHigh,
-                      child: Icon(Icons.person, color: AppTheme.textSecondary, size: 28),
-                    ),
-                    const SizedBox(width: AppTheme.spacingMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(profile.name, style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 2),
-                          Text(
-                            'قد: ${profile.height} سانتی‌متر / وزن: ${profile.weight} کیلوگرم',
-                            style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                    ListenableBuilder(
+                      listenable: profile,
+                      builder: (context, _) {
+                        return Container(
+                          decoration: AppTheme.cardDecoration(),
+                          padding: const EdgeInsets.all(AppTheme.spacingMd),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 28,
+                                backgroundColor: AppTheme.surfaceHigh,
+                                backgroundImage: profile.photoPath != null ? FileImage(File(profile.photoPath!)) : null,
+                                child: profile.photoPath == null 
+                                  ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 28) 
+                                  : null,
+                              ),
+                              const SizedBox(width: AppTheme.spacingMd),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(profile.name, style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'قد: ${profile.height} سانتی‌متر / وزن: ${profile.weight} کیلوگرم',
+                                      style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_left, color: AppTheme.textSecondary),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      }
                     ),
-                    const Icon(Icons.chevron_left, color: AppTheme.textSecondary),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingLg),
+                    const SizedBox(height: AppTheme.spacingLg),
               // ─── Settings list ────────────────────────────
               _SettingsGroup(
                 title: 'تنظیمات حساب',
@@ -75,16 +83,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsItem(
                     icon: Icons.person_outline, 
                     label: 'ویرایش پروفایل',
-                    onTap: () async {
-                      final changed = await Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-                      if (changed == true) setState(() {});
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                     },
                   ),
-                  _SettingsItem(
-                    icon: Icons.lock_outline, 
-                    label: 'تغییر رمز عبور',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordScreen())),
-                  ),
+                  // TODO: re-introduce Change Password row once real auth exists
                   _SettingsItem(
                     icon: Icons.notifications_none, 
                     label: 'اعلان‌ها',

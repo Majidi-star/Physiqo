@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import '../../models/user_profile.dart';
@@ -16,6 +19,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _heightController;
   late TextEditingController _weightController;
+  
+  String _weightUnit = 'kg';
+  String? _photoPath;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -23,6 +30,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: _profile.name);
     _heightController = TextEditingController(text: _profile.height);
     _weightController = TextEditingController(text: _profile.weight);
+    _photoPath = _profile.photoPath;
+    _loadWeightUnit();
+  }
+
+  Future<void> _loadWeightUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _weightUnit = prefs.getString('weight_unit') ?? 'kg';
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _photoPath = image.path;
+      });
+    }
   }
 
   @override
@@ -38,11 +63,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       name: _nameController.text,
       height: _heightController.text,
       weight: _weightController.text,
+      photoPath: _photoPath,
     );
     Navigator.pop(context, true); // Return true to indicate change
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType type = TextInputType.text}) {
+  Widget _buildTextField(String label, TextEditingController controller, {TextInputType type = TextInputType.text, String? suffix}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,6 +82,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             filled: true,
             fillColor: AppTheme.surfaceHigh,
             contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 14),
+            suffixText: suffix,
+            suffixStyle: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               borderSide: BorderSide.none,
@@ -91,35 +119,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       const SizedBox(height: AppTheme.spacingLg),
                       // ─── Profile Photo ─────────────────────────────
                       Center(
-                        child: Stack(
-                          children: [
-                            const CircleAvatar(
-                              radius: 50,
-                              backgroundColor: AppTheme.surfaceHigh,
-                              child: Icon(Icons.person, color: AppTheme.textSecondary, size: 50),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: AppTheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.camera_alt, color: AppTheme.onPrimary, size: 18),
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: AppTheme.surfaceHigh,
+                                backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
+                                child: _photoPath == null 
+                                  ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 50)
+                                  : null,
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: AppTheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt, color: AppTheme.onPrimary, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
                       // ─── Form Fields ───────────────────────────────
                       _buildTextField('نام', _nameController),
                       const SizedBox(height: AppTheme.spacingMd),
-                      _buildTextField('قد', _heightController, type: TextInputType.number),
+                      _buildTextField('قد', _heightController, type: TextInputType.number, suffix: 'cm'),
                       const SizedBox(height: AppTheme.spacingMd),
-                      _buildTextField('وزن', _weightController, type: TextInputType.number),
+                      _buildTextField('وزن', _weightController, type: TextInputType.number, suffix: _weightUnit),
                       const SizedBox(height: 40),
                       // ─── Save Button ───────────────────────────────
                       SizedBox(

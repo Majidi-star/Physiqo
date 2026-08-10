@@ -60,8 +60,6 @@ class CircuitTimelinePainter extends CustomPainter {
       double p3x = x2 - dx2 * dir - dy.abs() * dir;
       double p4x = x2 - dx2 * dir;
       
-      // If the step is too small to draw the jog, fallback to straight line
-      bool canDrawJog = isRtl ? (p3x > p2x) : (p3x > p2x);
       // Wait, absolute distance check is safer
       if ((x2 - x1).abs() < (dx1 + dx2 + dy.abs() * 2)) {
         mainPath.lineTo(x2, cy);
@@ -92,9 +90,6 @@ class CircuitTimelinePainter extends CustomPainter {
       canvas.drawCircle(Offset(x, cy), innerRadius, nodePaint);
     }
   }
-
-  @override
-  bool notifyListeners() => false;
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
