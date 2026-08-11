@@ -3,6 +3,7 @@ import '../../l10n/translations.dart';
 import '../../theme/app_theme.dart';
 import 'provider_management_screen.dart';
 import 'model_selection_screen.dart';
+import 'custom_instructions_screen.dart';
 
 class AISettingsScreen extends StatelessWidget {
   const AISettingsScreen({super.key});
@@ -131,6 +132,20 @@ class AISettingsScreen extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const ModelSelectionScreen()),
+                              );
+                            },
+                          ),
+                          const Divider(color: AppTheme.outline, height: 1, indent: 52),
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 8),
+                            leading: const Icon(Icons.description_outlined, color: AppTheme.textPrimary),
+                            title: Text(context.tr('ai_custom_instructions'), style: AppTheme.bodyLg),
+                            subtitle: Text(context.tr('ai_custom_instructions_desc'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                            trailing: Icon(Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, color: AppTheme.textSecondary, size: 20),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const CustomInstructionsScreen()),
                               );
                             },
                           ),

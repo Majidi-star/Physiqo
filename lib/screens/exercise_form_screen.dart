@@ -7,11 +7,13 @@ import '../l10n/translations.dart';
 class ExerciseFormScreen extends StatefulWidget {
   final Exercise? exercise;
   final Function(Exercise) onSave;
+  final bool isDatabaseContext;
 
   const ExerciseFormScreen({
     super.key,
     this.exercise,
     required this.onSave,
+    this.isDatabaseContext = false,
   });
 
   @override
@@ -120,6 +122,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                           hint: context.tr('form_exercise_name_hint'),
                           onSaved: (val) => _name = val ?? '',
                           validator: (val) => val == null || val.trim().isEmpty ? context.tr('form_err_name') : null,
+                          readOnly: !widget.isDatabaseContext,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
@@ -134,6 +137,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                           initialValue: _secondaryMuscleGroupsRaw,
                           hint: context.tr('form_secondary_muscles_hint'),
                           onSaved: (val) => _secondaryMuscleGroupsRaw = val ?? '',
+                          readOnly: !widget.isDatabaseContext,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
@@ -144,6 +148,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                           hint: context.tr('form_short_desc_hint'),
                           onSaved: (val) => _description = val ?? '',
                           validator: (val) => val == null || val.trim().isEmpty ? context.tr('form_err_desc') : null,
+                          readOnly: !widget.isDatabaseContext,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
@@ -154,71 +159,74 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                           hint: context.tr('form_equipment_hint'),
                           onSaved: (val) => _equipment = val ?? '',
                           validator: (val) => val == null || val.trim().isEmpty ? context.tr('form_err_equip') : null,
+                          readOnly: !widget.isDatabaseContext,
                         ),
                         const SizedBox(height: AppTheme.spacingMd),
 
                         // --- Numbers (Sets, Reps, Rest, Duration) ---
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSectionTitle(context.tr('form_sets')),
-                                  _buildNumberField(
-                                    initialValue: _defaultSets,
-                                    onSaved: (val) => _defaultSets = val ?? 3,
-                                  ),
-                                ],
+                        if (!widget.isDatabaseContext) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle(context.tr('form_sets')),
+                                    _buildNumberField(
+                                      initialValue: _defaultSets,
+                                      onSaved: (val) => _defaultSets = val ?? 3,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: AppTheme.spacingSm),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSectionTitle(context.tr('form_reps')),
-                                  _buildNumberField(
-                                    initialValue: _defaultReps,
-                                    onSaved: (val) => _defaultReps = val ?? 12,
-                                  ),
-                                ],
+                              const SizedBox(width: AppTheme.spacingSm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle(context.tr('form_reps')),
+                                    _buildNumberField(
+                                      initialValue: _defaultReps,
+                                      onSaved: (val) => _defaultReps = val ?? 12,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.spacingMd),
+                            ],
+                          ),
+                          const SizedBox(height: AppTheme.spacingMd),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSectionTitle(context.tr('form_rest_time')),
-                                  _buildNumberField(
-                                    initialValue: _defaultRestSeconds,
-                                    onSaved: (val) => _defaultRestSeconds = val ?? 90,
-                                  ),
-                                ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle(context.tr('form_rest_time')),
+                                    _buildNumberField(
+                                      initialValue: _defaultRestSeconds,
+                                      onSaved: (val) => _defaultRestSeconds = val ?? 90,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: AppTheme.spacingSm),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildSectionTitle(context.tr('form_est_time')),
-                                  _buildNumberField(
-                                    initialValue: _estimatedMinutes,
-                                    onSaved: (val) => _estimatedMinutes = val ?? 15,
-                                  ),
-                                ],
+                              const SizedBox(width: AppTheme.spacingSm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle(context.tr('form_est_time')),
+                                    _buildNumberField(
+                                      initialValue: _estimatedMinutes,
+                                      onSaved: (val) => _estimatedMinutes = val ?? 15,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.spacingXl),
+                            ],
+                          ),
+                          const SizedBox(height: AppTheme.spacingXl),
+                        ],
 
                         // --- Save Button ---
                         ElevatedButton(
@@ -265,20 +273,22 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
     required String hint,
     required FormFieldSetter<String> onSaved,
     FormFieldValidator<String>? validator,
+    bool readOnly = false,
   }) {
     return Container(
       decoration: AppTheme.cardDecoration(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       child: TextFormField(
         initialValue: initialValue,
-        style: AppTheme.bodyMd,
+        readOnly: readOnly,
+        style: AppTheme.bodyMd.copyWith(color: readOnly ? AppTheme.textSecondary : AppTheme.textPrimary),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,
           hintStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
         ),
         onSaved: onSaved,
-        validator: validator,
+        validator: readOnly ? null : validator,
       ),
     );
   }
@@ -304,7 +314,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
         },
         validator: (val) {
           if (val == null || int.tryParse(val) == null || int.parse(val) <= 0) {
-            return 'نامعتبر';
+            return context.tr('form_err_invalid_number');
           }
           return null;
         },
@@ -314,12 +324,12 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
 
   Widget _buildDropdownField() {
     final Map<PrimaryMuscleGroup, String> muscleNames = {
-      PrimaryMuscleGroup.chest: 'سینه',
-      PrimaryMuscleGroup.back: 'پشت',
-      PrimaryMuscleGroup.legs: 'پا',
-      PrimaryMuscleGroup.shoulders: 'سرشانه',
-      PrimaryMuscleGroup.arms: 'بازو',
-      PrimaryMuscleGroup.abs: 'شکم',
+      PrimaryMuscleGroup.chest: context.tr('muscle_chest'),
+      PrimaryMuscleGroup.back: context.tr('muscle_back'),
+      PrimaryMuscleGroup.legs: context.tr('muscle_legs'),
+      PrimaryMuscleGroup.shoulders: context.tr('muscle_shoulders'),
+      PrimaryMuscleGroup.arms: context.tr('muscle_arms'),
+      PrimaryMuscleGroup.abs: context.tr('muscle_abs'),
     };
 
     return Container(
@@ -338,7 +348,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
             child: Text(muscleNames[group] ?? group.name, style: AppTheme.bodyMd),
           );
         }).toList(),
-        onChanged: (val) {
+        onChanged: !widget.isDatabaseContext ? null : (val) {
           if (val != null) {
             setState(() {
               _primaryMuscleGroup = val;

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../l10n/translations.dart';
+import '../utils/account_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -53,7 +54,11 @@ class _SplashScreenState extends State<SplashScreen> {
     // 5. Navigate to main screen after 1.8 seconds + 0.5 seconds hold = 2.3 seconds total
     Future.delayed(const Duration(milliseconds: 2300), () {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/main');
+        if (AccountManager.accounts.isEmpty) {
+          Navigator.pushReplacementNamed(context, '/onboarding');
+        } else {
+          Navigator.pushReplacementNamed(context, '/main');
+        }
       }
     });
   }

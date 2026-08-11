@@ -1,16 +1,18 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/exercise.dart';
+import '../utils/account_manager.dart';
 import '../data/exercise_seed.dart';
 
-class ExerciseRepository {
-  static const _keyExercises = 'exercise_database';
+class ExerciseRepository extends ChangeNotifier {
+  String get _storageKey => AccountManager.getPrefKey('physiqo_exercises');
   final SharedPreferences _prefs;
 
   ExerciseRepository(this._prefs);
 
   List<Exercise> _loadExercises() {
-    final raw = _prefs.getString(_keyExercises);
+    final raw = _prefs.getString(_storageKey);
     if (raw == null) {
       // First time launch: seed database
       final seedList = defaultExercisesSeed.map((json) => Exercise.fromJson(json)).toList();
@@ -29,12 +31,6 @@ class ExerciseRepository {
         if (index == -1) {
           cachedList.add(Exercise.fromJson(seedJson));
           updated = true;
-        } else {
-          // Force update default seeds to ensure language keys are applied
-          final existing = cachedList[index];
-          final fresh = Exercise.fromJson(seedJson);
-          cachedList[index] = fresh.copyWith(isHidden: existing.isHidden);
-          updated = true;
         }
       }
       
@@ -49,7 +45,7 @@ class ExerciseRepository {
 
   Future<void> _saveExercises(List<Exercise> exercises) async {
     final raw = jsonEncode(exercises.map((e) => e.toJson()).toList());
-    await _prefs.setString(_keyExercises, raw);
+    await _prefs.setString(_storageKey, raw);
   }
 
   List<Exercise> getAllExercises() {

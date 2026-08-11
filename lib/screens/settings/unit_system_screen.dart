@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import '../../models/user_profile.dart';
+import '../../utils/account_manager.dart';
 
 class UnitSystemScreen extends StatefulWidget {
   const UnitSystemScreen({super.key});
@@ -25,7 +26,7 @@ class _UnitSystemScreenState extends State<UnitSystemScreen> {
   Future<void> _loadUnit() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedSystem = prefs.getString('unit_system') ?? 'metric';
+      _selectedSystem = prefs.getString(AccountManager.getPrefKey('unit_system')) ?? 'metric';
       _isLoading = false;
     });
   }

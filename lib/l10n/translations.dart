@@ -74,6 +74,7 @@ class Translations {
       'settings_kg': 'کیلوگرم',
       'settings_lb': 'پوند',
       'settings_account': 'تنظیمات حساب',
+      'settings_accounts': 'مدیریت حساب‌ها',
       'settings_edit_profile': 'ویرایش پروفایل',
       'settings_notifications': 'اعلان‌ها',
       'settings_workout': 'تنظیمات تمرین',
@@ -87,7 +88,15 @@ class Translations {
       'settings_general': 'عمومی',
       'settings_language': 'زبان',
       'settings_about': 'درباره فیزیکو',
-      'settings_logout': 'خروج از حساب',
+      
+      // AI Custom Instructions
+      'ai_custom_instructions': 'دستورالعمل‌های سفارشی',
+      'ai_custom_instructions_desc': 'دستورالعمل‌های شخصی خود را برای هوش مصنوعی بنویسید',
+      'ai_instructions_mode_shared': 'یک دستورالعمل مشترک',
+      'ai_instructions_mode_separate': 'دستورالعمل جداگانه برای هرکدام',
+      'ai_instruction_shared_label': 'دستورالعمل مشترک',
+      'ai_instruction_chat_label': 'دستورالعمل برای مربی چت',
+      'ai_instruction_vision_label': 'دستورالعمل برای اسکن بینایی',
       
       // Muscle Groups
       'muscle_chest': 'سینه',
@@ -96,6 +105,14 @@ class Translations {
       'muscle_shoulders': 'سرشانه',
       'muscle_arms': 'بازو',
       'muscle_abs': 'شکم',
+      
+      // Onboarding & Accounts
+      'onboarding_title': 'پروفایل خود را بسازید',
+      'err_delete_last_account': 'نمی‌توانید آخرین حساب کاربری را حذف کنید',
+      'delete_account_title': 'حذف حساب کاربری',
+      'delete_account_desc': 'آیا از حذف این حساب اطمینان دارید؟ تمام اطلاعات مربوط به آن پاک خواهد شد.',
+      'action_add_account': 'افزودن حساب جدید',
+      'action_delete': 'حذف',
       
       // Chat Screen
       'chat_write_message': 'پیام خود را بنویسید...',
@@ -267,6 +284,7 @@ class Translations {
       'form_err_name': 'لطفاً نام حرکت را وارد کنید',
       'form_err_desc': 'لطفاً توضیح کوتاه را وارد کنید',
       'form_err_equip': 'لطفاً تجهیزات مورد نیاز را وارد کنید',
+      'form_err_invalid_number': 'مقدار نامعتبر',
       'action_save_new': 'ثبت حرکت جدید',
 
       // Notifications
@@ -576,6 +594,7 @@ class Translations {
       'settings_kg': 'kg',
       'settings_lb': 'lb',
       'settings_account': 'Account Settings',
+      'settings_accounts': 'Manage Accounts',
       'settings_edit_profile': 'Edit Profile',
       'settings_notifications': 'Notifications',
       'settings_workout': 'Workout Settings',
@@ -589,7 +608,23 @@ class Translations {
       'settings_general': 'General',
       'settings_language': 'Language',
       'settings_about': 'About Physiqo',
-      'settings_logout': 'Log Out',
+      
+      // AI Custom Instructions
+      'ai_custom_instructions': 'Custom Instructions',
+      'ai_custom_instructions_desc': 'Write your personal instructions for the AI',
+      'ai_instructions_mode_shared': 'Shared Instruction',
+      'ai_instructions_mode_separate': 'Separate Instructions',
+      'ai_instruction_shared_label': 'Shared Instruction',
+      'ai_instruction_chat_label': 'Instruction for Chat Coach',
+      'ai_instruction_vision_label': 'Instruction for Vision Scan',
+      
+      // Onboarding & Accounts
+      'onboarding_title': 'Create Your Profile',
+      'err_delete_last_account': 'Cannot delete the last account',
+      'delete_account_title': 'Delete Account',
+      'delete_account_desc': 'Are you sure you want to delete this account? All associated data will be deleted.',
+      'action_add_account': 'Add New Account',
+      'action_delete': 'Delete',
       
       // Muscle Groups
       'muscle_chest': 'Chest',
@@ -769,6 +804,7 @@ class Translations {
       'form_err_name': 'Please enter the exercise name',
       'form_err_desc': 'Please enter a short description',
       'form_err_equip': 'Please enter required equipment',
+      'form_err_invalid_number': 'Invalid value',
       'action_save_new': 'Save New Exercise',
 
       // Notifications

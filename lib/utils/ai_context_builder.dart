@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
+import '../utils/account_manager.dart';
 
 class AIContextBuilder {
   /// Assembles all persistent user data into a JSON-ready Map to be injected
@@ -12,13 +13,20 @@ class AIContextBuilder {
     await profile.loadFromPrefs();
 
     // Load workout days
-    final workoutDays = prefs.getStringList('workout_days') ?? [];
+    final workoutDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
     
     // Load rest time preferences
-    final restMode = prefs.getString('rest_time_mode') ?? 'auto';
-    final restMin = prefs.getInt('rest_time_min') ?? 45;
-    final restMax = prefs.getInt('rest_time_max') ?? 90;
+    final restMode = prefs.getString(AccountManager.getPrefKey('rest_time_mode')) ?? 'auto';
+    final restMin = prefs.getInt(AccountManager.getPrefKey('rest_time_min')) ?? 45;
+    final restMax = prefs.getInt(AccountManager.getPrefKey('rest_time_max')) ?? 90;
 
+    // Load custom instructions
+    final customInstMode = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_mode')) ?? 'shared';
+    final customInstShared = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_shared'));
+    final customInstChat = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_chat'));
+    final customInstVision = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_vision'));
+
+    // Global settings (NOT namespaced)
     final activeProvider = prefs.getString('active_ai_provider');
     final activeChatModel = activeProvider != null ? prefs.getString('active_chat_model_$activeProvider') : null;
     final activeVisionModel = activeProvider != null ? prefs.getString('active_vision_model_$activeProvider') : null;
@@ -49,6 +57,12 @@ class AIContextBuilder {
         'provider': activeProvider,
         'chat_model': activeChatModel,
         'vision_model': activeVisionModel,
+        'custom_instructions': {
+          'mode': customInstMode,
+          'shared': customInstShared,
+          'chat': customInstChat,
+          'vision': customInstVision,
+        }
       },
     };
   }

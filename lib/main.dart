@@ -13,10 +13,16 @@ import 'screens/settings_screen.dart';
 import 'screens/analysis_screen.dart';
 import 'screens/focused_move_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'widgets/physiqo_nav_bar.dart';
+import 'utils/account_manager.dart';
+import 'models/user_profile.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await AccountManager.init();
+  await UserProfile.current().loadFromPrefs();
   
   tz.initializeTimeZones();
   String timeZoneName = 'Asia/Tehran';
@@ -100,6 +106,7 @@ class _PhysiqoAppState extends State<PhysiqoApp> {
         '/main': (context) => const MainShell(),
         '/analysis': (context) => const AnalysisScreen(),
         '/focused_move': (context) => const FocusedMoveScreen(),
+        '/onboarding': (context) => const OnboardingScreen(),
       },
     );
   }

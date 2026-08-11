@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/account_manager.dart';
 
 class UserProfile extends ChangeNotifier {
   String name;
@@ -47,36 +48,39 @@ class UserProfile extends ChangeNotifier {
 
   Future<void> loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    name = prefs.getString('user_name') ?? 'Charlie';
-    height = prefs.getString('user_height') ?? '۱۷۵';
-    weight = prefs.getString('user_weight') ?? '۸۰';
-    photoPath = prefs.getString('user_photoPath');
-    age = prefs.getInt('user_age');
-    gender = prefs.getString('user_gender');
-    experienceLevel = prefs.getString('user_experienceLevel');
-    primaryGoal = prefs.getString('user_primaryGoal');
-    equipmentAccess = prefs.getString('user_equipmentAccess');
-    limitations = prefs.getString('user_limitations');
-    additionalNotes = prefs.getString('user_additionalNotes');
-    unitSystem = prefs.getString('unit_system') ?? 'metric';
+    name = prefs.getString(AccountManager.getPrefKey('user_name')) ?? 'Charlie';
+    height = prefs.getString(AccountManager.getPrefKey('user_height')) ?? '۱۷۵';
+    weight = prefs.getString(AccountManager.getPrefKey('user_weight')) ?? '۸۰';
+    photoPath = prefs.getString(AccountManager.getPrefKey('user_photoPath'));
+    age = prefs.getInt(AccountManager.getPrefKey('user_age'));
+    gender = prefs.getString(AccountManager.getPrefKey('user_gender'));
+    experienceLevel = prefs.getString(AccountManager.getPrefKey('user_experienceLevel'));
+    primaryGoal = prefs.getString(AccountManager.getPrefKey('user_primaryGoal'));
+    equipmentAccess = prefs.getString(AccountManager.getPrefKey('user_equipmentAccess'));
+    limitations = prefs.getString(AccountManager.getPrefKey('user_limitations'));
+    additionalNotes = prefs.getString(AccountManager.getPrefKey('user_additionalNotes'));
+    unitSystem = prefs.getString(AccountManager.getPrefKey('unit_system')) ?? 'metric';
     notifyListeners();
   }
 
   Future<void> saveToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', name);
-    await prefs.setString('user_height', height);
-    await prefs.setString('user_weight', weight);
-    
-    if (photoPath != null) await prefs.setString('user_photoPath', photoPath!);
-    if (age != null) await prefs.setInt('user_age', age!);
-    if (gender != null) await prefs.setString('user_gender', gender!);
-    if (experienceLevel != null) await prefs.setString('user_experienceLevel', experienceLevel!);
-    if (primaryGoal != null) await prefs.setString('user_primaryGoal', primaryGoal!);
-    if (equipmentAccess != null) await prefs.setString('user_equipmentAccess', equipmentAccess!);
-    if (limitations != null) await prefs.setString('user_limitations', limitations!);
-    if (additionalNotes != null) await prefs.setString('user_additionalNotes', additionalNotes!);
-    await prefs.setString('unit_system', unitSystem);
+    await prefs.setString(AccountManager.getPrefKey('user_name'), name);
+    await prefs.setString(AccountManager.getPrefKey('user_height'), height);
+    await prefs.setString(AccountManager.getPrefKey('user_weight'), weight);
+    if (photoPath != null) {
+      await prefs.setString(AccountManager.getPrefKey('user_photoPath'), photoPath!);
+    } else {
+      await prefs.remove(AccountManager.getPrefKey('user_photoPath'));
+    }
+    if (age != null) await prefs.setInt(AccountManager.getPrefKey('user_age'), age!);
+    if (gender != null) await prefs.setString(AccountManager.getPrefKey('user_gender'), gender!);
+    if (experienceLevel != null) await prefs.setString(AccountManager.getPrefKey('user_experienceLevel'), experienceLevel!);
+    if (primaryGoal != null) await prefs.setString(AccountManager.getPrefKey('user_primaryGoal'), primaryGoal!);
+    if (equipmentAccess != null) await prefs.setString(AccountManager.getPrefKey('user_equipmentAccess'), equipmentAccess!);
+    if (limitations != null) await prefs.setString(AccountManager.getPrefKey('user_limitations'), limitations!);
+    if (additionalNotes != null) await prefs.setString(AccountManager.getPrefKey('user_additionalNotes'), additionalNotes!);
+    await prefs.setString(AccountManager.getPrefKey('unit_system'), unitSystem);
   }
 
   void update({
@@ -84,6 +88,7 @@ class UserProfile extends ChangeNotifier {
     String? height,
     String? weight,
     String? photoPath,
+    bool clearPhoto = false,
     int? age,
     String? gender,
     String? experienceLevel,
@@ -96,7 +101,13 @@ class UserProfile extends ChangeNotifier {
     if (name != null) this.name = name;
     if (height != null) this.height = height;
     if (weight != null) this.weight = weight;
-    if (photoPath != null) this.photoPath = photoPath;
+    
+    if (clearPhoto) {
+      this.photoPath = null;
+    } else if (photoPath != null) {
+      this.photoPath = photoPath;
+    }
+    
     if (age != null) this.age = age;
     if (gender != null) this.gender = gender;
     if (experienceLevel != null) this.experienceLevel = experienceLevel;

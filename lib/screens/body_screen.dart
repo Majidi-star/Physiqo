@@ -148,15 +148,27 @@ class _BodyScreenState extends State<BodyScreen> {
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                PhysiqoInteractiveBodySvg(
-                                  isFront: _showFront,
-                                  selectedMuscles: _categoryToMuscles[_selectedMuscle] ?? {},
-                                  onMuscleTap: _onMuscleTapped,
-                                  highlightColor: AppTheme.primary,
-                                  unselectedStrokeWidth: 1.0,
-                                  selectedStrokeWidth: 1.5,
-                                  fit: BoxFit.contain,
-                                  // Known limitation: package is male-only, using default male silhouette.
+                                GestureDetector(
+                                  onHorizontalDragEnd: (details) {
+                                    if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 100) {
+                                      setState(() => _showFront = !_showFront);
+                                    }
+                                  },
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                                    child: PhysiqoInteractiveBodySvg(
+                                      key: ValueKey(_showFront),
+                                      isFront: _showFront,
+                                      selectedMuscles: _categoryToMuscles[_selectedMuscle] ?? {},
+                                      onMuscleTap: _onMuscleTapped,
+                                      highlightColor: AppTheme.primary,
+                                      unselectedStrokeWidth: 1.0,
+                                      selectedStrokeWidth: 1.5,
+                                      fit: BoxFit.contain,
+                                      // Known limitation: package is male-only, using default male silhouette.
+                                    ),
+                                  ),
                                 ),
                                 Positioned(
                                   bottom: 8,

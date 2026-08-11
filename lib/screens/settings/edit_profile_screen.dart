@@ -95,6 +95,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       height: heightToSave,
       weight: weightToSave,
       photoPath: _photoPath,
+      clearPhoto: _photoPath == null,
     );
     Navigator.pop(context, true); // Return true to indicate change
   }
@@ -175,6 +176,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   child: const Icon(Icons.camera_alt, color: AppTheme.onPrimary, size: 18),
                                 ),
                               ),
+                              if (_photoPath != null)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _photoPath = null;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.surface,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: AppTheme.outline),
+                                      ),
+                                      child: const Icon(Icons.close, color: AppTheme.error, size: 16),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),

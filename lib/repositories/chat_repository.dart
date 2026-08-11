@@ -2,15 +2,16 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../models/chat_session.dart';
+import '../utils/account_manager.dart';
 
 class ChatRepository {
-  static const _keySessions = 'chat_sessions';
+  String get _storageKey => AccountManager.getPrefKey('physiqo_chats');
   final SharedPreferences _prefs;
 
   ChatRepository(this._prefs);
 
   List<ChatSession> _loadSessions() {
-    final raw = _prefs.getString(_keySessions);
+    final raw = _prefs.getString(_storageKey);
     if (raw == null) return [];
     try {
       final list = jsonDecode(raw) as List<dynamic>;
@@ -22,7 +23,7 @@ class ChatRepository {
 
   Future<void> _saveSessions(List<ChatSession> sessions) async {
     final raw = jsonEncode(sessions.map((s) => s.toJson()).toList());
-    await _prefs.setString(_keySessions, raw);
+    await _prefs.setString(_storageKey, raw);
   }
 
   Future<ChatSession> createSession() async {

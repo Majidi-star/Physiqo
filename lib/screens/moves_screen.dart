@@ -66,6 +66,7 @@ class _MovesScreenState extends State<MovesScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => ExerciseFormScreen(
+          isDatabaseContext: true,
           onSave: (newEx) async {
             await _repository.addExercise(newEx);
             _loadExercises();

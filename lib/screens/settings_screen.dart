@@ -5,6 +5,7 @@ import '../widgets/physiqo_header.dart';
 import 'settings/fitness_profile_screen.dart';
 import 'settings/ai_settings_screen.dart';
 import 'settings/edit_profile_screen.dart';
+import 'settings/accounts_screen.dart';
 
 import 'settings/unit_system_screen.dart';
 import 'settings/default_rest_time_screen.dart';
@@ -87,7 +88,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_left, color: AppTheme.textSecondary),
                             ],
                           ),
                         );
@@ -103,6 +103,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     label: context.tr('settings_edit_profile'),
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                    },
+                  ),
+                  _SettingsItem(
+                    icon: Icons.people_outline,
+                    label: context.tr('settings_accounts'),
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen()));
                     },
                   ),
 
@@ -174,11 +181,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     icon: Icons.info_outline, 
                     label: context.tr('settings_about'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen())),
-                  ),
-                  _SettingsItem(
-                    icon: Icons.logout,
-                    label: context.tr('settings_logout'),
-                    isDestructive: true,
                   ),
                 ],
               ),

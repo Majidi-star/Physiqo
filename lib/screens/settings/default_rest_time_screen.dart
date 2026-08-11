@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
+import '../../utils/account_manager.dart';
 
 class DefaultRestTimeScreen extends StatefulWidget {
   const DefaultRestTimeScreen({super.key});
@@ -26,18 +27,18 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
   Future<void> _loadRestTime() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _mode = prefs.getString('rest_time_mode') ?? 'auto';
-      _restMin = prefs.getInt('rest_time_min') ?? 45;
-      _restMax = prefs.getInt('rest_time_max') ?? 90;
+      _mode = prefs.getString(AccountManager.getPrefKey('rest_time_mode')) ?? 'auto';
+      _restMin = prefs.getInt(AccountManager.getPrefKey('rest_time_min')) ?? 45;
+      _restMax = prefs.getInt(AccountManager.getPrefKey('rest_time_max')) ?? 90;
       _isLoading = false;
     });
   }
 
   Future<void> _saveRestTime() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('rest_time_mode', _mode);
-    await prefs.setInt('rest_time_min', _restMin);
-    await prefs.setInt('rest_time_max', _restMax);
+    await prefs.setString(AccountManager.getPrefKey('rest_time_mode'), _mode);
+    await prefs.setInt(AccountManager.getPrefKey('rest_time_min'), _restMin);
+    await prefs.setInt(AccountManager.getPrefKey('rest_time_max'), _restMax);
     if (mounted) {
       Navigator.pop(context);
     }

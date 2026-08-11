@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
+import '../../utils/account_manager.dart';
 
 class WorkoutDaysScreen extends StatefulWidget {
   const WorkoutDaysScreen({super.key});
@@ -32,7 +33,7 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
 
   Future<void> _loadDays() async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> loadedDays = prefs.getStringList('workout_days') ?? [];
+    List<String> loadedDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
     
     // Auto-migrate old Persian strings to new keys
     final migrationMap = {
@@ -52,7 +53,7 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
       }
     }
     if (migrated) {
-      await prefs.setStringList('workout_days', loadedDays);
+      await prefs.setStringList(AccountManager.getPrefKey('workout_days'), loadedDays);
     }
 
     setState(() {
@@ -70,7 +71,7 @@ class _WorkoutDaysScreenState extends State<WorkoutDaysScreen> {
       }
     });
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('workout_days', _selectedDays);
+    await prefs.setStringList(AccountManager.getPrefKey('workout_days'), _selectedDays);
   }
 
   Widget _buildDayItem(String day) {

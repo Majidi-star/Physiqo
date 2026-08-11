@@ -75,6 +75,7 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
       MaterialPageRoute(
         builder: (context) => ExerciseFormScreen(
           exercise: _exercise,
+          isDatabaseContext: _args.context == ExerciseDetailContext.database,
           onSave: (updated) async {
             await _repository.updateExercise(updated);
             _reloadExercise();
@@ -106,13 +107,13 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                     const Spacer(),
                     Text(context.tr('focused_move_details'), style: AppTheme.headlineMd),
                     const Spacer(),
+                    // Edit action button is always available
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: AppTheme.textPrimary, size: 20),
+                      onPressed: _navigateToEdit,
+                    ),
                     if (_args.context == ExerciseDetailContext.database) ...[
-                      // Edit action button
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: AppTheme.textPrimary, size: 20),
-                        onPressed: _navigateToEdit,
-                      ),
-                      // Delete action button
+                      // Delete action button only for database
                       IconButton(
                         icon: const Icon(Icons.delete, color: AppTheme.error, size: 20),
                         onPressed: () {
@@ -122,8 +123,7 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                         },
                       ),
                     ] else ...[
-                      // Empty space to maintain center alignment of title when icons are hidden
-                      const SizedBox(width: 40),
+                      // Empty space to maintain center alignment of title when delete is hidden
                       const SizedBox(width: 40),
                     ],
                   ],
