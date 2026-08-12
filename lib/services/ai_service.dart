@@ -24,7 +24,7 @@ class AiResponse {
 class AiService {
   final _storage = const FlutterSecureStorage();
   
-  Future<Map<String, String>?> _getActiveProviderConfig() async {
+  Future<Map<String, dynamic>?> _getActiveProviderConfig() async {
     final prefs = await SharedPreferences.getInstance();
     final activeProvider = prefs.getString('active_ai_provider');
     if (activeProvider == null) return null;
@@ -42,6 +42,8 @@ class AiService {
       'model': activeChatModel,
       'apiKey': apiKey,
       'baseUrl': baseUrl,
+      'maxRetries': prefs.getInt('ai_max_retries') ?? 3,
+      'timeoutSeconds': prefs.getInt('ai_timeout_seconds') ?? 30,
     };
   }
 
@@ -113,7 +115,9 @@ If you are answering the user, just output plain text.
 
     final url = Uri.parse('${config['baseUrl']}/chat/completions');
     
-    int retries = 3;
+    int retries = config['maxRetries'] as int;
+    final timeoutDuration = Duration(seconds: config['timeoutSeconds'] as int);
+
     while (retries >= 0) {
       try {
         final response = await http.post(
@@ -127,7 +131,7 @@ If you are answering the user, just output plain text.
             'messages': formattedMessages,
             'tools': AiTools.definitions,
           }),
-        ).timeout(const Duration(seconds: 200));
+        ).timeout(timeoutDuration);
 
         if (response.statusCode == 200) {
           final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -336,7 +340,9 @@ If you are answering the user, just output plain text.
 
     final url = Uri.parse('${config['baseUrl']}/chat/completions');
     
-    int retries = 3;
+    int retries = config['maxRetries'] as int;
+    final timeoutDuration = Duration(seconds: config['timeoutSeconds'] as int);
+
     while (retries >= 0) {
       try {
         final request = http.Request('POST', url)
@@ -351,7 +357,7 @@ If you are answering the user, just output plain text.
             'stream': true,
           });
 
-        final response = await request.send().timeout(const Duration(seconds: 30));
+        final response = await request.send().timeout(timeoutDuration);
         
         if (response.statusCode != 200) {
            throw Exception('API Error: ${response.statusCode}');

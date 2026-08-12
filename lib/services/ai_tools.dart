@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
+import '../models/account.dart';
 import '../utils/account_manager.dart';
 
 class AiTools {
@@ -24,6 +25,9 @@ class AiTools {
         "parameters": {
           "type": "object",
           "properties": {
+            "name": {"type": "string", "description": "User's name"},
+            "gender": {"type": "string", "description": "User's gender (Male, Female, etc)"},
+            "age": {"type": "number", "description": "User's age"},
             "weight": {"type": "string", "description": "Weight as string"},
             "height": {"type": "string", "description": "Height as string"},
             "primaryGoal": {"type": "string", "description": "Main goal"}
@@ -70,6 +74,134 @@ class AiTools {
             "screenName": {"type": "string", "enum": ["home", "moves", "chat", "body", "settings"]}
           },
           "required": ["screenName"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_unit_system",
+        "description": "Returns the user's unit system (metric or imperial).",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "set_unit_system",
+        "description": "Changes the user's unit system to metric or imperial.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "system": {"type": "string", "enum": ["metric", "imperial"]}
+          },
+          "required": ["system"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_default_rest_time",
+        "description": "Returns the default rest time between sets in seconds.",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "set_default_rest_time",
+        "description": "Sets the default rest time between sets in seconds.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "seconds": {"type": "number", "description": "Time in seconds (e.g., 60)"}
+          },
+          "required": ["seconds"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_app_language",
+        "description": "Returns the current app language code (fa for Persian, en for English).",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "set_app_language",
+        "description": "Changes the app's language.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "lang": {"type": "string", "enum": ["fa", "en"]}
+          },
+          "required": ["lang"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_accounts",
+        "description": "Returns a list of all user accounts on this device.",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "switch_account",
+        "description": "Switches the active user account based on the provided account ID.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string", "description": "The account ID"}
+          },
+          "required": ["id"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "create_account",
+        "description": "Creates a new user account with the given name.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string", "description": "Name for the new account"}
+          },
+          "required": ["name"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "delete_account",
+        "description": "Deletes a user account by ID.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string", "description": "The account ID"}
+          },
+          "required": ["id"]
         }
       }
     }
@@ -121,6 +253,9 @@ class AiTools {
           String? newWeight;
           String? newHeight;
           String? newGoal;
+          String? newName;
+          String? newGender;
+          int? newAge;
 
           if (args.containsKey('weight')) {
             newWeight = args['weight'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
@@ -131,11 +266,27 @@ class AiTools {
           if (args.containsKey('primaryGoal')) {
             newGoal = args['primaryGoal']?.toString();
           }
+          if (args.containsKey('name')) {
+            newName = args['name']?.toString();
+          }
+          if (args.containsKey('gender')) {
+            newGender = args['gender']?.toString();
+          }
+          if (args.containsKey('age')) {
+            newAge = int.tryParse(args['age'].toString());
+          }
+
+          if (newName != null) {
+            await AccountManager.updateCurrentAccount(name: newName);
+            profile.name = newName; // ensure local sync if needed, though profile might reload
+          }
 
           profile.update(
             weight: newWeight,
             height: newHeight,
             primaryGoal: newGoal,
+            gender: newGender,
+            age: newAge,
           );
 
           result = "Profile updated successfully. Current profile: ${profile.weight}kg, ${profile.height}cm, goal: ${profile.primaryGoal}";
@@ -154,6 +305,62 @@ class AiTools {
           final savedDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
           final savedEnglish = savedDays.map((d) => _internalToDay[d] ?? d).toList();
           result = "Workout days updated successfully. New days: $savedEnglish";
+          break;
+        case 'get_unit_system':
+          result = UserProfile.current().unitSystem;
+          break;
+        case 'set_unit_system':
+          UserProfile.current().update(unitSystem: args['system']);
+          result = "Unit system set to ${args['system']}";
+          break;
+        case 'get_default_rest_time':
+          final prefs = await SharedPreferences.getInstance();
+          final rest = prefs.getInt(AccountManager.getPrefKey('default_rest_time')) ?? 60;
+          result = rest.toString();
+          break;
+        case 'set_default_rest_time':
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(AccountManager.getPrefKey('default_rest_time'), (args['seconds'] as num).toInt());
+          result = "Default rest time set to ${args['seconds']} seconds";
+          break;
+        case 'get_app_language':
+          final prefs = await SharedPreferences.getInstance();
+          result = prefs.getString('app_language') ?? 'fa';
+          break;
+        case 'set_app_language':
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('app_language', args['lang']);
+          result = "App language set to ${args['lang']}";
+          break;
+        case 'get_accounts':
+          final accounts = AccountManager.accounts;
+          final current = AccountManager.currentAccountId;
+          result = accounts.map((a) => {'id': a.id, 'name': a.name, 'is_active': a.id == current}).toList().toString();
+          break;
+        case 'switch_account':
+          final id = args['id']?.toString() ?? '';
+          if (AccountManager.accounts.any((a) => a.id == id)) {
+            await AccountManager.switchAccount(id);
+            result = "Switched to account ID $id";
+          } else {
+            result = "Account ID $id not found";
+          }
+          break;
+        case 'create_account':
+          final name = args['name']?.toString() ?? 'User';
+          final newId = DateTime.now().millisecondsSinceEpoch.toString();
+          final newAccount = Account(id: newId, name: name);
+          await AccountManager.addAccount(newAccount);
+          result = "Created new account ID $newId with name $name";
+          break;
+        case 'delete_account':
+          final id = args['id']?.toString() ?? '';
+          if (AccountManager.accounts.any((a) => a.id == id)) {
+            await AccountManager.deleteAccount(id);
+            result = "Deleted account ID $id";
+          } else {
+            result = "Account ID $id not found";
+          }
           break;
         case 'navigate_to_screen':
           result = "ACTION_NAVIGATE:${args['screenName']}";

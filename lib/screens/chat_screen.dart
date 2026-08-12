@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +15,8 @@ import '../l10n/translations.dart';
 import '../services/ai_service.dart';
 import '../services/ai_tools.dart';
 import '../models/ai_stream_event.dart';
+import '../utils/ai_context_builder.dart';
+import '../utils/app_knowledge_base.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -119,7 +123,18 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       });
 
       try {
-        final stream = _aiService.sendMessageStream(_activeSession!.messages);
+        final userContext = await AIContextBuilder.buildUserContextForAI();
+        final systemPrompt = '''
+${AppKnowledgeBase.content}
+
+## User Context (Current State)
+${jsonEncode(userContext)}
+''';
+
+        final stream = _aiService.sendMessageStream(
+          _activeSession!.messages,
+          systemPrompt: systemPrompt,
+        );
         
         ChatMessage streamingMsg = ChatMessage(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -203,8 +218,8 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
           debugPrint('AiLoop Error: $e');
           final botMsg = ChatMessage(
             id: DateTime.now().microsecondsSinceEpoch.toString(),
-            role: ChatMessageRole.coach,
-            content: context.tr('chat_network_error'),
+            role: ChatMessageRole.system,
+            content: '${context.tr('chat_network_error')}\n\n$e',
             timestamp: DateTime.now(),
           );
           await _repository.addMessage(_activeSession!.id, botMsg);
@@ -450,6 +465,10 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                                       }
                                     }
                                   },
+                                  onOptionSelected: (selectedOption) {
+                                    _controller.text = selectedOption;
+                                    _sendMessage();
+                                  },
                                 );
                               },
                             ),
@@ -537,56 +556,56 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                                     filled: true,
                                     fillColor: AppTheme.surfaceHigh,
                                     suffixIcon: IconButton(
-                                  icon: const Icon(Icons.swap_horiz, color: AppTheme.textSecondary),
-                                  onPressed: () async {
-                                    final prefs = await SharedPreferences.getInstance();
-                                    setState(() {
-                                      _isLtrChat = !isLtr;
-                                    });
-                                    await prefs.setBool('chat_is_ltr', _isLtrChat!);
-                                  },
+                                      icon: const Icon(Icons.swap_horiz, color: AppTheme.textSecondary),
+                                      onPressed: () async {
+                                        final prefs = await SharedPreferences.getInstance();
+                                        setState(() {
+                                          _isLtrChat = !isLtr;
+                                        });
+                                        await prefs.setBool('chat_is_ltr', _isLtrChat!);
+                                      },
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  ),
+                                  onSubmitted: (_) => _sendMessage(),
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                                  borderSide: BorderSide.none,
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: _sendMessage,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppTheme.primary,
+                                  ),
+                                  child: Icon(
+                                    Icons.send, 
+                                    color: AppTheme.onPrimary, 
+                                    size: 18,
+                                    textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
+                                  ),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               ),
-                              onSubmitted: (_) => _sendMessage(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: _sendMessage,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.primary,
-                              ),
-                              child: Icon(
-                                Icons.send, 
-                                color: AppTheme.onPrimary, 
-                                size: 18,
-                                textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
-                              ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
-}
+      ),
+    );
+  }
 
   Widget _buildEmptyState() {
     return SingleChildScrollView(
@@ -691,12 +710,14 @@ class _ChatBubble extends StatefulWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final Function(String) onUpdateContent;
+  final Function(String)? onOptionSelected;
 
   const _ChatBubble({
     required this.message,
     required this.onEdit,
     required this.onDelete,
     required this.onUpdateContent,
+    this.onOptionSelected,
   });
 
   @override
@@ -715,6 +736,29 @@ class _ChatBubbleState extends State<_ChatBubble> {
     _editController = TextEditingController(text: widget.message.content);
   }
 
+  void _showImageFullScreen(BuildContext context, String imagePath) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              panEnabled: true,
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.file(File(imagePath)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _editController.dispose();
@@ -723,7 +767,80 @@ class _ChatBubbleState extends State<_ChatBubble> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.message.role == ChatMessageRole.tool) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceHigh,
+            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            border: Border.all(color: AppTheme.outline.withValues(alpha: 0.5)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.message.content.isEmpty)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                )
+              else
+                const Icon(Icons.check_circle, size: 14, color: AppTheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                widget.message.content.isEmpty 
+                  ? "در حال بررسی..." 
+                  : 'عملیات ${widget.message.toolName ?? ""} انجام شد',
+                style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (widget.message.role == ChatMessageRole.system) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.error_outline, size: 18, color: AppTheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.message.content,
+                style: AppTheme.labelMd.copyWith(color: AppTheme.error),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final isCoach = widget.message.role == ChatMessageRole.coach;
+    
+    String displayContent = widget.message.content;
+    List<String> parsedOptions = [];
+
+    final optionsMatch = RegExp(r'<options>(.*?)</options>', dotAll: true).firstMatch(displayContent);
+    if (optionsMatch != null) {
+      displayContent = displayContent.replaceFirst(optionsMatch.group(0)!, '').trim();
+      try {
+        final List<dynamic> jsonArr = jsonDecode(optionsMatch.group(1)!);
+        parsedOptions = jsonArr.map((e) => e.toString()).toList();
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
 
     return Align(
       alignment: isCoach ? Alignment.centerRight : Alignment.centerLeft,
@@ -732,7 +849,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
         children: [
           GestureDetector(
             onLongPress: () {
-              if (!isCoach) {
+              if (!isCoach && !widget.message.isEdited) {
                 setState(() {
                   _showActions = !_showActions;
                   _showConfirmDelete = false;
@@ -808,24 +925,75 @@ class _ChatBubbleState extends State<_ChatBubble> {
                               spacing: 8,
                               runSpacing: 8,
                               children: widget.message.images!.map((path) {
-                                return ClipRRect(
-                                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                                  child: Image.file(
-                                    File(path),
-                                    width: 150,
-                                    height: 150,
-                                    fit: BoxFit.cover,
+                                return GestureDetector(
+                                  onTap: () => _showImageFullScreen(context, path),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                    child: Image.file(
+                                      File(path),
+                                      width: 150,
+                                      height: 150,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 );
                               }).toList(),
                             ),
                           ),
-                        Text(
-                          widget.message.content,
-                          style: AppTheme.bodyMd.copyWith(
-                            color: AppTheme.textPrimary,
+                        MarkdownBody(
+                          data: displayContent,
+                          selectable: true,
+                          styleSheet: MarkdownStyleSheet(
+                            p: AppTheme.bodyMd.copyWith(color: AppTheme.textPrimary),
+                            h1: AppTheme.headlineLg.copyWith(color: AppTheme.textPrimary),
+                            h2: AppTheme.headlineMd.copyWith(color: AppTheme.textPrimary),
+                            h3: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
+                            listBullet: AppTheme.bodyMd.copyWith(color: AppTheme.textPrimary),
+                            code: AppTheme.labelMd.copyWith(
+                              color: AppTheme.primary,
+                              backgroundColor: AppTheme.surfaceHigh,
+                              fontFamily: 'monospace',
+                            ),
+                            codeblockDecoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            blockquoteDecoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              border: const Border(
+                                left: BorderSide(color: AppTheme.primary, width: 4),
+                              ),
+                            ),
                           ),
                         ),
+                        if (parsedOptions.isNotEmpty && isCoach) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: parsedOptions.map((opt) {
+                              return GestureDetector(
+                                onTap: () {
+                                  if (widget.onOptionSelected != null) {
+                                    widget.onOptionSelected!(opt);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Text(
+                                    opt,
+                                    style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
                         if (widget.message.isEdited) ...[
                           const SizedBox(height: 4),
                           Text(
