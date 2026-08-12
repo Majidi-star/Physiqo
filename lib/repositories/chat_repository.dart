@@ -111,6 +111,24 @@ class ChatRepository {
     }
   }
 
+  Future<void> updateMessage(String sessionId, ChatMessage message) async {
+    final sessions = _loadSessions();
+    final sessionIndex = sessions.indexWhere((s) => s.id == sessionId);
+    if (sessionIndex != -1) {
+      final messages = sessions[sessionIndex].messages;
+      final msgIndex = messages.indexWhere((m) => m.id == message.id);
+      if (msgIndex != -1) {
+        final updatedMessages = List<ChatMessage>.from(messages);
+        updatedMessages[msgIndex] = message;
+        sessions[sessionIndex] = sessions[sessionIndex].copyWith(
+          messages: updatedMessages,
+          updatedAt: DateTime.now(),
+        );
+        await _saveSessions(sessions);
+      }
+    }
+  }
+
   Future<void> deleteMessage(String sessionId, String messageId) async {
     final sessions = _loadSessions();
     final sessionIndex = sessions.indexWhere((s) => s.id == sessionId);

@@ -17,12 +17,15 @@ import 'screens/onboarding_screen.dart';
 import 'widgets/physiqo_nav_bar.dart';
 import 'utils/account_manager.dart';
 import 'models/user_profile.dart';
+import 'repositories/exercise_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   await AccountManager.init();
   await UserProfile.current().loadFromPrefs();
+  final prefs = await SharedPreferences.getInstance();
+  ExerciseRepository.init(prefs);
   
   tz.initializeTimeZones();
   String timeZoneName = 'Asia/Tehran';

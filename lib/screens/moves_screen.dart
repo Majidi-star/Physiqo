@@ -3,7 +3,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
+import '../widgets/day_selector.dart';
+import '../widgets/scheduled_exercise_card.dart';
+import '../widgets/superset_card.dart';
 import '../models/exercise.dart';
+import '../models/workout_day.dart';
 import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
 import 'focused_move_screen.dart';
@@ -18,26 +22,21 @@ class MovesScreen extends StatefulWidget {
 
 class _MovesScreenState extends State<MovesScreen> {
   int _selectedCategory = 0;
-  late ExerciseRepository _repository;
   bool _isLoading = true;
-  List<Exercise> _exercises = [];
+  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
-    _initRepository();
-  }
-
-  Future<void> _initRepository() async {
-    final prefs = await SharedPreferences.getInstance();
-    _repository = ExerciseRepository(prefs);
-    _loadExercises();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadExercises();
+    });
   }
 
   void _loadExercises() {
-    final category = _getMuscleGroupFromIndex(_selectedCategory);
     setState(() {
-      _exercises = _repository.getExercisesByCategory(category);
       _isLoading = false;
     });
   }
@@ -68,7 +67,7 @@ class _MovesScreenState extends State<MovesScreen> {
         builder: (context) => ExerciseFormScreen(
           isDatabaseContext: true,
           onSave: (newEx) async {
-            await _repository.addExercise(newEx);
+            await ExerciseRepository.instance.addExercise(newEx);
             _loadExercises();
           },
         ),
@@ -78,82 +77,299 @@ class _MovesScreenState extends State<MovesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _navigateToAddExercise,
-        backgroundColor: AppTheme.primary,
-        icon: const Icon(Icons.add, color: AppTheme.onPrimary),
-        label: Text(
-          context.tr('moves_add_exercise'),
-          style: const TextStyle(
-            color: AppTheme.onPrimary,
-            fontFamily: 'Vazirmatn',
-            fontWeight: FontWeight.bold,
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _navigateToAddExercise,
+          backgroundColor: AppTheme.primary,
+          icon: const Icon(Icons.add, color: AppTheme.onPrimary),
+          label: Text(
+            context.tr('moves_add_exercise'),
+            style: const TextStyle(
+              color: AppTheme.onPrimary,
+              fontFamily: 'Vazirmatn',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           ),
         ),
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              PhysiqoHeader.profile(),
-              const Divider(color: AppTheme.outline, height: 1),
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: AppTheme.primary),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: AppTheme.spacingMd),
-                            // ─── Category chips ────────────────────────────
-                            _buildCategoryGrid(),
-                            const SizedBox(height: AppTheme.spacingLg),
-                            // ─── Section title ─────────────────────────────
-                            Text(
-                              '${context.tr('moves_exercises_prefix')}${context.tr(AppTheme.muscleCategories[_selectedCategory]['label'] as String)}${context.tr('moves_exercises_suffix')}',
-                              style: AppTheme.headlineMd,
-                            ),
-                            const SizedBox(height: AppTheme.spacingMd),
-                            // ─── Exercise list ─────────────────────────────
-                            if (_exercises.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 40),
-                                child: Center(
-                                  child: Text(
-                                    context.tr('moves_empty_category'),
-                                    style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-                                  ),
-                                ),
-                              )
-                            else
-                              for (int i = 0; i < _exercises.length; i++) ...[
-                                _MoveCard(
-                                  exercise: _exercises[i],
-                                  onRefresh: _loadExercises,
-                                ),
-                                if (i < _exercises.length - 1)
-                                  const SizedBox(height: AppTheme.spacingSm),
+        body: Container(
+          decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+          child: SafeArea(
+            child: Column(
+              children: [
+                PhysiqoHeader.profile(),
+                const Divider(color: AppTheme.outline, height: 1),
+                TabBar(
+                  indicatorColor: AppTheme.primary,
+                  labelColor: AppTheme.primary,
+                  unselectedLabelColor: AppTheme.textSecondary,
+                  dividerColor: AppTheme.outline,
+                  labelStyle: const TextStyle(
+                    fontFamily: 'Vazirmatn',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  tabs: [
+                    Tab(text: context.tr('moves_tab_plan')),
+                    Tab(text: context.tr('moves_tab_database')),
+                  ],
+                ),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: AppTheme.primary),
+                        )
+                      : ListenableBuilder(
+                          listenable: ExerciseRepository.instance,
+                          builder: (context, _) {
+                            final _todayPlan = ExerciseRepository.instance.getWorkoutDay(_selectedDate);
+                            final _exercises = ExerciseRepository.instance.getExercisesByCategory(_getMuscleGroupFromIndex(_selectedCategory));
+                            
+                            return TabBarView(
+                              children: [
+                                _buildPlanTab(_todayPlan),
+                                _buildDatabaseTab(_exercises),
                               ],
-                            const SizedBox(height: 100),
-                          ],
+                            );
+                          }
                         ),
-                      ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildPlanTab(WorkoutDay? todayPlan) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: AppTheme.spacingMd),
+          DaySelectorWidget(
+            selectedDate: _selectedDate,
+            onDateSelected: (date) {
+              setState(() {
+                _selectedDate = date;
+                _isLoading = true;
+              });
+              _loadExercises();
+            },
+          ),
+          const SizedBox(height: AppTheme.spacingLg),
+          if (todayPlan != null && todayPlan.items.isNotEmpty) ...[
+            if (todayPlan.title.isNotEmpty) ...[
+              Text(todayPlan.title, style: AppTheme.headlineMd),
+            ],
+            if (todayPlan.focus.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(todayPlan.focus, style: AppTheme.bodyMd.copyWith(color: AppTheme.primary)),
+            ],
+            const SizedBox(height: AppTheme.spacingMd),
+            ...todayPlan.items.map((item) => _buildWorkoutItem(item, context, () => setState(() {}))),
+          ] else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  context.tr('moves_empty_category'),
+                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                ),
+              ),
+            ),
+          const SizedBox(height: AppTheme.spacingLg),
+          _buildUpcomingPlans(),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpcomingPlans() {
+    final scheduledDatesStr = ExerciseRepository.instance.getAllScheduledWorkoutDates();
+    if (scheduledDatesStr.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(color: AppTheme.outline),
+        const SizedBox(height: AppTheme.spacingMd),
+        Text(
+          context.tr('moves_upcoming_plans'),
+          style: AppTheme.headlineMd,
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        ...scheduledDatesStr.map((dateStr) {
+          try {
+            final dateParts = dateStr.split('-');
+            final date = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
+            final plan = ExerciseRepository.instance.getWorkoutDay(date);
+            if (plan == null || plan.items.isEmpty) return const SizedBox.shrink();
+
+            final isActive = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedDate = date;
+                  _isLoading = true;
+                });
+                _loadExercises();
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: isActive ? AppTheme.primary : AppTheme.outline),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isActive ? AppTheme.primary.withOpacity(0.1) : AppTheme.surfaceHigh,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            date.day.toString(),
+                            style: AppTheme.headlineMd.copyWith(
+                              color: isActive ? AppTheme.primary : AppTheme.textPrimary,
+                              height: 1,
+                            ),
+                          ),
+                          Text(
+                            '${date.year}/${date.month.toString().padLeft(2, '0')}',
+                            style: AppTheme.labelMd.copyWith(
+                              color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            plan.title.isNotEmpty ? plan.title : context.tr('moves_tab_plan'),
+                            style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (plan.focus.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              plan.focus,
+                              style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            '${plan.items.length} ${context.tr('moves_exercises_suffix').trim()}',
+                            style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } catch (_) {
+            return const SizedBox.shrink();
+          }
+        }),
+      ],
+    );
+  }
+
+  Widget _buildDatabaseTab(List<Exercise> exercises) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: AppTheme.spacingMd),
+          // ─── Category chips ────────────────────────────
+          _buildCategoryGrid(),
+          const SizedBox(height: AppTheme.spacingLg),
+          // ─── Section title ─────────────────────────────
+          Text(
+            '${context.tr('moves_exercises_prefix')}${context.tr(AppTheme.muscleCategories[_selectedCategory]['label'] as String)}${context.tr('moves_exercises_suffix')}',
+            style: AppTheme.headlineMd,
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          // ─── Exercise list ─────────────────────────────
+          if (exercises.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  context.tr('moves_empty_category'),
+                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                ),
+              ),
+            )
+          else
+            for (int i = 0; i < exercises.length; i++) ...[
+              _MoveCard(
+                exercise: exercises[i],
+                onRefresh: () => setState(() {}),
+              ),
+              if (i < exercises.length - 1)
+                const SizedBox(height: AppTheme.spacingSm),
+            ],
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkoutItem(WorkoutItem item, BuildContext context, VoidCallback onRefresh) {
+    final all = ExerciseRepository.instance.getAllExercises();
+    if (item is SingleMoveItem) {
+      try {
+        final ex = all.firstWhere((e) => e.id == item.exerciseId);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+          child: ScheduledExerciseCard(exercise: ex, onRefresh: onRefresh),
+        );
+      } catch (_) {
+        return const SizedBox.shrink();
+      }
+    } else if (item is SupersetItem) {
+      final List<Exercise> exs = [];
+      for (String id in item.exerciseIds) {
+        try {
+          exs.add(all.firstWhere((e) => e.id == id));
+        } catch (_) {}
+      }
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+        child: SupersetCard(exercises: exs, onRefresh: onRefresh),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildCategoryGrid() {

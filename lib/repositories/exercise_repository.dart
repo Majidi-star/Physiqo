@@ -2,14 +2,22 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/exercise.dart';
+import '../models/workout_day.dart';
 import '../utils/account_manager.dart';
 import '../data/exercise_seed.dart';
 
 class ExerciseRepository extends ChangeNotifier {
   String get _storageKey => AccountManager.getPrefKey('physiqo_exercises');
+  String get _programStorageKey => AccountManager.getPrefKey('physiqo_workout_program');
   final SharedPreferences _prefs;
 
-  ExerciseRepository(this._prefs);
+  ExerciseRepository._internal(this._prefs);
+
+  static late final ExerciseRepository instance;
+
+  static void init(SharedPreferences prefs) {
+    instance = ExerciseRepository._internal(prefs);
+  }
 
   List<Exercise> _loadExercises() {
     final raw = _prefs.getString(_storageKey);
@@ -83,6 +91,105 @@ class ExerciseRepository extends ChangeNotifier {
         list[index] = item.copyWith(isHidden: true);
       }
       await _saveExercises(list);
+    }
+  }
+
+  // ─── Workout Plan Management (Absolute Dates) ──────────────────────
+
+  Future<void> saveWorkoutDay(WorkoutDay day) async {
+    final raw = _prefs.getString(_programStorageKey);
+    Map<String, dynamic> planMap = {};
+    if (raw != null) {
+      try {
+        planMap = jsonDecode(raw);
+      } catch (_) {}
+    }
+    
+    planMap[day.date] = day.toJson();
+    await _prefs.setString(_programStorageKey, jsonEncode(planMap));
+    notifyListeners();
+  }
+
+  Future<void> deleteWorkoutDay(DateTime date) async {
+    final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw != null) {
+      try {
+        Map<String, dynamic> planMap = jsonDecode(raw);
+        if (planMap.containsKey(dateStr)) {
+          planMap.remove(dateStr);
+          await _prefs.setString(_programStorageKey, jsonEncode(planMap));
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> clearAllWorkoutPlans() async {
+    await _prefs.remove(_programStorageKey);
+    notifyListeners();
+  }
+
+  List<String> getAllScheduledWorkoutDates() {
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw == null) return [];
+
+    try {
+      final Map<String, dynamic> planMap = jsonDecode(raw);
+      final List<String> dates = planMap.keys.toList();
+      dates.sort();
+      return dates;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  WorkoutDay? getWorkoutDay(DateTime date) {
+    final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw == null) return null;
+
+    try {
+      final Map<String, dynamic> planMap = jsonDecode(raw);
+      if (planMap.containsKey(dateStr)) {
+        return WorkoutDay.fromJson(planMap[dateStr]);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  List<Map<String, dynamic>> getWorkoutScheduleSummary(DateTime start, DateTime end) {
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw == null) return [];
+
+    try {
+      final Map<String, dynamic> planMap = jsonDecode(raw);
+      final List<Map<String, dynamic>> summary = [];
+      
+      planMap.forEach((dateStr, data) {
+        final parts = dateStr.split('-');
+        if (parts.length == 3) {
+          final y = int.parse(parts[0]);
+          final m = int.parse(parts[1]);
+          final d = int.parse(parts[2]);
+          final date = DateTime(y, m, d);
+          
+          if (date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)))) {
+            final day = WorkoutDay.fromJson(data);
+            summary.add({
+              'date': day.date,
+              'title': day.title,
+              'focus': day.focus,
+              'itemsCount': day.items.length,
+            });
+          }
+        }
+      });
+      
+      summary.sort((a, b) => a['date'].toString().compareTo(b['date'].toString()));
+      return summary;
+    } catch (_) {
+      return [];
     }
   }
 }

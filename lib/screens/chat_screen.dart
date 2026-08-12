@@ -173,14 +173,33 @@ ${jsonEncode(userContext)}
         }
         
         if (mounted && _activeSession != null) {
-          final completedMsg = streamingMsg.copyWith(content: finalContent);
-          await _repository.addMessage(_activeSession!.id, completedMsg);
+          if (finalContent.isNotEmpty) {
+            final completedMsg = streamingMsg.copyWith(content: finalContent);
+            await _repository.addMessage(_activeSession!.id, completedMsg);
+          } else {
+            final msgs = List<ChatMessage>.from(_activeSession!.messages);
+            msgs.removeWhere((m) => m.id == streamingMsg.id);
+            _activeSession = _activeSession!.copyWith(messages: msgs);
+          }
           _refreshActiveSession();
           
           if (finalToolCalls != null && finalToolCalls.isNotEmpty) {
+            // First, add all initial tool messages sequentially to avoid DB race conditions
+            final toolMsgs = <ChatMessage>[];
             for (var call in finalToolCalls) {
+              final assistantMsg = ChatMessage(
+                id: DateTime.now().microsecondsSinceEpoch.toString() + '_ast_' + call.id,
+                role: ChatMessageRole.coach,
+                content: '',
+                toolCallId: call.id,
+                toolName: call.name,
+                toolArgs: jsonEncode(call.arguments),
+                timestamp: DateTime.now(),
+              );
+              await _repository.addMessage(_activeSession!.id, assistantMsg);
+
               final toolMsg = ChatMessage(
-                id: DateTime.now().microsecondsSinceEpoch.toString(),
+                id: DateTime.now().microsecondsSinceEpoch.toString() + '_tool_' + call.id,
                 role: ChatMessageRole.tool,
                 content: '',
                 toolCallId: call.id,
@@ -188,27 +207,43 @@ ${jsonEncode(userContext)}
                 toolArgs: jsonEncode(call.arguments),
                 timestamp: DateTime.now(),
               );
+              toolMsgs.add(toolMsg);
               await _repository.addMessage(_activeSession!.id, toolMsg);
-              
-              final result = await AiTools.executeTool(call.name, call.arguments);
+            }
+            _refreshActiveSession();
+
+            if (!mounted) break;
+
+            // Execute all tools concurrently
+            final futures = finalToolCalls.asMap().entries.map((entry) async {
+              final index = entry.key;
+              final call = entry.value;
+              final result = await AiTools.executeTool(context, call.name, call.arguments);
+              return {'index': index, 'result': result};
+            }).toList();
+
+            // Wait for all to finish
+            final results = await Future.wait(futures);
+
+            // Update all messages sequentially in DB
+            for (var res in results) {
+              final index = res['index'] as int;
+              final result = res['result'] as String;
+              final toolMsg = toolMsgs[index];
               
               if (result.startsWith('ACTION_NAVIGATE:')) {
                  final screen = result.split(':')[1];
                  if (screen == 'home' || screen == 'moves' || screen == 'body' || screen == 'settings') {
-                   Navigator.pushReplacementNamed(context, '/main');
+                   if (mounted) {
+                     Navigator.pushReplacementNamed(context, '/main');
+                   }
                  }
               }
 
-              final toolResultMsg = ChatMessage(
-                id: DateTime.now().microsecondsSinceEpoch.toString(),
-                role: ChatMessageRole.tool,
-                content: result,
-                toolCallId: call.id,
-                timestamp: DateTime.now(),
-              );
-              await _repository.addMessage(_activeSession!.id, toolResultMsg);
-              _refreshActiveSession();
+              final updatedToolMsg = toolMsg.copyWith(content: result);
+              await _repository.updateMessage(_activeSession!.id, updatedToolMsg);
             }
+            _refreshActiveSession();
           } else {
             break;
           }
@@ -791,8 +826,8 @@ class _ChatBubbleState extends State<_ChatBubble> {
               const SizedBox(width: 8),
               Text(
                 widget.message.content.isEmpty 
-                  ? "در حال بررسی..." 
-                  : 'عملیات ${widget.message.toolName ?? ""} انجام شد',
+                  ? context.tr('chat_status_thinking')
+                  : context.tr('chat_status_completed'),
                 style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
               ),
             ],

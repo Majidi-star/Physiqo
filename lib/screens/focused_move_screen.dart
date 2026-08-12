@@ -44,14 +44,9 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
     if (!_initialized) {
       _args = ModalRoute.of(context)!.settings.arguments as FocusedMoveScreenArgs;
       _exercise = _args.exercise;
-      _initRepository();
+      _repository = ExerciseRepository.instance;
       _initialized = true;
     }
-  }
-
-  Future<void> _initRepository() async {
-    final prefs = await SharedPreferences.getInstance();
-    _repository = ExerciseRepository(prefs);
   }
 
   void _reloadExercise() {

@@ -43,6 +43,10 @@ class Translations {
       'moves_exercises_prefix': 'تمرینات ',
       'moves_exercises_suffix': '',
       'moves_empty_category': 'حرکتی در این دسته وجود ندارد.',
+      'moves_tab_database': 'بانک حرکات',
+      'moves_tab_plan': 'برنامه تمرینی',
+      'moves_upcoming_plans': 'برنامه‌های تمرینی زمان‌بندی شده',
+      'plan_day_info': 'روز',
       
       // Focused Move Screen
       'focused_move_details': 'جزئیات حرکت',
@@ -164,6 +168,7 @@ class Translations {
       'error_not_found': 'موردی یافت نشد',
       'chat_network_error': 'ارتباط با سرور برقرار نشد. لطفاً وضعیت اینترنت خود را بررسی کرده و مجدداً تلاش کنید.',
       'chat_status_thinking': 'در حال بررسی...',
+      'chat_status_completed': 'عملیات انجام شد',
       'chat_status_tool_get_fitness_profile': 'در حال خواندن پروفایل...',
       'chat_status_tool_update_fitness_profile': 'در حال بروزرسانی پروفایل...',
       'chat_status_tool_get_workout_days': 'در حال بررسی روزهای تمرین...',
@@ -554,6 +559,7 @@ class Translations {
       'delete': 'Delete',
       'chat_network_error': 'Connection failed. Please check your internet connection and try again.',
       'chat_status_thinking': 'Thinking...',
+      'chat_status_completed': 'Operation completed',
       'chat_status_tool_get_fitness_profile': 'Reading profile...',
       'chat_status_tool_update_fitness_profile': 'Updating profile...',
       'chat_status_tool_get_workout_days': 'Checking workout days...',
@@ -596,6 +602,10 @@ class Translations {
       'moves_exercises_prefix': '',
       'moves_exercises_suffix': ' Exercises',
       'moves_empty_category': 'No exercises in this category.',
+      'moves_tab_database': 'Database',
+      'moves_tab_plan': 'Workout Plan',
+      'moves_upcoming_plans': 'Scheduled Workout Plans',
+      'plan_day_info': 'Day',
       
       // Focused Move Screen
       'focused_move_details': 'Exercise Details',

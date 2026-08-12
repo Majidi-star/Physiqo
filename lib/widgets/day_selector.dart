@@ -1,0 +1,173 @@
+import 'package:flutter/material.dart';
+import 'package:shamsi_date/shamsi_date.dart';
+import '../theme/app_theme.dart';
+import 'circuit_timeline_painter.dart';
+
+class DaySelectorWidget extends StatelessWidget {
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
+
+  const DaySelectorWidget({
+    super.key,
+    required this.selectedDate,
+    required this.onDateSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final isFa = Localizations.localeOf(context).languageCode == 'fa';
+    
+    // Instead of startOffset, calculate how many days selectedDate is from today
+    final offset = selectedDate.difference(today).inDays;
+    final int startOffset = offset - 2; // Keep selected day in middle
+
+    final List<String> days = [];
+    for (int i = 0; i < 6; i++) {
+      final date = today.add(Duration(days: startOffset + i));
+      if (isFa) {
+        final jalali = Jalali.fromDateTime(date);
+        days.add(jalali.day.toString());
+      } else {
+        days.add(date.day.toString());
+      }
+    }
+
+    String selectedLabel;
+    if (isFa) {
+      final jalali = Jalali.fromDateTime(selectedDate);
+      final faMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+      final prefix = offset == 0 ? 'امروز - ' : '';
+      selectedLabel = '$prefix${jalali.day} ${faMonths[jalali.month - 1]}';
+    } else {
+      final enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final prefix = offset == 0 ? 'Today - ' : '';
+      selectedLabel = '$prefix${enMonths[selectedDate.month - 1]} ${selectedDate.day}';
+    }
+
+    return Container(
+      decoration: AppTheme.cardDecoration(active: true),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingMd,
+        vertical: AppTheme.spacingSm,
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.calendar_today, color: AppTheme.primary, size: 20),
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: today.subtract(const Duration(days: 365)),
+                    lastDate: today.add(const Duration(days: 365)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: AppTheme.primary,
+                            onPrimary: AppTheme.onPrimary,
+                            surface: AppTheme.surfaceHigh,
+                            onSurface: AppTheme.textPrimary,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+
+                  if (picked != null) {
+                    final pickedDate = DateTime(picked.year, picked.month, picked.day);
+                    onDateSelected(pickedDate);
+                  }
+                },
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
+              ),
+              Text(
+                selectedLabel,
+                style: AppTheme.bodyLg.copyWith(
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          // Timeline row
+          Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 16,
+                child: CustomPaint(
+                  painter: CircuitTimelinePainter(
+                    color: AppTheme.primary,
+                    isRtl: false,
+                  ),
+                ),
+              ),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(days.length, (i) {
+                    final dotOffset = startOffset + i;
+                    final dotDate = today.add(Duration(days: dotOffset));
+                    return GestureDetector(
+                      onTap: () => onDateSelected(dotDate),
+                      behavior: HitTestBehavior.opaque,
+                      child: _DayDot(
+                        label: days[i],
+                        isActive: dotOffset == offset,
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayDot extends StatelessWidget {
+  final String label;
+  final bool isActive;
+
+  const _DayDot({
+    required this.label,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 16),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTheme.labelMd.copyWith(
+              fontSize: 9,
+              color: isActive ? AppTheme.primary : AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

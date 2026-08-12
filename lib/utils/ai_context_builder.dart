@@ -25,6 +25,8 @@ class AIContextBuilder {
     final customInstShared = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_shared'));
     final customInstChat = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_chat'));
     final customInstVision = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_vision'));
+    final appLanguage = prefs.getString('app_language') ?? 'fa';
+    final languageName = appLanguage == 'en' ? 'English' : 'Persian/Farsi';
 
     // Global settings (NOT namespaced)
     final activeProvider = prefs.getString('active_ai_provider');
@@ -32,6 +34,10 @@ class AIContextBuilder {
     final activeVisionModel = activeProvider != null ? prefs.getString('active_vision_model_$activeProvider') : null;
 
     return {
+      'system_time': {
+        'current_datetime': DateTime.now().toIso8601String(),
+        'timezone_offset_hours': DateTime.now().timeZoneOffset.inHours,
+      },
       'user_profile': {
         'name': profile.name,
         'height': profile.height,
@@ -62,7 +68,8 @@ class AIContextBuilder {
           'shared': customInstShared,
           'chat': customInstChat,
           'vision': customInstVision,
-        }
+        },
+        'language_rule': 'CRITICAL: The user\'s app interface is set to $languageName. You must ALWAYS respond in exactly $languageName. Do NOT use other languages (e.g. Chinese, Czech, etc) or mix languages unless explicitly requested.'
       },
     };
   }

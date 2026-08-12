@@ -1,8 +1,13 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../main.dart' as import_main;
 import '../models/user_profile.dart';
 import '../models/account.dart';
+import '../models/workout_day.dart';
+import '../models/exercise.dart';
 import '../utils/account_manager.dart';
+import '../repositories/exercise_repository.dart';
 
 class AiTools {
   static final List<Map<String, dynamic>> definitions = [
@@ -204,6 +209,110 @@ class AiTools {
           "required": ["id"]
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_workout_schedule",
+        "description": "Returns a lightweight summary of workout plans within a specific date range.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "startDate": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
+            "endDate": {"type": "string", "description": "End date (YYYY-MM-DD)"}
+          },
+          "required": ["startDate", "endDate"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_workout_day_details",
+        "description": "Returns the exact workout plan for a specific date, including all single and superset items. Example: {\"date\": \"2023-10-15\"}",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "date": {"type": "string", "description": "The date (YYYY-MM-DD)"}
+          },
+          "required": ["date"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "upsert_workout_day",
+        "description": "Creates or updates the workout plan for a specific date. Items can be 'single' or 'superset'. Example: {\"date\": \"2023-10-15\", \"title\": \"Push Day\", \"focus\": \"Chest\", \"items\": [{\"type\": \"single\", \"exerciseId\": \"chest_1\"}, {\"type\": \"superset\", \"exerciseIds\": [\"chest_2\", \"arms_1\"]}]}",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "date": {"type": "string", "description": "The date (YYYY-MM-DD)"},
+            "title": {"type": "string", "description": "Name/Title for the day (e.g. 'Push Day')"},
+            "focus": {"type": "string", "description": "Focus (e.g. 'Chest, Triceps')"},
+            "items": {
+              "type": "array",
+              "description": "List of workout items. Each item MUST be an object with a 'type' property set to either 'single' (with an 'exerciseId' string) or 'superset' (with an 'exerciseIds' array of strings).",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "required": ["date", "title", "focus", "items"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "delete_workout_day",
+        "description": "Deletes the workout plan for a specific date.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "date": {"type": "string", "description": "The date (YYYY-MM-DD)"}
+          },
+          "required": ["date"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_all_scheduled_workouts",
+        "description": "Returns a list of all dates (YYYY-MM-DD) that currently have a workout plan scheduled.",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "clear_all_workout_plans",
+        "description": "Deletes ALL workout plans from the database. Use this when the user asks to 'remove all workout plans'.",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "query_exercise_database",
+        "description": "Returns a list of all available exercises in the database, including their IDs, names, and muscle groups. Use this BEFORE upsert_workout_day to find exact exercise IDs. Example: {\"muscleGroup\": \"chest\"}",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "muscleGroup": {
+              "type": "string",
+              "description": "Optional: Filter by primary muscle group (e.g. 'chest', 'back', 'legs', 'shoulders', 'arms', 'abs'). Leave empty to get all."
+            }
+          }
+        }
+      }
     }
   ];
 
@@ -227,7 +336,7 @@ class AiTools {
     'day_sun': 'Sunday',
   };
 
-  static Future<String> executeTool(String name, Map<String, dynamic> args) async {
+  static Future<String> executeTool(BuildContext context, String name, Map<String, dynamic> args) async {
     debugPrint('🔧 Tool invoked: $name with args: $args');
     try {
       String result = '';
@@ -330,6 +439,9 @@ class AiTools {
         case 'set_app_language':
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('app_language', args['lang']);
+          if (context.mounted) {
+            import_main.PhysiqoApp.setLocale(context, Locale(args['lang'] == 'en' ? 'en' : 'fa', args['lang'] == 'en' ? 'US' : 'IR'));
+          }
           result = "App language set to ${args['lang']}";
           break;
         case 'get_accounts':
@@ -341,6 +453,9 @@ class AiTools {
           final id = args['id']?.toString() ?? '';
           if (AccountManager.accounts.any((a) => a.id == id)) {
             await AccountManager.switchAccount(id);
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+            }
             result = "Switched to account ID $id";
           } else {
             result = "Account ID $id not found";
@@ -364,6 +479,95 @@ class AiTools {
           break;
         case 'navigate_to_screen':
           result = "ACTION_NAVIGATE:${args['screenName']}";
+          break;
+        case 'query_workout_schedule':
+          final start = DateTime.tryParse(args['startDate']?.toString() ?? '');
+          final end = DateTime.tryParse(args['endDate']?.toString() ?? '');
+          if (start != null && end != null) {
+            final summary = ExerciseRepository.instance.getWorkoutScheduleSummary(start, end);
+            result = summary.isNotEmpty ? summary.toString() : "No workouts scheduled in this date range.";
+          } else {
+            result = "Invalid date format. Use YYYY-MM-DD.";
+          }
+          break;
+        case 'get_workout_day_details':
+          final date = DateTime.tryParse(args['date']?.toString() ?? '');
+          if (date != null) {
+            final day = ExerciseRepository.instance.getWorkoutDay(date);
+            if (day != null) {
+              result = day.toJson().toString();
+            } else {
+              result = "No workout found for ${args['date']}.";
+            }
+          } else {
+            result = "Invalid date format. Use YYYY-MM-DD.";
+          }
+          break;
+        case 'upsert_workout_day':
+          final dateStr = args['date']?.toString() ?? '';
+          final date = DateTime.tryParse(dateStr);
+          if (date != null) {
+            final itemsRaw = args['items'] as List<dynamic>? ?? [];
+            final List<WorkoutItem> items = [];
+            for (var raw in itemsRaw) {
+              if (raw is Map) {
+                try {
+                  final map = raw.cast<String, dynamic>();
+                  items.add(WorkoutItem.fromJson(map));
+                } catch (e) {
+                  debugPrint('Failed to parse item: $e');
+                }
+              }
+            }
+            final day = WorkoutDay(
+              date: dateStr,
+              title: args['title']?.toString() ?? 'Workout',
+              focus: args['focus']?.toString() ?? '',
+              items: items,
+            );
+            await ExerciseRepository.instance.saveWorkoutDay(day);
+            result = "Workout for $dateStr saved successfully.";
+          } else {
+            result = "Invalid date format. Use YYYY-MM-DD.";
+          }
+          break;
+        case 'delete_workout_day':
+          final date = DateTime.tryParse(args['date']?.toString() ?? '');
+          if (date != null) {
+            await ExerciseRepository.instance.deleteWorkoutDay(date);
+            result = "Workout for ${args['date']} deleted successfully.";
+          } else {
+            result = "Invalid date format. Use YYYY-MM-DD.";
+          }
+          break;
+        case 'get_all_scheduled_workouts':
+          final dates = ExerciseRepository.instance.getAllScheduledWorkoutDates();
+          result = dates.isNotEmpty ? "Scheduled dates: $dates" : "No workouts scheduled.";
+          break;
+        case 'clear_all_workout_plans':
+          await ExerciseRepository.instance.clearAllWorkoutPlans();
+          result = "All workout plans have been deleted successfully.";
+          break;
+        case 'query_exercise_database':
+          final muscleGroup = args['muscleGroup']?.toString().toLowerCase();
+          final allExercises = ExerciseRepository.instance.getAllExercises();
+          
+          List<Exercise> filtered = allExercises;
+          if (muscleGroup != null && muscleGroup.isNotEmpty) {
+            filtered = allExercises.where((e) {
+              final groupName = e.primaryMuscleGroup.toString().split('.').last.toLowerCase();
+              return groupName == muscleGroup;
+            }).toList();
+          }
+          
+          final listMap = filtered.map((e) => {
+            'id': e.id,
+            'name': e.name,
+            'primaryMuscleGroup': e.primaryMuscleGroup.toString().split('.').last,
+            'equipment': e.equipment,
+          }).toList();
+          
+          result = listMap.isNotEmpty ? listMap.toString() : "No exercises found.";
           break;
         default:
           result = "Tool $name not found.";
