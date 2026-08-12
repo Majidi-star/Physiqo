@@ -37,6 +37,8 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   bool? _isLtrChat;
   ChatSession? _activeSession;
   List<String> _selectedImages = [];
+  final _scrollController = ScrollController();
+  bool _showScrollToBottom = false;
 
   @override
   void initState() {
@@ -45,6 +47,17 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat();
+    
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        final currentScroll = _scrollController.offset;
+        setState(() {
+          _showScrollToBottom = maxScroll - currentScroll > 150;
+        });
+      }
+    });
+
     _initRepository();
   }
 
@@ -71,7 +84,18 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   void dispose() {
     _controller.dispose();
     _animationController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 300,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _pickImages() async {
@@ -111,6 +135,9 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       _isGenerating = true;
     });
     _refreshActiveSession();
+    
+    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+    
     await _processAiLoop();
   }
 
@@ -165,6 +192,7 @@ ${jsonEncode(userContext)}
                   _activeSession = _activeSession!.copyWith(messages: msgs);
                 }
              });
+             _scrollToBottom();
           }
           
           if (event.isDone) {
@@ -429,8 +457,12 @@ ${jsonEncode(userContext)}
       );
     }
 
-    final messages = _activeSession?.messages ?? [];
-    final showEmptyState = messages.isEmpty;
+    final allMessages = _activeSession?.messages ?? [];
+    final messages = allMessages.where((msg) {
+      if (msg.role == ChatMessageRole.coach && msg.content.isEmpty) return false;
+      return true;
+    }).toList();
+    final showEmptyState = messages.isEmpty && !_isGenerating;
     final isLtr = _isLtrChat ?? (Directionality.of(context) == TextDirection.ltr);
 
     return Container(
@@ -473,39 +505,65 @@ ${jsonEncode(userContext)}
                     Expanded(
                       child: showEmptyState
                           ? _buildEmptyState()
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(AppTheme.gutter),
-                              itemCount: messages.length,
-                              itemBuilder: (context, index) {
-                                final msg = messages[index];
-                                return _ChatBubble(
-                                  message: msg,
-                                  onEdit: () {},
-                                  onDelete: () async {
-                                    if (_activeSession != null) {
-                                      await _repository.deleteMessage(_activeSession!.id, msg.id);
-                                      _refreshActiveSession();
+                          : Stack(
+                              children: [
+                                ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.only(
+                                    left: AppTheme.gutter,
+                                    right: AppTheme.gutter,
+                                    top: AppTheme.gutter,
+                                    bottom: AppTheme.gutter * 2,
+                                  ),
+                                  itemCount: messages.length + (_isGenerating ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (_isGenerating && index == messages.length) {
+                                      return const _TypingIndicatorBubble();
                                     }
-                                  },
-                                  onUpdateContent: (newContent) async {
-                                    if (_activeSession != null) {
-                                      final idx = _activeSession!.messages.indexWhere((m) => m.id == msg.id);
-                                      if (idx != -1) {
-                                        final toRemove = _activeSession!.messages.sublist(idx).toList();
-                                        for (var m in toRemove) {
-                                          await _repository.deleteMessage(_activeSession!.id, m.id);
+                                    final msg = messages[index];
+                                    return _ChatBubble(
+                                      message: msg,
+                                      onEdit: () {},
+                                      onDelete: () async {
+                                        if (_activeSession != null) {
+                                          await _repository.deleteMessage(_activeSession!.id, msg.id);
+                                          _refreshActiveSession();
                                         }
-                                        _refreshActiveSession();
-                                        await _handleQuickAction(newContent, isEdited: true);
-                                      }
-                                    }
+                                      },
+                                      onUpdateContent: (newContent) async {
+                                        if (_activeSession != null) {
+                                          final idx = _activeSession!.messages.indexWhere((m) => m.id == msg.id);
+                                          if (idx != -1) {
+                                            final toRemove = _activeSession!.messages.sublist(idx).toList();
+                                            for (var m in toRemove) {
+                                              await _repository.deleteMessage(_activeSession!.id, m.id);
+                                            }
+                                            _refreshActiveSession();
+                                            await _handleQuickAction(newContent, isEdited: true);
+                                          }
+                                        }
+                                      },
+                                      onOptionSelected: (selectedOption) {
+                                        _controller.text = selectedOption;
+                                        _sendMessage();
+                                      },
+                                    );
                                   },
-                                  onOptionSelected: (selectedOption) {
-                                    _controller.text = selectedOption;
-                                    _sendMessage();
-                                  },
-                                );
-                              },
+                                ),
+                                if (_showScrollToBottom)
+                                  Positioned(
+                                    bottom: AppTheme.spacingMd,
+                                    right: isLtr ? AppTheme.spacingMd : null,
+                                    left: isLtr ? null : AppTheme.spacingMd,
+                                    child: FloatingActionButton(
+                                      mini: true,
+                                      backgroundColor: AppTheme.surfaceHigh,
+                                      foregroundColor: AppTheme.primary,
+                                      onPressed: _scrollToBottom,
+                                      child: const Icon(Icons.keyboard_arrow_down),
+                                    ),
+                                  ),
+                              ],
                             ),
                     ),
                     // Input Bar
@@ -606,22 +664,22 @@ ${jsonEncode(userContext)}
                                     ),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                   ),
-                                  onSubmitted: (_) => _sendMessage(),
+                                  onSubmitted: _isGenerating ? null : (_) => _sendMessage(),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: _sendMessage,
+                                onTap: _isGenerating ? null : _sendMessage,
                                 child: Container(
                                   width: 40,
                                   height: 40,
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: AppTheme.primary,
+                                    color: _isGenerating ? AppTheme.surface : AppTheme.primary,
                                   ),
                                   child: Icon(
                                     Icons.send, 
-                                    color: AppTheme.onPrimary, 
+                                    color: _isGenerating ? AppTheme.textSecondary : AppTheme.onPrimary, 
                                     size: 18,
                                     textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
                                   ),
@@ -1332,5 +1390,69 @@ class _AiOrbPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _AiOrbPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue;
+  }
+}
+
+class _TypingIndicatorBubble extends StatefulWidget {
+  const _TypingIndicatorBubble({super.key});
+
+  @override
+  State<_TypingIndicatorBubble> createState() => _TypingIndicatorBubbleState();
+}
+
+class _TypingIndicatorBubbleState extends State<_TypingIndicatorBubble> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppTheme.spacingMd, right: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceHigh,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(AppTheme.radiusMd),
+            topRight: Radius.circular(AppTheme.radiusMd),
+            bottomLeft: Radius.circular(2),
+            bottomRight: Radius.circular(AppTheme.radiusMd),
+          ),
+          border: Border.all(color: AppTheme.outline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (index) {
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                final val = math.sin((_controller.value * 2 * math.pi) - (index * math.pi / 4));
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  width: 6,
+                  height: 6 + (val > 0 ? val * 4 : 0),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.textSecondary,
+                    shape: BoxShape.circle,
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+      ),
+    );
   }
 }

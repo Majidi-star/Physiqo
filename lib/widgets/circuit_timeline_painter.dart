@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class CircuitTimelinePainter extends CustomPainter {
   final Color color;
   final bool isRtl;
+  final int activeIndex;
+  final List<bool> hasPlans;
 
-  CircuitTimelinePainter({required this.color, this.isRtl = true});
+  CircuitTimelinePainter({
+    required this.color,
+    required this.activeIndex,
+    required this.hasPlans,
+    this.isRtl = true,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -75,6 +83,10 @@ class CircuitTimelinePainter extends CustomPainter {
     canvas.drawPath(mainPath, glowPaint);
     canvas.drawPath(mainPath, linePaint);
 
+    final inactiveNodePaint = Paint()
+      ..color = AppTheme.outline
+      ..style = PaintingStyle.fill;
+
     // Draw nodes
     for (int i = 0; i < 6; i++) {
       double x = padding + i * step;
@@ -82,15 +94,23 @@ class CircuitTimelinePainter extends CustomPainter {
         x = size.width - x;
       }
       
-      // Node 5 is the active/today node, give it a slightly larger halo
-      double glowRadius = (i == 5) ? 8.0 : 5.0;
-      double innerRadius = (i == 5) ? 5.0 : 4.0;
+      bool isActive = i == activeIndex;
+      bool hasPlan = i < hasPlans.length ? hasPlans[i] : false;
       
-      canvas.drawCircle(Offset(x, cy), glowRadius, nodeGlowPaint);
-      canvas.drawCircle(Offset(x, cy), innerRadius, nodePaint);
+      double glowRadius = isActive ? 8.0 : 5.0;
+      double innerRadius = isActive ? 5.0 : 4.0;
+      
+      if (hasPlan || isActive) {
+        canvas.drawCircle(Offset(x, cy), glowRadius, nodeGlowPaint);
+        canvas.drawCircle(Offset(x, cy), innerRadius, nodePaint);
+      } else {
+        canvas.drawCircle(Offset(x, cy), innerRadius, inactiveNodePaint);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CircuitTimelinePainter oldDelegate) {
+    return oldDelegate.activeIndex != activeIndex || oldDelegate.hasPlans != hasPlans;
+  }
 }

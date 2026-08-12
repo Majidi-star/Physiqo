@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shamsi_date/shamsi_date.dart';
 import '../models/user_profile.dart';
 import '../utils/account_manager.dart';
 
@@ -35,8 +36,11 @@ class AIContextBuilder {
 
     return {
       'system_time': {
-        'current_datetime': DateTime.now().toIso8601String(),
+        'current_datetime_iso8601': DateTime.now().toIso8601String(),
+        'current_date_gregorian': "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}",
+        'current_date_jalali': "${Jalali.now().year}/${Jalali.now().month.toString().padLeft(2, '0')}/${Jalali.now().day.toString().padLeft(2, '0')}",
         'timezone_offset_hours': DateTime.now().timeZoneOffset.inHours,
+        'calendar_rules': "CRITICAL: The app database uses strictly Gregorian dates (YYYY-MM-DD). If the user speaks in Persian, they will reference Jalali dates (e.g. 1402/05/21). You MUST automatically translate any Jalali date into the corresponding Gregorian date before passing it as a tool argument. Do not pass Jalali strings into the tool parameters."
       },
       'user_profile': {
         'name': profile.name,

@@ -14,6 +14,7 @@ import 'screens/analysis_screen.dart';
 import 'screens/focused_move_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/schedule_overview_screen.dart';
 import 'widgets/physiqo_nav_bar.dart';
 import 'utils/account_manager.dart';
 import 'models/user_profile.dart';
@@ -110,6 +111,7 @@ class _PhysiqoAppState extends State<PhysiqoApp> {
         '/analysis': (context) => const AnalysisScreen(),
         '/focused_move': (context) => const FocusedMoveScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
+        '/schedule_overview': (context) => const ScheduleOverviewScreen(),
       },
     );
   }

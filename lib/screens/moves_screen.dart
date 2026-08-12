@@ -154,38 +154,6 @@ class _MovesScreenState extends State<MovesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: AppTheme.spacingMd),
-          DaySelectorWidget(
-            selectedDate: _selectedDate,
-            onDateSelected: (date) {
-              setState(() {
-                _selectedDate = date;
-                _isLoading = true;
-              });
-              _loadExercises();
-            },
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-          if (todayPlan != null && todayPlan.items.isNotEmpty) ...[
-            if (todayPlan.title.isNotEmpty) ...[
-              Text(todayPlan.title, style: AppTheme.headlineMd),
-            ],
-            if (todayPlan.focus.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(todayPlan.focus, style: AppTheme.bodyMd.copyWith(color: AppTheme.primary)),
-            ],
-            const SizedBox(height: AppTheme.spacingMd),
-            ...todayPlan.items.map((item) => _buildWorkoutItem(item, context, () => setState(() {}))),
-          ] else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: Text(
-                  context.tr('moves_empty_category'),
-                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-                ),
-              ),
-            ),
           const SizedBox(height: AppTheme.spacingLg),
           _buildUpcomingPlans(),
           const SizedBox(height: 100),
@@ -203,9 +171,23 @@ class _MovesScreenState extends State<MovesScreen> {
       children: [
         const Divider(color: AppTheme.outline),
         const SizedBox(height: AppTheme.spacingMd),
-        Text(
-          context.tr('moves_upcoming_plans'),
-          style: AppTheme.headlineMd,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                context.tr('moves_upcoming_plans'),
+                style: AppTheme.headlineMd,
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/schedule_overview'),
+              child: Text(
+                context.tr('moves_full_schedule'),
+                style: AppTheme.labelMd.copyWith(color: AppTheme.primary),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppTheme.spacingMd),
         ...scheduledDatesStr.map((dateStr) {
@@ -219,11 +201,7 @@ class _MovesScreenState extends State<MovesScreen> {
 
             return GestureDetector(
               onTap: () {
-                setState(() {
-                  _selectedDate = date;
-                  _isLoading = true;
-                });
-                _loadExercises();
+                Navigator.pushNamed(context, '/schedule_overview');
               },
               child: Container(
                 margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),

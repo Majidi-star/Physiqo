@@ -46,6 +46,7 @@ class Translations {
       'moves_tab_database': 'بانک حرکات',
       'moves_tab_plan': 'برنامه تمرینی',
       'moves_upcoming_plans': 'برنامه‌های تمرینی زمان‌بندی شده',
+      'moves_full_schedule': 'مشاهده کل برنامه',
       'plan_day_info': 'روز',
       
       // Focused Move Screen
@@ -605,6 +606,7 @@ class Translations {
       'moves_tab_database': 'Database',
       'moves_tab_plan': 'Workout Plan',
       'moves_upcoming_plans': 'Scheduled Workout Plans',
+      'moves_full_schedule': 'View Full Schedule',
       'plan_day_info': 'Day',
       
       // Focused Move Screen

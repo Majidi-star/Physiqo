@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shamsi_date/shamsi_date.dart';
 import '../theme/app_theme.dart';
+import '../utils/app_date_utils.dart';
+import '../repositories/exercise_repository.dart';
 import 'circuit_timeline_painter.dart';
 
-class DaySelectorWidget extends StatelessWidget {
+class DaySelectorWidget extends StatefulWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateSelected;
 
@@ -14,37 +16,65 @@ class DaySelectorWidget extends StatelessWidget {
   });
 
   @override
+  State<DaySelectorWidget> createState() => _DaySelectorWidgetState();
+}
+
+class _DaySelectorWidgetState extends State<DaySelectorWidget> {
+  List<bool> _hasPlans = List.filled(6, false);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlans();
+  }
+
+  @override
+  void didUpdateWidget(DaySelectorWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedDate != widget.selectedDate) {
+      _loadPlans();
+    }
+  }
+
+  Future<void> _loadPlans() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final offset = widget.selectedDate.difference(today).inDays;
+    final int startOffset = offset - 2;
+    
+    final repo = ExerciseRepository.instance;
+    List<bool> results = [];
+    for (int i = 0; i < 6; i++) {
+      final date = today.add(Duration(days: startOffset + i));
+      final plan = await repo.getWorkoutDay(date);
+      results.add(plan != null && plan.items.isNotEmpty);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _hasPlans = results;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final isFa = Localizations.localeOf(context).languageCode == 'fa';
+    final isFa = AppDateUtils.isFa(context);
     
     // Instead of startOffset, calculate how many days selectedDate is from today
-    final offset = selectedDate.difference(today).inDays;
+    final offset = widget.selectedDate.difference(today).inDays;
     final int startOffset = offset - 2; // Keep selected day in middle
 
     final List<String> days = [];
     for (int i = 0; i < 6; i++) {
       final date = today.add(Duration(days: startOffset + i));
-      if (isFa) {
-        final jalali = Jalali.fromDateTime(date);
-        days.add(jalali.day.toString());
-      } else {
-        days.add(date.day.toString());
-      }
+      days.add(AppDateUtils.getDayNumber(date, isFa));
     }
 
-    String selectedLabel;
-    if (isFa) {
-      final jalali = Jalali.fromDateTime(selectedDate);
-      final faMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
-      final prefix = offset == 0 ? 'امروز - ' : '';
-      selectedLabel = '$prefix${jalali.day} ${faMonths[jalali.month - 1]}';
-    } else {
-      final enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      final prefix = offset == 0 ? 'Today - ' : '';
-      selectedLabel = '$prefix${enMonths[selectedDate.month - 1]} ${selectedDate.day}';
-    }
+    final prefix = offset == 0 ? (isFa ? 'امروز - ' : 'Today - ') : '';
+    final String selectedLabel = '$prefix${AppDateUtils.formatMonthDay(widget.selectedDate, isFa)}';
 
     return Container(
       decoration: AppTheme.cardDecoration(active: true),
@@ -62,7 +92,7 @@ class DaySelectorWidget extends StatelessWidget {
                 onPressed: () async {
                   final picked = await showDatePicker(
                     context: context,
-                    initialDate: selectedDate,
+                    initialDate: widget.selectedDate,
                     firstDate: today.subtract(const Duration(days: 365)),
                     lastDate: today.add(const Duration(days: 365)),
                     builder: (context, child) {
@@ -82,7 +112,7 @@ class DaySelectorWidget extends StatelessWidget {
 
                   if (picked != null) {
                     final pickedDate = DateTime(picked.year, picked.month, picked.day);
-                    onDateSelected(pickedDate);
+                    widget.onDateSelected(pickedDate);
                   }
                 },
                 constraints: const BoxConstraints(),
@@ -95,6 +125,26 @@ class DaySelectorWidget extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (offset != 0)
+                TextButton.icon(
+                  onPressed: () {
+                    widget.onDateSelected(today);
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: AppTheme.primary.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                  ),
+                  icon: const Icon(Icons.replay, size: 14, color: AppTheme.primary),
+                  label: Text(
+                    isFa ? 'امروز' : 'Today',
+                    style: AppTheme.labelMd.copyWith(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                  ),
+                )
+              else
+                const SizedBox(width: 70), // Placeholder to keep title centered (roughly width of button)
             ],
           ),
           const SizedBox(height: AppTheme.spacingSm),
@@ -109,6 +159,8 @@ class DaySelectorWidget extends StatelessWidget {
                 child: CustomPaint(
                   painter: CircuitTimelinePainter(
                     color: AppTheme.primary,
+                    activeIndex: 2,
+                    hasPlans: _hasPlans,
                     isRtl: false,
                   ),
                 ),
@@ -122,7 +174,7 @@ class DaySelectorWidget extends StatelessWidget {
                     final dotOffset = startOffset + i;
                     final dotDate = today.add(Duration(days: dotOffset));
                     return GestureDetector(
-                      onTap: () => onDateSelected(dotDate),
+                      onTap: () => widget.onDateSelected(dotDate),
                       behavior: HitTestBehavior.opaque,
                       child: _DayDot(
                         label: days[i],
