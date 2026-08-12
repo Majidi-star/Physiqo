@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
@@ -7,6 +10,9 @@ import '../models/chat_message.dart';
 import '../models/chat_session.dart';
 import '../repositories/chat_repository.dart';
 import '../l10n/translations.dart';
+import '../services/ai_service.dart';
+import '../services/ai_tools.dart';
+import '../models/ai_stream_event.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -19,9 +25,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   final _controller = TextEditingController();
   late AnimationController _animationController;
   late ChatRepository _repository;
+  final AiService _aiService = AiService();
+  bool _hasProvider = false;
+  bool _isGenerating = false;
   bool _isLoading = true;
+  String? _agentStatus;
   bool? _isLtrChat;
   ChatSession? _activeSession;
+  List<String> _selectedImages = [];
 
   @override
   void initState() {
@@ -59,68 +70,181 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  Future<void> _pickImages() async {
+    final picker = ImagePicker();
+    final List<XFile> images = await picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images.map((img) => img.path));
+      });
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _activeSession == null) return;
+    if ((text.isEmpty && _selectedImages.isEmpty) || _activeSession == null || _isGenerating) return;
 
+    final images = _selectedImages.isNotEmpty ? List<String>.from(_selectedImages) : null;
     final userMsg = ChatMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       role: ChatMessageRole.user,
       content: text,
       timestamp: DateTime.now(),
+      images: images,
     );
 
     _controller.clear();
+    setState(() {
+      _selectedImages.clear();
+    });
     
     if (_activeSession!.messages.isEmpty) {
       await _repository.saveNewSession(_activeSession!);
     }
     await _repository.addMessage(_activeSession!.id, userMsg);
-    _refreshActiveSession();
-
-    // Simulated AI response
-    Future.delayed(const Duration(milliseconds: 300), () async {
-      if (mounted && _activeSession != null) {
-        final botMsg = ChatMessage(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          role: ChatMessageRole.coach,
-          content: context.tr('chat_mock_reply'),
-          timestamp: DateTime.now(),
-        );
-        await _repository.addMessage(_activeSession!.id, botMsg);
-        _refreshActiveSession();
-      }
+    
+    setState(() {
+      _isGenerating = true;
     });
+    _refreshActiveSession();
+    await _processAiLoop();
   }
 
-  Future<void> _handleQuickAction(String userMsgText, String botReplyText) async {
-    if (_activeSession == null) return;
+  Future<void> _processAiLoop() async {
+    while (true) {
+      if (!mounted || _activeSession == null) break;
+
+      setState(() {
+        _agentStatus = context.tr('chat_status_thinking');
+      });
+
+      try {
+        final stream = _aiService.sendMessageStream(_activeSession!.messages);
+        
+        ChatMessage streamingMsg = ChatMessage(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          role: ChatMessageRole.coach,
+          content: '',
+          timestamp: DateTime.now(),
+        );
+
+        setState(() {
+          _activeSession = _activeSession!.copyWith(
+            messages: List.from(_activeSession!.messages)..add(streamingMsg),
+          );
+        });
+
+        List<AiToolCall>? finalToolCalls;
+        String finalContent = '';
+
+        await for (var event in stream) {
+          if (!mounted || _activeSession == null) break;
+          
+          if (event.deltaText.isNotEmpty) {
+             finalContent = event.deltaText;
+             setState(() {
+                final index = _activeSession!.messages.indexWhere((m) => m.id == streamingMsg.id);
+                if (index != -1) {
+                  final msgs = List<ChatMessage>.from(_activeSession!.messages);
+                  msgs[index] = streamingMsg.copyWith(content: finalContent);
+                  _activeSession = _activeSession!.copyWith(messages: msgs);
+                }
+             });
+          }
+          
+          if (event.isDone) {
+            finalToolCalls = event.toolCalls;
+          }
+        }
+        
+        if (mounted && _activeSession != null) {
+          final completedMsg = streamingMsg.copyWith(content: finalContent);
+          await _repository.addMessage(_activeSession!.id, completedMsg);
+          _refreshActiveSession();
+          
+          if (finalToolCalls != null && finalToolCalls.isNotEmpty) {
+            for (var call in finalToolCalls) {
+              final toolMsg = ChatMessage(
+                id: DateTime.now().microsecondsSinceEpoch.toString(),
+                role: ChatMessageRole.tool,
+                content: '',
+                toolCallId: call.id,
+                toolName: call.name,
+                toolArgs: jsonEncode(call.arguments),
+                timestamp: DateTime.now(),
+              );
+              await _repository.addMessage(_activeSession!.id, toolMsg);
+              
+              final result = await AiTools.executeTool(call.name, call.arguments);
+              
+              if (result.startsWith('ACTION_NAVIGATE:')) {
+                 final screen = result.split(':')[1];
+                 if (screen == 'home' || screen == 'moves' || screen == 'body' || screen == 'settings') {
+                   Navigator.pushReplacementNamed(context, '/main');
+                 }
+              }
+
+              final toolResultMsg = ChatMessage(
+                id: DateTime.now().microsecondsSinceEpoch.toString(),
+                role: ChatMessageRole.tool,
+                content: result,
+                toolCallId: call.id,
+                timestamp: DateTime.now(),
+              );
+              await _repository.addMessage(_activeSession!.id, toolResultMsg);
+              _refreshActiveSession();
+            }
+          } else {
+            break;
+          }
+        }
+      } catch (e) {
+        if (mounted && _activeSession != null) {
+          debugPrint('AiLoop Error: $e');
+          final botMsg = ChatMessage(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            role: ChatMessageRole.coach,
+            content: context.tr('chat_network_error'),
+            timestamp: DateTime.now(),
+          );
+          await _repository.addMessage(_activeSession!.id, botMsg);
+        }
+        break;
+      }
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isGenerating = false;
+        _agentStatus = null;
+      });
+      _refreshActiveSession();
+    }
+  }
+
+  Future<void> _handleQuickAction(String userMsgText, {bool isEdited = false, List<String>? images}) async {
+    if (_activeSession == null || _isGenerating) return;
 
     final userMsg = ChatMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       role: ChatMessageRole.user,
       content: userMsgText,
       timestamp: DateTime.now(),
+      isEdited: isEdited,
+      images: images,
     );
 
     if (_activeSession!.messages.isEmpty) {
       await _repository.saveNewSession(_activeSession!);
     }
     await _repository.addMessage(_activeSession!.id, userMsg);
-    _refreshActiveSession();
-
-    Future.delayed(const Duration(milliseconds: 300), () async {
-      if (mounted && _activeSession != null) {
-        final botMsg = ChatMessage(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          role: ChatMessageRole.coach,
-          content: botReplyText,
-          timestamp: DateTime.now(),
-        );
-        await _repository.addMessage(_activeSession!.id, botMsg);
-        _refreshActiveSession();
-      }
+    
+    setState(() {
+      _isGenerating = true;
     });
+    _refreshActiveSession();
+    
+    await _processAiLoop();
   }
 
   void _refreshActiveSession() {
@@ -315,8 +439,15 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                                   },
                                   onUpdateContent: (newContent) async {
                                     if (_activeSession != null) {
-                                      await _repository.editMessage(_activeSession!.id, msg.id, newContent);
-                                      _refreshActiveSession();
+                                      final idx = _activeSession!.messages.indexWhere((m) => m.id == msg.id);
+                                      if (idx != -1) {
+                                        final toRemove = _activeSession!.messages.sublist(idx).toList();
+                                        for (var m in toRemove) {
+                                          await _repository.deleteMessage(_activeSession!.id, m.id);
+                                        }
+                                        _refreshActiveSession();
+                                        await _handleQuickAction(newContent, isEdited: true);
+                                      }
                                     }
                                   },
                                 );
@@ -332,23 +463,80 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                           top: BorderSide(color: AppTheme.outline, width: 1),
                         ),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _controller,
-                              style: AppTheme.bodyMd,
-                              minLines: 1,
-                              maxLines: 5,
-                              keyboardType: TextInputType.multiline,
-                              textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
-                              decoration: InputDecoration(
-                                hintText: context.tr('chat_write_message'),
-                                hintStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-                                filled: true,
-                                fillColor: AppTheme.surfaceHigh,
-                                suffixIcon: IconButton(
+                          if (_selectedImages.isNotEmpty)
+                            SizedBox(
+                              height: 60,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _selectedImages.length,
+                                itemBuilder: (context, index) {
+                                  return Stack(
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(right: 8, top: 8),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                          border: Border.all(color: AppTheme.outline),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                          child: Image.file(
+                                            File(_selectedImages[index]),
+                                            width: 50,
+                                            height: 50,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: 0,
+                                        top: 0,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _selectedImages.removeAt(index);
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: const BoxDecoration(
+                                              color: AppTheme.surfaceHigh,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.close, size: 14, color: AppTheme.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          if (_selectedImages.isNotEmpty) const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.add_photo_alternate_outlined, color: AppTheme.primary),
+                                onPressed: _pickImages,
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: _controller,
+                                  style: AppTheme.bodyMd,
+                                  minLines: 1,
+                                  maxLines: 5,
+                                  keyboardType: TextInputType.multiline,
+                                  textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
+                                  decoration: InputDecoration(
+                                    hintText: context.tr('chat_write_message'),
+                                    hintStyle: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                    filled: true,
+                                    fillColor: AppTheme.surfaceHigh,
+                                    suffixIcon: IconButton(
                                   icon: const Icon(Icons.swap_horiz, color: AppTheme.textSecondary),
                                   onPressed: () async {
                                     final prefs = await SharedPreferences.getInstance();
@@ -387,16 +575,18 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  ),
+);
+}
 
   Widget _buildEmptyState() {
     return SingleChildScrollView(
@@ -440,7 +630,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                 _QuickActionChip(
                   label: context.tr('chat_quick_scan'),
                   onTap: () => _handleQuickAction(
-                    context.tr('chat_quick_scan'),
                     context.tr('chat_prompt_scan'),
                   ),
                 ),
@@ -448,7 +637,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                 _QuickActionChip(
                   label: context.tr('chat_quick_plan'),
                   onTap: () => _handleQuickAction(
-                    context.tr('chat_quick_plan'),
                     context.tr('chat_prompt_plan'),
                   ),
                 ),
@@ -456,7 +644,6 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
                 _QuickActionChip(
                   label: context.tr('chat_quick_move'),
                   onTap: () => _handleQuickAction(
-                    context.tr('chat_quick_move'),
                     context.tr('chat_prompt_form'),
                   ),
                 ),
@@ -614,6 +801,25 @@ class _ChatBubbleState extends State<_ChatBubble> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (widget.message.images != null && widget.message.images!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: widget.message.images!.map((path) {
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                  child: Image.file(
+                                    File(path),
+                                    width: 150,
+                                    height: 150,
+                                    fit: BoxFit.cover,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         Text(
                           widget.message.content,
                           style: AppTheme.bodyMd.copyWith(

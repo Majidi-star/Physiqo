@@ -88,7 +88,6 @@ class UserProfile extends ChangeNotifier {
     String? height,
     String? weight,
     String? photoPath,
-    bool clearPhoto = false,
     int? age,
     String? gender,
     String? experienceLevel,
@@ -97,6 +96,7 @@ class UserProfile extends ChangeNotifier {
     String? limitations,
     String? additionalNotes,
     String? unitSystem,
+    bool clearPhoto = false,
   }) {
     if (name != null) this.name = name;
     if (height != null) this.height = height;
@@ -107,7 +107,6 @@ class UserProfile extends ChangeNotifier {
     } else if (photoPath != null) {
       this.photoPath = photoPath;
     }
-    
     if (age != null) this.age = age;
     if (gender != null) this.gender = gender;
     if (experienceLevel != null) this.experienceLevel = experienceLevel;
