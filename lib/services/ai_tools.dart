@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../main.dart' as import_main;
@@ -265,6 +266,39 @@ class AiTools {
     {
       "type": "function",
       "function": {
+        "name": "batch_upsert_workout_plan",
+        "description": "Creates or updates the workout plan for multiple dates at once. Use this to save an entire week's plan in a single call.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "days": {
+              "type": "array",
+              "description": "List of workout days. Each day must contain 'date', 'title', 'focus', and 'items'.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {"type": "string", "description": "The date (YYYY-MM-DD)"},
+                  "title": {"type": "string", "description": "Name/Title for the day (e.g. 'Push Day')"},
+                  "focus": {"type": "string", "description": "Focus (e.g. 'Chest, Triceps')"},
+                  "items": {
+                    "type": "array",
+                    "description": "List of workout items. Each item MUST be an object with a 'type' property set to either 'single' (with an 'exerciseId' string) or 'superset' (with an 'exerciseIds' array of strings).",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                },
+                "required": ["date", "title", "focus", "items"]
+              }
+            }
+          },
+          "required": ["days"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
         "name": "delete_workout_day",
         "description": "Deletes the workout plan for a specific date.",
         "parameters": {
@@ -315,6 +349,23 @@ class AiTools {
       }
     }
   ];
+
+  static List<Map<String, dynamic>> get workoutTools => definitions.where((d) => [
+    'query_workout_schedule', 'get_workout_day_details', 'upsert_workout_day',
+    'batch_upsert_workout_plan', 'delete_workout_day', 'get_all_scheduled_workouts', 'clear_all_workout_plans',
+    'query_exercise_database'
+  ].contains(d['function']['name'])).toList();
+
+  static List<Map<String, dynamic>> get profileTools => definitions.where((d) => [
+    'get_fitness_profile', 'update_fitness_profile', 'get_workout_days', 'set_workout_days'
+  ].contains(d['function']['name'])).toList();
+
+  static List<Map<String, dynamic>> get appTools => definitions.where((d) => [
+    'navigate_to_screen', 'get_unit_system', 'set_unit_system', 'get_default_rest_time',
+    'set_default_rest_time', 'get_app_language', 'set_app_language', 'get_accounts',
+    'switch_account', 'create_account', 'delete_account'
+  ].contains(d['function']['name'])).toList();
+
 
   static final _dayToInternal = {
     'Monday': 'day_mon',
@@ -530,6 +581,50 @@ class AiTools {
           } else {
             result = "Invalid date format. Use YYYY-MM-DD.";
           }
+          break;
+        case 'batch_upsert_workout_plan':
+          dynamic daysArg = args['days'];
+          List<dynamic> daysRaw = [];
+          if (daysArg is String) {
+            try {
+              daysRaw = jsonDecode(daysArg) as List<dynamic>;
+            } catch (e) {
+              result = "Failed to parse days JSON string.";
+              break;
+            }
+          } else if (daysArg is List) {
+            daysRaw = daysArg;
+          }
+          int successCount = 0;
+          for (var dayRaw in daysRaw) {
+            if (dayRaw is Map) {
+              final dateStr = dayRaw['date']?.toString() ?? '';
+              final date = DateTime.tryParse(dateStr);
+              if (date != null) {
+                final itemsRaw = dayRaw['items'] as List<dynamic>? ?? [];
+                final List<WorkoutItem> items = [];
+                for (var rawItem in itemsRaw) {
+                  if (rawItem is Map) {
+                    try {
+                      final map = rawItem.cast<String, dynamic>();
+                      items.add(WorkoutItem.fromJson(map));
+                    } catch (e) {
+                      debugPrint('Failed to parse item: $e');
+                    }
+                  }
+                }
+                final day = WorkoutDay(
+                  date: dateStr,
+                  title: dayRaw['title']?.toString() ?? 'Workout',
+                  focus: dayRaw['focus']?.toString() ?? '',
+                  items: items,
+                );
+                await ExerciseRepository.instance.saveWorkoutDay(day);
+                successCount++;
+              }
+            }
+          }
+          result = "Successfully saved $successCount workout days.";
           break;
         case 'delete_workout_day':
           final date = DateTime.tryParse(args['date']?.toString() ?? '');

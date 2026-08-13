@@ -16,6 +16,27 @@ class AIContextBuilder {
     // Load workout days
     final workoutDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
     
+    // Calculate precise dates for the requested workout days for the upcoming 7 days
+    Map<String, String> upcomingWorkoutDates = {};
+    final now = DateTime.now();
+    final weekdayMap = {
+      1: 'day_mon',
+      2: 'day_tue',
+      3: 'day_wed',
+      4: 'day_thu',
+      5: 'day_fri',
+      6: 'day_sat',
+      7: 'day_sun',
+    };
+    
+    for (int i = 0; i < 7; i++) {
+      final date = now.add(Duration(days: i));
+      final dayKey = weekdayMap[date.weekday]!;
+      if (workoutDays.isEmpty || workoutDays.contains(dayKey)) {
+        upcomingWorkoutDates[dayKey] = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      }
+    }
+
     // Load rest time preferences
     final restMode = prefs.getString(AccountManager.getPrefKey('rest_time_mode')) ?? 'auto';
     final restMin = prefs.getInt(AccountManager.getPrefKey('rest_time_min')) ?? 45;
@@ -37,10 +58,8 @@ class AIContextBuilder {
     return {
       'system_time': {
         'current_datetime_iso8601': DateTime.now().toIso8601String(),
-        'current_date_gregorian': "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}",
-        'current_date_jalali': "${Jalali.now().year}/${Jalali.now().month.toString().padLeft(2, '0')}/${Jalali.now().day.toString().padLeft(2, '0')}",
         'timezone_offset_hours': DateTime.now().timeZoneOffset.inHours,
-        'calendar_rules': "CRITICAL: The app database uses strictly Gregorian dates (YYYY-MM-DD). If the user speaks in Persian, they will reference Jalali dates (e.g. 1402/05/21). You MUST automatically translate any Jalali date into the corresponding Gregorian date before passing it as a tool argument. Do not pass Jalali strings into the tool parameters."
+        'calendar_rules': "CRITICAL: Do NOT perform any date arithmetic, translations, or calculations. You MUST use the exact Gregorian dates provided in the 'workout_days_schedule' mapping."
       },
       'user_profile': {
         'name': profile.name,
@@ -56,6 +75,7 @@ class AIContextBuilder {
       },
       'preferences': {
         'workout_days': workoutDays,
+        'workout_days_schedule': upcomingWorkoutDates,
         'rest_time': restMode == 'auto' 
             ? 'AI_DECIDES' 
             : {
@@ -73,7 +93,6 @@ class AIContextBuilder {
           'chat': customInstChat,
           'vision': customInstVision,
         },
-        'language_rule': 'CRITICAL: The user\'s app interface is set to $languageName. You must ALWAYS respond in exactly $languageName. Do NOT use other languages (e.g. Chinese, Czech, etc) or mix languages unless explicitly requested.'
       },
     };
   }

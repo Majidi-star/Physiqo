@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,13 +10,14 @@ import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
 import '../models/chat_message.dart';
 import '../models/chat_session.dart';
+import '../models/ai_stream_event.dart';
 import '../repositories/chat_repository.dart';
 import '../l10n/translations.dart';
 import '../services/ai_service.dart';
 import '../services/ai_tools.dart';
-import '../models/ai_stream_event.dart';
-import '../utils/ai_context_builder.dart';
-import '../utils/app_knowledge_base.dart';
+import '../services/ai_orchestrator.dart';
+import '../services/ai_logger.dart';
+import '../widgets/ai_debug_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -30,13 +31,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late ChatRepository _repository;
   final AiService _aiService = AiService();
-  bool _hasProvider = false;
   bool _isGenerating = false;
   bool _isLoading = true;
-  String? _agentStatus;
+  StreamSubscription<AiStreamEvent>? _streamSubscription;
+  Completer<void>? _streamCompleter;
+  bool _generationCancelled = false;
   bool? _isLtrChat;
   ChatSession? _activeSession;
-  List<String> _selectedImages = [];
+  final List<String> _selectedImages = [];
   final _scrollController = ScrollController();
   bool _showScrollToBottom = false;
 
@@ -66,13 +68,16 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     _repository = ChatRepository(prefs);
     _isLtrChat = prefs.getBool('chat_is_ltr');
     final sessions = _repository.getAllSessions();
+    
     if (sessions.isEmpty) {
       final newSession = await _repository.createSession();
+      AiLogger.instance.setActiveChat(newSession.id);
       setState(() {
         _activeSession = newSession;
         _isLoading = false;
       });
     } else {
+      AiLogger.instance.setActiveChat(sessions.first.id);
       setState(() {
         _activeSession = sessions.first;
         _isLoading = false;
@@ -100,7 +105,11 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
-    final List<XFile> images = await picker.pickMultiImage();
+    final List<XFile> images = await picker.pickMultiImage(
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
     if (images.isNotEmpty) {
       setState(() {
         _selectedImages.addAll(images.map((img) => img.path));
@@ -108,10 +117,71 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     }
   }
 
+  void _cancelOngoingMessage() {
+    if (_generationCancelled) return;
+    setState(() {
+      _generationCancelled = true;
+      _isGenerating = false;
+    });
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    if (_streamCompleter != null && !_streamCompleter!.isCompleted) {
+      _streamCompleter!.complete();
+    }
+    _refreshActiveSession();
+  }
+
+  Future<void> _retryMessage(ChatMessage systemErrorMsg) async {
+    if (_activeSession == null || _isGenerating) return;
+    
+    // Delete the system error message from session
+    await _repository.deleteMessage(_activeSession!.id, systemErrorMsg.id);
+    _refreshActiveSession();
+    
+    // Find the last user message
+    final lastUserMsg = _activeSession!.messages.lastWhere(
+      (m) => m.role == ChatMessageRole.user,
+      orElse: () => ChatMessage(id: '', role: ChatMessageRole.user, content: '', timestamp: DateTime.now()),
+    );
+    
+    if (lastUserMsg.content.isNotEmpty) {
+      setState(() {
+        _isGenerating = true;
+        _generationCancelled = false;
+      });
+      _refreshActiveSession();
+      await _processAiLoop();
+    }
+  }
+
+  String _getFriendlyErrorMessage(dynamic error, BuildContext context) {
+    final errStr = error.toString();
+    final isFa = Localizations.localeOf(context).languageCode == 'fa';
+    
+    if (errStr.contains('HandshakeException') || errStr.contains('cert') || errStr.contains('handshake') || errStr.contains('413')) {
+      return isFa 
+          ? 'خطای امنیتی یا بارگذاری شبکه (TLS/SSL/413).\nاین خطا معمولاً به دلیل محدودیت‌های شدید اینترنتی یا قطع اتصال فیلترشکن (VPN) رخ می‌دهد. لطفاً وضعیت فیلترشکن خود را بررسی کرده یا آن را تغییر دهید و مجدداً تلاش کنید.'
+          : 'Network Security/Payload Error (TLS/SSL Handshake or 413 failed).\nThis is typically caused by local internet restrictions or an unstable VPN connection. Please check or switch your VPN and try again.';
+    } else if (errStr.contains('SocketException') || errStr.contains('Failed host lookup') || errStr.contains('Connection refused') || errStr.contains('ClientException')) {
+      return isFa
+          ? 'خطا در ارتباط با سرور.\nامکان برقراری ارتباط با سرور هوش مصنوعی وجود ندارد. لطفاً مطمئن شوید که اتصال اینترنت شما برقرار است و فیلترشکن (VPN) متصل و فعال است.'
+          : 'Server Connection Failed.\nUnable to reach the AI server. Please ensure your internet connection is active and your VPN is turned on.';
+    } else if (errStr.contains('TimeoutException') || errStr.contains('timed out')) {
+      return isFa
+          ? 'پایان زمان پاسخ‌گویی سرور.\nارتباط با سرور به دلیل سرعت پایین اینترنت برقرار نشد. لطفاً مجدداً تلاش کنید.'
+          : 'Request Timed Out.\nThe connection to the server timed out. Please try again.';
+    }
+    
+    return isFa 
+        ? '${context.tr('chat_network_error')}\n\n$errStr'
+        : 'Connection failed.\n\n$errStr';
+  }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if ((text.isEmpty && _selectedImages.isEmpty) || _activeSession == null || _isGenerating) return;
 
+    _generationCancelled = false;
     final images = _selectedImages.isNotEmpty ? List<String>.from(_selectedImages) : null;
     final userMsg = ChatMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -143,25 +213,44 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
   Future<void> _processAiLoop() async {
     while (true) {
-      if (!mounted || _activeSession == null) break;
+      if (!mounted || _activeSession == null || _generationCancelled) break;
 
-      setState(() {
-        _agentStatus = context.tr('chat_status_thinking');
-      });
+
 
       try {
-        final userContext = await AIContextBuilder.buildUserContextForAI();
+        final orchestrator = AiOrchestrator(_aiService);
+        final lastUserMsg = _activeSession!.messages.lastWhere(
+          (m) => m.role == ChatMessageRole.user, 
+          orElse: () => ChatMessage(id: '', role: ChatMessageRole.user, content: '', timestamp: DateTime.now())
+        );
+        final language = orchestrator.detectLanguage(lastUserMsg.content);
+        final intent = await orchestrator.determineIntent(lastUserMsg.content, chatId: _activeSession!.id);
+        if (_generationCancelled || !mounted) break;
+        print('🔍 Intent detected: $intent');
+        final contextData = await orchestrator.buildOrchestratedContext(intent, language);
+        if (_generationCancelled || !mounted) break;
+        
         final systemPrompt = '''
-${AppKnowledgeBase.content}
+${contextData['systemPrompt']}
 
 ## User Context (Current State)
-${jsonEncode(userContext)}
+${jsonEncode(contextData['userContext'])}
 ''';
+        print('📝 Using prompt: ${systemPrompt.substring(0, systemPrompt.length > 50 ? 50 : systemPrompt.length).replaceAll('\n', ' ')}...');
+        final tools = contextData['tools'] as List<Map<String, dynamic>>;
+
+        List<ChatMessage> historyToKeep = _activeSession!.messages;
+        if (historyToKeep.length > 6) {
+          historyToKeep = historyToKeep.sublist(historyToKeep.length - 6);
+        }
 
         final stream = _aiService.sendMessageStream(
-          _activeSession!.messages,
+          historyToKeep,
           systemPrompt: systemPrompt,
+          toolsOverride: tools,
+          chatId: _activeSession!.id,
         );
+        if (_generationCancelled || !mounted) break;
         
         ChatMessage streamingMsg = ChatMessage(
           id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -179,26 +268,51 @@ ${jsonEncode(userContext)}
         List<AiToolCall>? finalToolCalls;
         String finalContent = '';
 
-        await for (var event in stream) {
-          if (!mounted || _activeSession == null) break;
-          
-          if (event.deltaText.isNotEmpty) {
-             finalContent = event.deltaText;
-             setState(() {
+        _streamCompleter = Completer<void>();
+        _streamSubscription = stream.listen(
+          (event) {
+            if (!mounted || _activeSession == null || _generationCancelled) return;
+            
+            if (event.deltaText.isNotEmpty) {
+              finalContent = event.deltaText;
+              setState(() {
                 final index = _activeSession!.messages.indexWhere((m) => m.id == streamingMsg.id);
                 if (index != -1) {
                   final msgs = List<ChatMessage>.from(_activeSession!.messages);
                   msgs[index] = streamingMsg.copyWith(content: finalContent);
                   _activeSession = _activeSession!.copyWith(messages: msgs);
                 }
-             });
-             _scrollToBottom();
-          }
-          
-          if (event.isDone) {
-            finalToolCalls = event.toolCalls;
-          }
+              });
+              _scrollToBottom();
+            }
+            
+            if (event.isDone) {
+              finalToolCalls = event.toolCalls;
+            }
+          },
+          onError: (e) {
+            if (_streamCompleter != null && !_streamCompleter!.isCompleted) {
+              _streamCompleter!.completeError(e);
+            }
+          },
+          onDone: () {
+            if (_streamCompleter != null && !_streamCompleter!.isCompleted) {
+              _streamCompleter!.complete();
+            }
+          },
+          cancelOnError: true,
+        );
+
+        try {
+          await _streamCompleter!.future;
+        } catch (e) {
+          if (!_generationCancelled) rethrow;
+        } finally {
+          _streamSubscription = null;
+          _streamCompleter = null;
         }
+
+        if (_generationCancelled || !mounted) break;
         
         if (mounted && _activeSession != null) {
           if (finalContent.isNotEmpty) {
@@ -211,10 +325,13 @@ ${jsonEncode(userContext)}
           }
           _refreshActiveSession();
           
-          if (finalToolCalls != null && finalToolCalls.isNotEmpty) {
+          if (_generationCancelled || !mounted) break;
+
+          final toolCalls = finalToolCalls;
+          if (toolCalls != null && toolCalls.isNotEmpty) {
             // First, add all initial tool messages sequentially to avoid DB race conditions
             final toolMsgs = <ChatMessage>[];
-            for (var call in finalToolCalls) {
+            for (var call in toolCalls) {
               final assistantMsg = ChatMessage(
                 id: DateTime.now().microsecondsSinceEpoch.toString() + '_ast_' + call.id,
                 role: ChatMessageRole.coach,
@@ -240,10 +357,10 @@ ${jsonEncode(userContext)}
             }
             _refreshActiveSession();
 
-            if (!mounted) break;
+            if (_generationCancelled || !mounted) break;
 
             // Execute all tools concurrently
-            final futures = finalToolCalls.asMap().entries.map((entry) async {
+            final futures = toolCalls.asMap().entries.map((entry) async {
               final index = entry.key;
               final call = entry.value;
               final result = await AiTools.executeTool(context, call.name, call.arguments);
@@ -252,6 +369,8 @@ ${jsonEncode(userContext)}
 
             // Wait for all to finish
             final results = await Future.wait(futures);
+
+            if (_generationCancelled || !mounted) break;
 
             // Update all messages sequentially in DB
             for (var res in results) {
@@ -277,12 +396,12 @@ ${jsonEncode(userContext)}
           }
         }
       } catch (e) {
-        if (mounted && _activeSession != null) {
+        if (mounted && _activeSession != null && !_generationCancelled) {
           debugPrint('AiLoop Error: $e');
           final botMsg = ChatMessage(
             id: DateTime.now().microsecondsSinceEpoch.toString(),
             role: ChatMessageRole.system,
-            content: '${context.tr('chat_network_error')}\n\n$e',
+            content: _getFriendlyErrorMessage(e, context),
             timestamp: DateTime.now(),
           );
           await _repository.addMessage(_activeSession!.id, botMsg);
@@ -294,7 +413,6 @@ ${jsonEncode(userContext)}
     if (mounted) {
       setState(() {
         _isGenerating = false;
-        _agentStatus = null;
       });
       _refreshActiveSession();
     }
@@ -303,6 +421,7 @@ ${jsonEncode(userContext)}
   Future<void> _handleQuickAction(String userMsgText, {bool isEdited = false, List<String>? images}) async {
     if (_activeSession == null || _isGenerating) return;
 
+    _generationCancelled = false;
     final userMsg = ChatMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       role: ChatMessageRole.user,
@@ -338,6 +457,7 @@ ${jsonEncode(userContext)}
       return;
     }
     final newSession = await _repository.createSession();
+    AiLogger.instance.setActiveChat(newSession.id);
     setState(() {
       _activeSession = newSession;
     });
@@ -404,6 +524,7 @@ ${jsonEncode(userContext)}
                           lastMsgPreview: lastMsg,
                           timeStr: timeStr,
                           onSelect: () {
+                            AiLogger.instance.setActiveChat(session.id);
                             setState(() {
                               _activeSession = session;
                             });
@@ -422,9 +543,11 @@ ${jsonEncode(userContext)}
                             await _repository.deleteSession(session.id);
                             setSheetState(() {});
                             final updated = _repository.getAllSessions();
+                            
                             setState(() {
                               if (updated.isNotEmpty) {
                                 _activeSession = updated.first;
+                                AiLogger.instance.setActiveChat(_activeSession!.id);
                               } else {
                                 _activeSession = null;
                               }
@@ -483,9 +606,17 @@ ${jsonEncode(userContext)}
               child: Row(
                 children: [
                   // History button (RTL right side -> start of row)
-                  IconButton(
-                    icon: const Icon(Icons.history, color: AppTheme.textPrimary),
-                    onPressed: _showHistorySheet,
+                  GestureDetector(
+                    onLongPress: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const AiDebugDialog(),
+                      );
+                    },
+                    child: IconButton(
+                      icon: const Icon(Icons.history, color: AppTheme.textPrimary),
+                      onPressed: _showHistorySheet,
+                    ),
                   ),
                   const Spacer(),
                   // New chat button (RTL left side -> end of row)
@@ -547,6 +678,7 @@ ${jsonEncode(userContext)}
                                         _controller.text = selectedOption;
                                         _sendMessage();
                                       },
+                                      onRetry: msg.role == ChatMessageRole.system ? () => _retryMessage(msg) : null,
                                     );
                                   },
                                 ),
@@ -669,17 +801,17 @@ ${jsonEncode(userContext)}
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: _isGenerating ? null : _sendMessage,
+                                onTap: _isGenerating ? _cancelOngoingMessage : _sendMessage,
                                 child: Container(
                                   width: 40,
                                   height: 40,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: _isGenerating ? AppTheme.surface : AppTheme.primary,
+                                    color: _isGenerating ? AppTheme.error : AppTheme.primary,
                                   ),
                                   child: Icon(
-                                    Icons.send, 
-                                    color: _isGenerating ? AppTheme.textSecondary : AppTheme.onPrimary, 
+                                    _isGenerating ? Icons.stop : Icons.send, 
+                                    color: AppTheme.onPrimary, 
                                     size: 18,
                                     textDirection: isLtr ? TextDirection.ltr : TextDirection.rtl,
                                   ),
@@ -804,6 +936,7 @@ class _ChatBubble extends StatefulWidget {
   final VoidCallback onDelete;
   final Function(String) onUpdateContent;
   final Function(String)? onOptionSelected;
+  final VoidCallback? onRetry;
 
   const _ChatBubble({
     required this.message,
@@ -811,6 +944,7 @@ class _ChatBubble extends StatefulWidget {
     required this.onDelete,
     required this.onUpdateContent,
     this.onOptionSelected,
+    this.onRetry,
   });
 
   @override
@@ -903,17 +1037,41 @@ class _ChatBubbleState extends State<_ChatBubble> {
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.error_outline, size: 18, color: AppTheme.error),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.message.content,
-                style: AppTheme.labelMd.copyWith(color: AppTheme.error),
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.error_outline, size: 18, color: AppTheme.error),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.message.content,
+                    style: AppTheme.labelMd.copyWith(color: AppTheme.error),
+                  ),
+                ),
+              ],
             ),
+            if (widget.onRetry != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: widget.onRetry,
+                  icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primary),
+                  label: Text(
+                    'تلاش مجدد / Try Again',
+                    style: AppTheme.labelMd.copyWith(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       );

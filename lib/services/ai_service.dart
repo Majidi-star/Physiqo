@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../models/ai_stream_event.dart';
 import 'ai_tools.dart';
+import 'ai_logger.dart';
 import 'package:flutter/foundation.dart';
 
 class AiToolCall {
@@ -52,7 +53,7 @@ class AiService {
     return config != null;
   }
 
-  Future<AiResponse> sendMessage(List<ChatMessage> messages, {String systemPrompt = ''}) async {
+  Future<AiResponse> sendMessage(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId, bool isInternal = false}) async {
     final config = await _getActiveProviderConfig();
     if (config == null) {
       throw Exception('AI Provider is not fully configured.');
@@ -60,21 +61,25 @@ class AiService {
 
     final formattedMessages = [];
 
-    final fullSystemPrompt = '''
+    final activeTools = toolsOverride ?? AiTools.definitions;
+    final hasTools = activeTools.isNotEmpty;
+
+    final fullSystemPrompt = isInternal ? systemPrompt : '''
 $systemPrompt
 
 IMPORTANT RULES:
 - Never expose internal database keys, IDs, or the exact format of tool arguments in your responses.
 - Refer to things naturally by their human-readable names.
 - Your final response must describe the ACTUAL outcome based on the tool's return value. Do not invent or assume success before the tool executes.
-
+${hasTools ? '''
 You have access to the following tools:
-${jsonEncode(AiTools.definitions)}
+${jsonEncode(activeTools)}
 
 If you need to use a tool, wrap the JSON in exactly these tags and you may include text outside the tags:
 <TOOLCALL>
 {"tool_calls": [{"id": "call_123", "name": "tool_name", "arguments": {"arg": "val"}}]}
 </TOOLCALL>
+''' : ''}
 If you are answering the user, just output plain text.
 '''.trim();
 
@@ -120,21 +125,26 @@ If you are answering the user, just output plain text.
 
     while (retries >= 0) {
       try {
+        final requestPayload = {
+          'model': config['model'],
+          'messages': formattedMessages,
+          'tools': toolsOverride ?? AiTools.definitions,
+        };
+        
         final response = await http.post(
           url,
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
             'Authorization': 'Bearer ${config['apiKey']}',
           },
-          body: jsonEncode({
-            'model': config['model'],
-            'messages': formattedMessages,
-            'tools': AiTools.definitions,
-          }),
+          body: jsonEncode(requestPayload),
         ).timeout(timeoutDuration);
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(utf8.decode(response.bodyBytes));
+          final responseBodyString = utf8.decode(response.bodyBytes);
+          AiLogger.instance.addLog(requestPayload: requestPayload, responseRaw: responseBodyString);
+          
+          final data = jsonDecode(responseBodyString);
           final choices = data['choices'] as List;
           if (choices.isNotEmpty) {
             final message = choices[0]['message'];
@@ -142,10 +152,13 @@ If you are answering the user, just output plain text.
             // 1. Native tool calls
             if (message['tool_calls'] != null) {
               final calls = (message['tool_calls'] as List).map((call) {
+                final args = call['function']['arguments'] as String?;
                 return AiToolCall(
                   id: call['id'] as String,
                   name: call['function']['name'] as String,
-                  arguments: jsonDecode(call['function']['arguments'] as String),
+                  arguments: args == null || args.trim().isEmpty
+                      ? <String, dynamic>{}
+                      : jsonDecode(args) as Map<String, dynamic>,
                 );
               }).toList();
               return AiResponse(text: message['content'], toolCalls: calls);
@@ -240,13 +253,16 @@ If you are answering the user, just output plain text.
     throw Exception('Failed to communicate with AI provider');
   }
 
-  Stream<AiStreamEvent> sendMessageStream(List<ChatMessage> messages, {String systemPrompt = ''}) async* {
+  Stream<AiStreamEvent> sendMessageStream(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId}) async* {
     final config = await _getActiveProviderConfig();
     if (config == null) {
       throw Exception('AI Provider is not fully configured.');
     }
 
     final formattedMessages = [];
+
+    final activeTools = toolsOverride ?? AiTools.definitions;
+    final hasTools = activeTools.isNotEmpty;
 
     final fullSystemPrompt = '''
 $systemPrompt
@@ -255,14 +271,15 @@ IMPORTANT RULES:
 - Never expose internal database keys, IDs, or the exact format of tool arguments in your responses.
 - Refer to things naturally by their human-readable names.
 - Your final response must describe the ACTUAL outcome based on the tool's return value. Do not invent or assume success before the tool executes.
-
+${hasTools ? '''
 You have access to the following tools:
-${jsonEncode(AiTools.definitions)}
+${jsonEncode(activeTools)}
 
 If you need to use a tool, wrap the JSON in exactly these tags and you may include text outside the tags:
 <TOOLCALL>
 {"tool_calls": [{"id": "call_123", "name": "tool_name", "arguments": {"arg": "val"}}]}
 </TOOLCALL>
+''' : ''}
 If you are answering the user, just output plain text.
 '''.trim();
 
@@ -271,7 +288,10 @@ If you are answering the user, just output plain text.
       'content': fullSystemPrompt,
     });
 
-    for (var msg in messages) {
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      final isCurrentMessage = (i == messages.length - 1);
+
       if (msg.role == ChatMessageRole.tool) {
         formattedMessages.add({
           'role': 'tool',
@@ -295,40 +315,49 @@ If you are answering the user, just output plain text.
         });
       } else {
         if (msg.images != null && msg.images!.isNotEmpty) {
-          final contentList = [];
-          if (msg.content.isNotEmpty) {
-            contentList.add({
-              'type': 'text',
-              'text': msg.content,
+          if (isCurrentMessage) {
+            final contentList = [];
+            if (msg.content.isNotEmpty) {
+              contentList.add({
+                'type': 'text',
+                'text': msg.content,
+              });
+            }
+            for (var path in msg.images!) {
+              try {
+                final file = File(path);
+                if (file.existsSync()) {
+                  final bytes = file.readAsBytesSync();
+                  final base64Image = base64Encode(bytes);
+                  // Determine mime type from extension
+                  String mimeType = 'image/jpeg';
+                  if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+                  if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+                  if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+                  
+                  contentList.add({
+                    'type': 'image_url',
+                    'image_url': {
+                      'url': 'data:$mimeType;base64,$base64Image',
+                    }
+                  });
+                }
+              } catch (e) {
+                debugPrint('Error reading image for AI: $e');
+              }
+            }
+            formattedMessages.add({
+              'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
+              'content': contentList,
+            });
+          } else {
+            // Historical message: omit base64 to save bandwidth/prevent 413, add a text note
+            final placeholder = '\n[تصویر ارسال شده توسط کاربر / Image uploaded by user]';
+            formattedMessages.add({
+              'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
+              'content': msg.content + placeholder,
             });
           }
-          for (var path in msg.images!) {
-            try {
-              final file = File(path);
-              if (file.existsSync()) {
-                final bytes = file.readAsBytesSync();
-                final base64Image = base64Encode(bytes);
-                // Determine mime type from extension
-                String mimeType = 'image/jpeg';
-                if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-                if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
-                if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
-                
-                contentList.add({
-                  'type': 'image_url',
-                  'image_url': {
-                    'url': 'data:$mimeType;base64,$base64Image',
-                  }
-                });
-              }
-            } catch (e) {
-              debugPrint('Error reading image for AI: $e');
-            }
-          }
-          formattedMessages.add({
-            'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
-            'content': contentList,
-          });
         } else {
           formattedMessages.add({
             'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
@@ -343,21 +372,26 @@ If you are answering the user, just output plain text.
     int retries = config['maxRetries'] as int;
     final timeoutDuration = Duration(seconds: config['timeoutSeconds'] as int);
 
-    while (retries >= 0) {
-      try {
-        final request = http.Request('POST', url)
-          ..headers.addAll({
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer ${config['apiKey']}',
-          })
-          ..body = jsonEncode({
+    final client = http.Client();
+    try {
+      while (retries >= 0) {
+        try {
+          final requestPayload = {
             'model': config['model'],
             'messages': formattedMessages,
-            'tools': AiTools.definitions,
+            'tools': toolsOverride ?? AiTools.definitions,
             'stream': true,
-          });
+            'max_tokens': 8192,
+          };
+          
+          final request = http.Request('POST', url)
+            ..headers.addAll({
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': 'Bearer ${config['apiKey']}',
+            })
+            ..body = jsonEncode(requestPayload);
 
-        final response = await request.send().timeout(timeoutDuration);
+          final response = await client.send(request).timeout(timeoutDuration);
         
         if (response.statusCode != 200) {
            throw Exception('API Error: ${response.statusCode}');
@@ -367,12 +401,76 @@ If you are answering the user, just output plain text.
         String rawToolCallsJsonBuffer = '';
         bool inFallbackToolCall = false;
         Map<int, Map<String, dynamic>> nativeToolCallsAccumulator = {};
+        List<AiToolCall> finalToolCalls = [];
 
-        final stream = response.stream.transform(utf8.decoder).transform(const LineSplitter());
+        final contentType = response.headers['content-type'] ?? '';
+        
+        if (contentType.contains('application/json')) {
+          // The provider ignored stream: true and returned a standard JSON response.
+          final responseBodyString = await response.stream.bytesToString();
+          AiLogger.instance.addLog(requestPayload: requestPayload, responseRaw: responseBodyString);
+          
+          final data = jsonDecode(responseBodyString);
+          final choices = data['choices'] as List;
+          if (choices.isNotEmpty) {
+            final message = choices[0]['message'];
+            if (message['tool_calls'] != null) {
+              finalToolCalls = (message['tool_calls'] as List).map((call) {
+                return AiToolCall(
+                  id: call['id'] as String,
+                  name: call['function']['name'] as String,
+                  arguments: jsonDecode(call['function']['arguments'] as String),
+                );
+              }).toList();
+            }
+            final content = message['content'] as String?;
+            if (content != null) {
+               fullText = content;
+               // Check fallback tools in flat text
+               if (fullText.contains('<TOOLCALL>')) {
+                  try {
+                    final startIndex = fullText.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+                    final endIndex = fullText.indexOf('</TOOLCALL>');
+                    final jsonString = fullText.substring(startIndex, endIndex).trim();
+                    final parsed = jsonDecode(jsonString);
+                    List rawCalls = [];
+                    if (parsed is Map && parsed.containsKey('tool_calls')) {
+                        rawCalls = parsed['tool_calls'];
+                    } else if (parsed is List) {
+                        if (parsed.isNotEmpty && parsed[0] is Map && parsed[0].containsKey('tool_calls')) {
+                           rawCalls = parsed[0]['tool_calls'];
+                        } else {
+                           rawCalls = parsed; 
+                        }
+                    }
+                    if (rawCalls.isNotEmpty) {
+                      finalToolCalls.addAll(rawCalls.map((call) {
+                        return AiToolCall(
+                          id: call['id'] as String,
+                          name: call['name'] as String,
+                          arguments: call['arguments'] as Map<String, dynamic>,
+                        );
+                      }).toList());
+                    }
+                    fullText = fullText.substring(0, fullText.indexOf('<TOOLCALL>')) + fullText.substring(endIndex + '</TOOLCALL>'.length);
+                  } catch (e) {
+                    debugPrint('Failed parsing flat fallback: $e');
+                  }
+               }
+            }
+          }
+          yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls);
+          return;
+        }
 
-        await for (var line in stream) {
-          if (line.startsWith('data: ') && line != 'data: [DONE]') {
+        // Standard SSE Streaming parsing
+        StringBuffer rawStreamLog = StringBuffer();
+        
+        await for (var line in response.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+          rawStreamLog.writeln(line);
+          if (line.startsWith('data: ')) {
             final dataStr = line.substring(6);
+            if (dataStr == '[DONE]') break;
             try {
               final data = jsonDecode(dataStr);
               final choices = data['choices'] as List?;
@@ -439,22 +537,42 @@ If you are answering the user, just output plain text.
           }
         }
         
-        List<AiToolCall> finalToolCalls = [];
         if (nativeToolCallsAccumulator.isNotEmpty) {
-          finalToolCalls = nativeToolCallsAccumulator.values.map((tc) {
-            return AiToolCall(
-              id: tc['id'] as String,
-              name: tc['name'] as String,
-              arguments: jsonDecode(tc['arguments'] as String),
-            );
-          }).toList();
+          for (var tc in nativeToolCallsAccumulator.values) {
+            try {
+              final args = tc['arguments'] as String;
+              finalToolCalls.add(
+                AiToolCall(
+                  id: tc['id'] as String,
+                  name: tc['name'] as String,
+                  arguments: args.trim().isEmpty
+                      ? <String, dynamic>{}
+                      : jsonDecode(args) as Map<String, dynamic>,
+                )
+              );
+            } catch (e) {
+              debugPrint('Failed to decode native tool arguments: $e');
+            }
+          }
         }
         
         if (rawToolCallsJsonBuffer.isNotEmpty) {
           try {
              final startIndex = rawToolCallsJsonBuffer.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
              final endIndex = rawToolCallsJsonBuffer.indexOf('</TOOLCALL>');
-             final jsonString = rawToolCallsJsonBuffer.substring(startIndex, endIndex).trim();
+             String jsonString = rawToolCallsJsonBuffer.substring(startIndex, endIndex).trim();
+             
+             // Strip markdown code blocks if present
+             if (jsonString.startsWith('```')) {
+                final firstNewline = jsonString.indexOf('\n');
+                if (firstNewline != -1) {
+                   jsonString = jsonString.substring(firstNewline + 1);
+                }
+                if (jsonString.endsWith('```')) {
+                   jsonString = jsonString.substring(0, jsonString.length - 3).trim();
+                }
+             }
+
              final parsed = jsonDecode(jsonString);
              
              List rawCalls = [];
@@ -481,14 +599,19 @@ If you are answering the user, just output plain text.
           }
         }
 
+        AiLogger.instance.addLog(chatId: chatId, requestPayload: requestPayload, responseRaw: rawStreamLog.toString());
+
         yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls);
-        return; 
-      } catch (e) {
-        if (retries == 0) rethrow;
-        retries--;
-        await Future.delayed(Duration(seconds: 2 * (3 - retries)));
+        } catch (e) {
+          if (retries == 0) rethrow;
+          retries--;
+          await Future.delayed(Duration(seconds: 2 * (3 - retries)));
+        }
       }
+      throw Exception('Failed to communicate with AI provider in stream mode');
+    } finally {
+      client.close();
+      debugPrint('🔌 AI Connection closed.');
     }
-    throw Exception('Failed to communicate with AI provider in stream mode');
   }
 }
