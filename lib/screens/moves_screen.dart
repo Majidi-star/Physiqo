@@ -171,112 +171,67 @@ class _MovesScreenState extends State<MovesScreen> {
       children: [
         const Divider(color: AppTheme.outline),
         const SizedBox(height: AppTheme.spacingMd),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                context.tr('moves_upcoming_plans'),
-                style: AppTheme.headlineMd,
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/schedule_overview'),
-              child: Text(
-                context.tr('moves_full_schedule'),
-                style: AppTheme.labelMd.copyWith(color: AppTheme.primary),
-              ),
-            ),
-          ],
+        Text(
+          context.tr('moves_upcoming_plans'),
+          style: AppTheme.headlineMd,
         ),
         const SizedBox(height: AppTheme.spacingMd),
-        ...scheduledDatesStr.map((dateStr) {
-          try {
-            final dateParts = dateStr.split('-');
-            final date = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
-            final plan = ExerciseRepository.instance.getWorkoutDay(date);
-            if (plan == null || plan.items.isEmpty) return const SizedBox.shrink();
-
-            final isActive = _selectedDate.year == date.year && _selectedDate.month == date.month && _selectedDate.day == date.day;
-
-            return GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/schedule_overview');
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: isActive ? AppTheme.primary : AppTheme.outline),
+        GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(context, '/schedule_overview');
+          },
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.primary),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today,
+                    color: AppTheme.primary,
+                    size: 24,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isActive ? AppTheme.primary.withOpacity(0.1) : AppTheme.surfaceHigh,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                const SizedBox(width: AppTheme.spacingMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'برنامه تمرینی جاری',
+                        style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      child: Column(
-                        children: [
-                          Text(
-                            date.day.toString(),
-                            style: AppTheme.headlineMd.copyWith(
-                              color: isActive ? AppTheme.primary : AppTheme.textPrimary,
-                              height: 1,
-                            ),
-                          ),
-                          Text(
-                            '${date.year}/${date.month.toString().padLeft(2, '0')}',
-                            style: AppTheme.labelMd.copyWith(
-                              color: isActive ? AppTheme.primary : AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'شامل ${scheduledDatesStr.length} روز تمرینی',
+                        style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
                       ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            plan.title.isNotEmpty ? plan.title : context.tr('moves_tab_plan'),
-                            style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (plan.focus.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              plan.focus,
-                              style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            '${plan.items.length} ${context.tr('moves_exercises_suffix').trim()}',
-                            style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'شروع از ${scheduledDatesStr.first} تا ${scheduledDatesStr.last}',
+                        style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                       ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: isActive ? AppTheme.primary : AppTheme.textSecondary,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          } catch (_) {
-            return const SizedBox.shrink();
-          }
-        }),
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: AppTheme.primary,
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

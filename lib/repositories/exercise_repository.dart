@@ -192,4 +192,47 @@ class ExerciseRepository extends ChangeNotifier {
       return [];
     }
   }
+
+  Exercise? getExerciseByIdOrFallback(String id) {
+    final all = getAllExercises();
+    if (all.isEmpty) return null;
+    
+    // 1. Direct match
+    try {
+      return all.firstWhere((e) => e.id == id);
+    } catch (_) {}
+    
+    // 2. Keyword/Prefix match
+    final idLower = id.toLowerCase();
+    String? matchedGroup;
+    if (idLower.startsWith('chest') || idLower.contains('bench') || idLower.contains('press')) {
+      matchedGroup = 'chest';
+    } else if (idLower.startsWith('back') || idLower.contains('row') || idLower.contains('pull') || idLower.contains('up') || idLower.contains('chin')) {
+      matchedGroup = 'back';
+    } else if (idLower.startsWith('leg') || idLower.contains('squat') || idLower.contains('lunge') || idLower.contains('calf') || idLower.contains('press')) {
+      matchedGroup = 'legs';
+    } else if (idLower.startsWith('shoulder') || idLower.contains('deltoid') || idLower.contains('raise') || idLower.contains('press')) {
+      matchedGroup = 'shoulders';
+    } else if (idLower.startsWith('arm') || idLower.contains('bicep') || idLower.contains('tricep') || idLower.contains('curl') || idLower.contains('dip') || idLower.contains('extension')) {
+      matchedGroup = 'arms';
+    } else if (idLower.startsWith('ab') || idLower.contains('plank') || idLower.contains('crunch') || idLower.contains('twist') || idLower.contains('raise') || idLower.contains('situp')) {
+      matchedGroup = 'abs';
+    }
+    
+    if (matchedGroup != null) {
+      try {
+        final groupExs = all.where((e) {
+          final groupName = e.primaryMuscleGroup.toString().toLowerCase();
+          return groupName.endsWith(matchedGroup!);
+        }).toList();
+        if (groupExs.isNotEmpty) {
+          final index = idLower.hashCode.abs() % groupExs.length;
+          return groupExs[index];
+        }
+      } catch (_) {}
+    }
+    
+    // 3. Last fallback: return the first exercise
+    return all.first;
+  }
 }

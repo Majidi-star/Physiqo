@@ -48,30 +48,94 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
   }
 
   Widget _buildWorkoutItem(WorkoutItem item, BuildContext context) {
-    final all = ExerciseRepository.instance.getAllExercises();
     if (item is SingleMoveItem) {
-      try {
-        final ex = all.firstWhere((e) => e.id == item.exerciseId);
+      final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(item.exerciseId);
+      if (ex != null) {
         return Padding(
           padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
           child: ScheduledExerciseCard(exercise: ex, onRefresh: () => setState(() {})),
         );
-      } catch (_) {
-        return const SizedBox.shrink();
       }
     } else if (item is SupersetItem) {
       final List<Exercise> exs = [];
       for (String id in item.exerciseIds) {
-        try {
-          exs.add(all.firstWhere((e) => e.id == id));
-        } catch (_) {}
+        final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(id);
+        if (ex != null) {
+          exs.add(ex);
+        }
       }
-      return Padding(
-        padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-        child: SupersetCard(exercises: exs, onRefresh: () => setState(() {})),
-      );
+      if (exs.isNotEmpty) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+          child: SupersetCard(exercises: exs, onRefresh: () => setState(() {})),
+        );
+      }
     }
     return const SizedBox.shrink();
+  }
+
+  void _showDayWorkoutBottomSheet(BuildContext context, WorkoutDay plan) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.outline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    plan.title.isNotEmpty ? plan.title : 'تمرین روز',
+                    style: AppTheme.headlineMd,
+                    textAlign: TextAlign.right,
+                  ),
+                  if (plan.focus.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      plan.focus,
+                      style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
+                      textAlign: TextAlign.right,
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  const Divider(color: AppTheme.outline),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: plan.items.length,
+                      itemBuilder: (context, idx) {
+                        return _buildWorkoutItem(plan.items[idx], context);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -93,9 +157,10 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                           style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                         ),
                       )
-                    : ListView.builder(
+                    : ListView.separated(
                         padding: const EdgeInsets.all(AppTheme.gutter),
                         itemCount: _allPlans.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: AppTheme.spacingMd),
                         itemBuilder: (context, index) {
                           final plan = _allPlans[index];
                           final isFa = AppDateUtils.isFa(context);
@@ -107,57 +172,62 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                           final displayDay = AppDateUtils.getDayNumber(dt, isFa);
                           final displayFullDate = AppDateUtils.formatFullDate(dt, isFa);
                           
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: AppTheme.spacingLg),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                                      ),
-                                      child: Text(
-                                        displayDay,
-                                        style: AppTheme.headlineMd.copyWith(
-                                          color: AppTheme.primary,
-                                          height: 1,
-                                        ),
+                          return GestureDetector(
+                            onTap: () => _showDayWorkoutBottomSheet(context, plan),
+                            child: Container(
+                              padding: const EdgeInsets.all(AppTheme.spacingMd),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surface,
+                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                border: Border.all(color: AppTheme.outline),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                    ),
+                                    child: Text(
+                                      displayDay,
+                                      style: AppTheme.headlineMd.copyWith(
+                                        color: AppTheme.primary,
+                                        height: 1,
                                       ),
                                     ),
-                                    const SizedBox(width: AppTheme.spacingMd),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            plan.title.isNotEmpty ? plan.title : context.tr('moves_tab_plan'),
-                                            style: AppTheme.headlineMd.copyWith(fontSize: 20),
-                                          ),
-                                          if (plan.focus.isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              plan.focus,
-                                              style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
-                                            ),
-                                          ],
+                                  ),
+                                  const SizedBox(width: AppTheme.spacingMd),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          plan.title.isNotEmpty ? plan.title : context.tr('moves_tab_plan'),
+                                          style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                                        ),
+                                        if (plan.focus.isNotEmpty) ...[
                                           const SizedBox(height: 4),
                                           Text(
-                                            displayFullDate,
-                                            style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                                            plan.focus,
+                                            style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
                                           ),
                                         ],
-                                      ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${plan.items.length} حرکت تمرینی • $displayFullDate',
+                                          style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: AppTheme.spacingMd),
-                                ...plan.items.map((item) => _buildWorkoutItem(item, context)),
-                                const Divider(color: AppTheme.outline),
-                              ],
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    color: AppTheme.textSecondary,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },

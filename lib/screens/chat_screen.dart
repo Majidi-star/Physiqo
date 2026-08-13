@@ -223,8 +223,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     
     AiLogger.instance.clearTimeline();
 
+    int loopCount = 0;
     while (true) {
       if (!mounted || _activeSession == null || _generationCancelled) break;
+      loopCount++;
+      if (loopCount > 4) {
+        debugPrint('⚠️ Runaway tool calling detected. Breaking loop.');
+        break;
+      }
 
       try {
         AiLogger.instance.startTraceStep('Assemble Prompt & Tools');
@@ -274,7 +280,7 @@ ${contextData['userContext']}
         final rawStream = _aiService.sendMessageStream(
           historyToKeep,
           systemPrompt: systemPrompt,
-          toolsOverride: tools,
+          toolsOverride: loopCount >= 3 ? [] : tools,
           chatId: _activeSession!.id,
         );
         final stream = rawStream;

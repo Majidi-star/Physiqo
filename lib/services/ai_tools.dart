@@ -196,9 +196,37 @@ class AiTools {
           );
 
           if (args.containsKey('workoutDays')) {
-            final daysList = (args['workoutDays'] as List)
-                .map((e) => _dayToInternal[e.toString()] ?? e.toString())
-                .toList();
+            dynamic daysArg = args['workoutDays'];
+            List<dynamic> daysRaw = [];
+            if (daysArg is String) {
+              try {
+                final fixedJson = daysArg.replaceAll("'", '"');
+                daysRaw = jsonDecode(fixedJson) as List<dynamic>;
+              } catch (_) {
+                final cleaned = daysArg.replaceAll(RegExp(r"[\[\]' ]"), '');
+                daysRaw = cleaned.split(',').where((s) => s.isNotEmpty).toList();
+              }
+            } else if (daysArg is List) {
+              daysRaw = daysArg;
+            }
+
+            final List<String> daysList = [];
+            for (var e in daysRaw) {
+              final dayStr = e.toString().trim();
+              String englishDay = dayStr;
+              if (dayStr == 'دوشنبه' || dayStr == 'Monday') englishDay = 'Monday';
+              else if (dayStr == 'سه شنبه' || dayStr == 'سه-شنبه' || dayStr == 'Tuesday') englishDay = 'Tuesday';
+              else if (dayStr == 'چهارشنبه' || dayStr == 'Wednesday') englishDay = 'Wednesday';
+              else if (dayStr == 'پنجشنبه' || dayStr == 'پنج-شنبه' || dayStr == 'Thursday') englishDay = 'Thursday';
+              else if (dayStr == 'جمعه' || dayStr == 'Friday') englishDay = 'Friday';
+              else if (dayStr == 'شنبه' || dayStr == 'Saturday') englishDay = 'Saturday';
+              else if (dayStr == 'یکشنبه' || dayStr == 'Sunday') englishDay = 'Sunday';
+              
+              final internalKey = _dayToInternal[englishDay];
+              if (internalKey != null) {
+                daysList.add(internalKey);
+              }
+            }
             await prefs.setStringList(AccountManager.getPrefKey('workout_days'), daysList);
           }
 

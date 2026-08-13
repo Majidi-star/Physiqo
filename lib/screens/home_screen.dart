@@ -100,28 +100,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildWorkoutItem(WorkoutItem item, BuildContext context, VoidCallback onRefresh) {
-    final all = ExerciseRepository.instance.getAllExercises();
     if (item is SingleMoveItem) {
-      try {
-        final ex = all.firstWhere((e) => e.id == item.exerciseId);
+      final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(item.exerciseId);
+      if (ex != null) {
         return Padding(
           padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
           child: ScheduledExerciseCard(exercise: ex, onRefresh: onRefresh),
         );
-      } catch (_) {
-        return const SizedBox.shrink();
       }
     } else if (item is SupersetItem) {
       final List<Exercise> exs = [];
       for (String id in item.exerciseIds) {
-        try {
-          exs.add(all.firstWhere((e) => e.id == id));
-        } catch (_) {}
+        final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(id);
+        if (ex != null) {
+          exs.add(ex);
+        }
       }
-      return Padding(
-        padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-        child: SupersetCard(exercises: exs, onRefresh: onRefresh),
-      );
+      if (exs.isNotEmpty) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+          child: SupersetCard(exercises: exs, onRefresh: onRefresh),
+        );
+      }
     }
     return const SizedBox.shrink();
   }
