@@ -15,19 +15,8 @@ class AiTools {
     {
       "type": "function",
       "function": {
-        "name": "get_fitness_profile",
-        "description": "Returns the user's fitness profile including height, weight, age, goals, experience.",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "update_fitness_profile",
-        "description": "Updates specific fields in the fitness profile.",
+        "name": "update_user_data",
+        "description": "Updates any combination of user profile fields, preferences, settings, language, unit systems, default rest time, and workout days.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -36,7 +25,15 @@ class AiTools {
             "age": {"type": "number", "description": "User's age"},
             "weight": {"type": "string", "description": "Weight as string"},
             "height": {"type": "string", "description": "Height as string"},
-            "primaryGoal": {"type": "string", "description": "Main goal"}
+            "primaryGoal": {"type": "string", "description": "Main fitness goal"},
+            "workoutDays": {
+              "type": "array",
+              "description": "Days of the week the user works out",
+              "items": {"type": "string", "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+            },
+            "unitSystem": {"type": "string", "enum": ["metric", "imperial"]},
+            "defaultRestTime": {"type": "number", "description": "Rest time between sets in seconds"},
+            "appLanguage": {"type": "string", "enum": ["fa", "en"]}
           }
         }
       }
@@ -44,230 +41,41 @@ class AiTools {
     {
       "type": "function",
       "function": {
-        "name": "get_workout_days",
-        "description": "Returns the list of days of the week the user works out (e.g. ['Monday', 'Saturday']).",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "set_workout_days",
-        "description": "Updates the list of days of the week the user works out.",
+        "name": "manage_accounts",
+        "description": "Manages user accounts on this device (lists all, switches to one, creates one, or deletes one).",
         "parameters": {
           "type": "object",
           "properties": {
-            "days": {
-              "type": "array",
-              "items": {"type": "string", "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
-            }
+            "action": {"type": "string", "enum": ["list", "switch", "create", "delete"]},
+            "accountId": {"type": "string", "description": "Required for switch and delete actions"},
+            "accountName": {"type": "string", "description": "Required for create action"}
           },
-          "required": ["days"]
+          "required": ["action"]
         }
       }
     },
     {
       "type": "function",
       "function": {
-        "name": "navigate_to_screen",
-        "description": "Navigates the app to a specific screen.",
+        "name": "manage_workout_schedule",
+        "description": "Manages workout plans on the schedule. Can query a summary over a date range, get details for a specific date, delete a specific date's plan, or clear all workout plans.",
         "parameters": {
           "type": "object",
           "properties": {
-            "screenName": {"type": "string", "enum": ["home", "moves", "chat", "body", "settings"]}
+            "action": {"type": "string", "enum": ["query_summary", "get_details", "delete_day", "clear_all"]},
+            "date": {"type": "string", "description": "The date (YYYY-MM-DD), required for get_details and delete_day"},
+            "startDate": {"type": "string", "description": "Start date (YYYY-MM-DD), required for query_summary"},
+            "endDate": {"type": "string", "description": "End date (YYYY-MM-DD), required for query_summary"}
           },
-          "required": ["screenName"]
+          "required": ["action"]
         }
       }
     },
     {
       "type": "function",
       "function": {
-        "name": "get_unit_system",
-        "description": "Returns the user's unit system (metric or imperial).",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "set_unit_system",
-        "description": "Changes the user's unit system to metric or imperial.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "system": {"type": "string", "enum": ["metric", "imperial"]}
-          },
-          "required": ["system"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "get_default_rest_time",
-        "description": "Returns the default rest time between sets in seconds.",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "set_default_rest_time",
-        "description": "Sets the default rest time between sets in seconds.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "seconds": {"type": "number", "description": "Time in seconds (e.g., 60)"}
-          },
-          "required": ["seconds"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "get_app_language",
-        "description": "Returns the current app language code (fa for Persian, en for English).",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "set_app_language",
-        "description": "Changes the app's language.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "lang": {"type": "string", "enum": ["fa", "en"]}
-          },
-          "required": ["lang"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "get_accounts",
-        "description": "Returns a list of all user accounts on this device.",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "switch_account",
-        "description": "Switches the active user account based on the provided account ID.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "id": {"type": "string", "description": "The account ID"}
-          },
-          "required": ["id"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "create_account",
-        "description": "Creates a new user account with the given name.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "name": {"type": "string", "description": "Name for the new account"}
-          },
-          "required": ["name"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "delete_account",
-        "description": "Deletes a user account by ID.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "id": {"type": "string", "description": "The account ID"}
-          },
-          "required": ["id"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "query_workout_schedule",
-        "description": "Returns a lightweight summary of workout plans within a specific date range.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "startDate": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
-            "endDate": {"type": "string", "description": "End date (YYYY-MM-DD)"}
-          },
-          "required": ["startDate", "endDate"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "get_workout_day_details",
-        "description": "Returns the exact workout plan for a specific date, including all single and superset items. Example: {\"date\": \"2023-10-15\"}",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "date": {"type": "string", "description": "The date (YYYY-MM-DD)"}
-          },
-          "required": ["date"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "upsert_workout_day",
-        "description": "Creates or updates the workout plan for a specific date. Items can be 'single' or 'superset'. Example: {\"date\": \"2023-10-15\", \"title\": \"Push Day\", \"focus\": \"Chest\", \"items\": [{\"type\": \"single\", \"exerciseId\": \"chest_1\"}, {\"type\": \"superset\", \"exerciseIds\": [\"chest_2\", \"arms_1\"]}]}",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "date": {"type": "string", "description": "The date (YYYY-MM-DD)"},
-            "title": {"type": "string", "description": "Name/Title for the day (e.g. 'Push Day')"},
-            "focus": {"type": "string", "description": "Focus (e.g. 'Chest, Triceps')"},
-            "items": {
-              "type": "array",
-              "description": "List of workout items. Each item MUST be an object with a 'type' property set to either 'single' (with an 'exerciseId' string) or 'superset' (with an 'exerciseIds' array of strings).",
-              "items": {
-                "type": "object"
-              }
-            }
-          },
-          "required": ["date", "title", "focus", "items"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "batch_upsert_workout_plan",
-        "description": "Creates or updates the workout plan for multiple dates at once. Use this to save an entire week's plan in a single call.",
+        "name": "save_workout_plan",
+        "description": "Creates or updates the workout plan for one or multiple dates at once. Always pass an array of days.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -299,44 +107,8 @@ class AiTools {
     {
       "type": "function",
       "function": {
-        "name": "delete_workout_day",
-        "description": "Deletes the workout plan for a specific date.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "date": {"type": "string", "description": "The date (YYYY-MM-DD)"}
-          },
-          "required": ["date"]
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "get_all_scheduled_workouts",
-        "description": "Returns a list of all dates (YYYY-MM-DD) that currently have a workout plan scheduled.",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "name": "clear_all_workout_plans",
-        "description": "Deletes ALL workout plans from the database. Use this when the user asks to 'remove all workout plans'.",
-        "parameters": {
-          "type": "object",
-          "properties": {}
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
         "name": "query_exercise_database",
-        "description": "Returns a list of all available exercises in the database, including their IDs, names, and muscle groups. Use this BEFORE upsert_workout_day to find exact exercise IDs. Example: {\"muscleGroup\": \"chest\"}",
+        "description": "Returns a list of all available exercises in the database, including their IDs, names, and muscle groups. Use this BEFORE saving a plan to find exact exercise IDs. Example: {\"muscleGroup\": \"chest\"}",
         "parameters": {
           "type": "object",
           "properties": {
@@ -347,25 +119,34 @@ class AiTools {
           }
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "navigate_to_screen",
+        "description": "Navigates the app to a specific screen.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "screenName": {"type": "string", "enum": ["home", "moves", "chat", "body", "settings"]}
+          },
+          "required": ["screenName"]
+        }
+      }
     }
   ];
 
   static List<Map<String, dynamic>> get workoutTools => definitions.where((d) => [
-    'query_workout_schedule', 'get_workout_day_details', 'upsert_workout_day',
-    'batch_upsert_workout_plan', 'delete_workout_day', 'get_all_scheduled_workouts', 'clear_all_workout_plans',
-    'query_exercise_database'
+    'manage_workout_schedule', 'save_workout_plan', 'query_exercise_database'
   ].contains(d['function']['name'])).toList();
 
   static List<Map<String, dynamic>> get profileTools => definitions.where((d) => [
-    'get_fitness_profile', 'update_fitness_profile', 'get_workout_days', 'set_workout_days'
+    'update_user_data'
   ].contains(d['function']['name'])).toList();
 
   static List<Map<String, dynamic>> get appTools => definitions.where((d) => [
-    'navigate_to_screen', 'get_unit_system', 'set_unit_system', 'get_default_rest_time',
-    'set_default_rest_time', 'get_app_language', 'set_app_language', 'get_accounts',
-    'switch_account', 'create_account', 'delete_account'
+    'navigate_to_screen', 'manage_accounts'
   ].contains(d['function']['name'])).toList();
-
 
   static final _dayToInternal = {
     'Monday': 'day_mon',
@@ -377,212 +158,157 @@ class AiTools {
     'Sunday': 'day_sun',
   };
   
-  static final _internalToDay = {
-    'day_mon': 'Monday',
-    'day_tue': 'Tuesday',
-    'day_wed': 'Wednesday',
-    'day_thu': 'Thursday',
-    'day_fri': 'Friday',
-    'day_sat': 'Saturday',
-    'day_sun': 'Sunday',
-  };
+
 
   static Future<String> executeTool(BuildContext context, String name, Map<String, dynamic> args) async {
     debugPrint('🔧 Tool invoked: $name with args: $args');
     try {
       String result = '';
       switch (name) {
-        case 'get_fitness_profile':
+        case 'update_user_data':
           final profile = UserProfile.current();
-          final map = {
-            'name': profile.name,
-            'height': profile.height,
-            'weight': profile.weight,
-            'age': profile.age,
-            'gender': profile.gender,
-            'experienceLevel': profile.experienceLevel,
-            'primaryGoal': profile.primaryGoal,
-            'equipmentAccess': profile.equipmentAccess,
-            'limitations': profile.limitations,
-            'unitSystem': profile.unitSystem,
-          };
-          result = map.toString();
-          break;
-        case 'update_fitness_profile':
-          final profile = UserProfile.current();
-          String? newWeight;
-          String? newHeight;
-          String? newGoal;
-          String? newName;
-          String? newGender;
-          int? newAge;
-
-          if (args.containsKey('weight')) {
-            newWeight = args['weight'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
-          }
-          if (args.containsKey('height')) {
-            newHeight = args['height'].toString().replaceAll(RegExp(r'[^0-9.]'), '');
-          }
-          if (args.containsKey('primaryGoal')) {
-            newGoal = args['primaryGoal']?.toString();
-          }
+          final prefs = await SharedPreferences.getInstance();
+          
           if (args.containsKey('name')) {
-            newName = args['name']?.toString();
-          }
-          if (args.containsKey('gender')) {
-            newGender = args['gender']?.toString();
-          }
-          if (args.containsKey('age')) {
-            newAge = int.tryParse(args['age'].toString());
-          }
-
-          if (newName != null) {
+            final newName = args['name']?.toString() ?? 'User';
             await AccountManager.updateCurrentAccount(name: newName);
-            profile.name = newName; // ensure local sync if needed, though profile might reload
+            profile.name = newName;
           }
+          
+          String? weight = args.containsKey('weight') 
+              ? args['weight'].toString().replaceAll(RegExp(r'[^0-9.]'), '') 
+              : null;
+          String? height = args.containsKey('height') 
+              ? args['height'].toString().replaceAll(RegExp(r'[^0-9.]'), '') 
+              : null;
+          String? goal = args.containsKey('primaryGoal') ? args['primaryGoal']?.toString() : null;
+          String? gender = args.containsKey('gender') ? args['gender']?.toString() : null;
+          int? age = args.containsKey('age') ? int.tryParse(args['age'].toString()) : null;
+          String? unitSystem = args.containsKey('unitSystem') ? args['unitSystem']?.toString() : null;
 
           profile.update(
-            weight: newWeight,
-            height: newHeight,
-            primaryGoal: newGoal,
-            gender: newGender,
-            age: newAge,
+            weight: weight,
+            height: height,
+            primaryGoal: goal,
+            gender: gender,
+            age: age,
+            unitSystem: unitSystem,
           );
 
-          result = "Profile updated successfully. Current profile: ${profile.weight}kg, ${profile.height}cm, goal: ${profile.primaryGoal}";
-          break;
-        case 'get_workout_days':
-          final prefs = await SharedPreferences.getInstance();
-          final days = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
-          final englishDays = days.map((d) => _internalToDay[d] ?? d).toList();
-          result = englishDays.toString();
-          break;
-        case 'set_workout_days':
-          final prefs = await SharedPreferences.getInstance();
-          final daysList = (args['days'] as List).map((e) => _dayToInternal[e.toString()] ?? e.toString()).toList();
-          await prefs.setStringList(AccountManager.getPrefKey('workout_days'), daysList);
-          
-          final savedDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
-          final savedEnglish = savedDays.map((d) => _internalToDay[d] ?? d).toList();
-          result = "Workout days updated successfully. New days: $savedEnglish";
-          break;
-        case 'get_unit_system':
-          result = UserProfile.current().unitSystem;
-          break;
-        case 'set_unit_system':
-          UserProfile.current().update(unitSystem: args['system']);
-          result = "Unit system set to ${args['system']}";
-          break;
-        case 'get_default_rest_time':
-          final prefs = await SharedPreferences.getInstance();
-          final rest = prefs.getInt(AccountManager.getPrefKey('default_rest_time')) ?? 60;
-          result = rest.toString();
-          break;
-        case 'set_default_rest_time':
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt(AccountManager.getPrefKey('default_rest_time'), (args['seconds'] as num).toInt());
-          result = "Default rest time set to ${args['seconds']} seconds";
-          break;
-        case 'get_app_language':
-          final prefs = await SharedPreferences.getInstance();
-          result = prefs.getString('app_language') ?? 'fa';
-          break;
-        case 'set_app_language':
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('app_language', args['lang']);
-          if (context.mounted) {
-            import_main.PhysiqoApp.setLocale(context, Locale(args['lang'] == 'en' ? 'en' : 'fa', args['lang'] == 'en' ? 'US' : 'IR'));
+          if (args.containsKey('workoutDays')) {
+            final daysList = (args['workoutDays'] as List)
+                .map((e) => _dayToInternal[e.toString()] ?? e.toString())
+                .toList();
+            await prefs.setStringList(AccountManager.getPrefKey('workout_days'), daysList);
           }
-          result = "App language set to ${args['lang']}";
-          break;
-        case 'get_accounts':
-          final accounts = AccountManager.accounts;
-          final current = AccountManager.currentAccountId;
-          result = accounts.map((a) => {'id': a.id, 'name': a.name, 'is_active': a.id == current}).toList().toString();
-          break;
-        case 'switch_account':
-          final id = args['id']?.toString() ?? '';
-          if (AccountManager.accounts.any((a) => a.id == id)) {
-            await AccountManager.switchAccount(id);
-            if (context.mounted) {
-              Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
-            }
-            result = "Switched to account ID $id";
-          } else {
-            result = "Account ID $id not found";
-          }
-          break;
-        case 'create_account':
-          final name = args['name']?.toString() ?? 'User';
-          final newId = DateTime.now().millisecondsSinceEpoch.toString();
-          final newAccount = Account(id: newId, name: name);
-          await AccountManager.addAccount(newAccount);
-          result = "Created new account ID $newId with name $name";
-          break;
-        case 'delete_account':
-          final id = args['id']?.toString() ?? '';
-          if (AccountManager.accounts.any((a) => a.id == id)) {
-            await AccountManager.deleteAccount(id);
-            result = "Deleted account ID $id";
-          } else {
-            result = "Account ID $id not found";
-          }
-          break;
-        case 'navigate_to_screen':
-          result = "ACTION_NAVIGATE:${args['screenName']}";
-          break;
-        case 'query_workout_schedule':
-          final start = DateTime.tryParse(args['startDate']?.toString() ?? '');
-          final end = DateTime.tryParse(args['endDate']?.toString() ?? '');
-          if (start != null && end != null) {
-            final summary = ExerciseRepository.instance.getWorkoutScheduleSummary(start, end);
-            result = summary.isNotEmpty ? summary.toString() : "No workouts scheduled in this date range.";
-          } else {
-            result = "Invalid date format. Use YYYY-MM-DD.";
-          }
-          break;
-        case 'get_workout_day_details':
-          final date = DateTime.tryParse(args['date']?.toString() ?? '');
-          if (date != null) {
-            final day = ExerciseRepository.instance.getWorkoutDay(date);
-            if (day != null) {
-              result = day.toJson().toString();
-            } else {
-              result = "No workout found for ${args['date']}.";
-            }
-          } else {
-            result = "Invalid date format. Use YYYY-MM-DD.";
-          }
-          break;
-        case 'upsert_workout_day':
-          final dateStr = args['date']?.toString() ?? '';
-          final date = DateTime.tryParse(dateStr);
-          if (date != null) {
-            final itemsRaw = args['items'] as List<dynamic>? ?? [];
-            final List<WorkoutItem> items = [];
-            for (var raw in itemsRaw) {
-              if (raw is Map) {
-                try {
-                  final map = raw.cast<String, dynamic>();
-                  items.add(WorkoutItem.fromJson(map));
-                } catch (e) {
-                  debugPrint('Failed to parse item: $e');
-                }
-              }
-            }
-            final day = WorkoutDay(
-              date: dateStr,
-              title: args['title']?.toString() ?? 'Workout',
-              focus: args['focus']?.toString() ?? '',
-              items: items,
+
+          if (args.containsKey('defaultRestTime')) {
+            await prefs.setInt(
+              AccountManager.getPrefKey('default_rest_time'), 
+              (args['defaultRestTime'] as num).toInt()
             );
-            await ExerciseRepository.instance.saveWorkoutDay(day);
-            result = "Workout for $dateStr saved successfully.";
-          } else {
-            result = "Invalid date format. Use YYYY-MM-DD.";
+          }
+
+          if (args.containsKey('appLanguage')) {
+            final lang = args['appLanguage']?.toString() ?? 'fa';
+            await prefs.setString('app_language', lang);
+            if (context.mounted) {
+              import_main.PhysiqoApp.setLocale(
+                context, 
+                Locale(lang == 'en' ? 'en' : 'fa', lang == 'en' ? 'US' : 'IR')
+              );
+            }
+          }
+
+          result = "User data updated successfully. Current profile: name: ${profile.name}, weight: ${profile.weight}kg, height: ${profile.height}cm, units: ${profile.unitSystem}";
+          break;
+
+        case 'manage_accounts':
+          final action = args['action']?.toString() ?? '';
+          switch (action) {
+            case 'list':
+              final accounts = AccountManager.accounts;
+              final current = AccountManager.currentAccountId;
+              result = accounts.map((a) => {'id': a.id, 'name': a.name, 'is_active': a.id == current}).toList().toString();
+              break;
+            case 'switch':
+              final id = args['accountId']?.toString() ?? '';
+              if (AccountManager.accounts.any((a) => a.id == id)) {
+                await AccountManager.switchAccount(id);
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+                }
+                result = "Switched to account ID $id";
+              } else {
+                result = "Account ID $id not found";
+              }
+              break;
+            case 'create':
+              final name = args['accountName']?.toString() ?? 'User';
+              final newId = DateTime.now().millisecondsSinceEpoch.toString();
+              final newAccount = Account(id: newId, name: name);
+              await AccountManager.addAccount(newAccount);
+              result = "Created new account ID $newId with name $name";
+              break;
+            case 'delete':
+              final id = args['accountId']?.toString() ?? '';
+              if (AccountManager.accounts.any((a) => a.id == id)) {
+                await AccountManager.deleteAccount(id);
+                result = "Deleted account ID $id";
+              } else {
+                result = "Account ID $id not found";
+              }
+              break;
+            default:
+              result = "Unsupported account action: $action";
           }
           break;
-        case 'batch_upsert_workout_plan':
+
+        case 'manage_workout_schedule':
+          final action = args['action']?.toString() ?? '';
+          switch (action) {
+            case 'query_summary':
+              final start = DateTime.tryParse(args['startDate']?.toString() ?? '');
+              final end = DateTime.tryParse(args['endDate']?.toString() ?? '');
+              if (start != null && end != null) {
+                final summary = ExerciseRepository.instance.getWorkoutScheduleSummary(start, end);
+                result = summary.isNotEmpty ? summary.toString() : "No workouts scheduled in this date range.";
+              } else {
+                result = "Invalid date format. Use YYYY-MM-DD.";
+              }
+              break;
+            case 'get_details':
+              final date = DateTime.tryParse(args['date']?.toString() ?? '');
+              if (date != null) {
+                final day = ExerciseRepository.instance.getWorkoutDay(date);
+                if (day != null) {
+                  result = day.toJson().toString();
+                } else {
+                  result = "No workout found for ${args['date']}.";
+                }
+              } else {
+                result = "Invalid date format. Use YYYY-MM-DD.";
+              }
+              break;
+            case 'delete_day':
+              final date = DateTime.tryParse(args['date']?.toString() ?? '');
+              if (date != null) {
+                await ExerciseRepository.instance.deleteWorkoutDay(date);
+                result = "Workout for ${args['date']} deleted successfully.";
+              } else {
+                result = "Invalid date format. Use YYYY-MM-DD.";
+              }
+              break;
+            case 'clear_all':
+              await ExerciseRepository.instance.clearAllWorkoutPlans();
+              result = "All workout plans have been deleted successfully.";
+              break;
+            default:
+              result = "Unsupported schedule action: $action";
+          }
+          break;
+
+        case 'save_workout_plan':
           dynamic daysArg = args['days'];
           List<dynamic> daysRaw = [];
           if (daysArg is String) {
@@ -626,23 +352,7 @@ class AiTools {
           }
           result = "Successfully saved $successCount workout days.";
           break;
-        case 'delete_workout_day':
-          final date = DateTime.tryParse(args['date']?.toString() ?? '');
-          if (date != null) {
-            await ExerciseRepository.instance.deleteWorkoutDay(date);
-            result = "Workout for ${args['date']} deleted successfully.";
-          } else {
-            result = "Invalid date format. Use YYYY-MM-DD.";
-          }
-          break;
-        case 'get_all_scheduled_workouts':
-          final dates = ExerciseRepository.instance.getAllScheduledWorkoutDates();
-          result = dates.isNotEmpty ? "Scheduled dates: $dates" : "No workouts scheduled.";
-          break;
-        case 'clear_all_workout_plans':
-          await ExerciseRepository.instance.clearAllWorkoutPlans();
-          result = "All workout plans have been deleted successfully.";
-          break;
+
         case 'query_exercise_database':
           final muscleGroup = args['muscleGroup']?.toString().toLowerCase();
           final allExercises = ExerciseRepository.instance.getAllExercises();
@@ -664,6 +374,11 @@ class AiTools {
           
           result = listMap.isNotEmpty ? listMap.toString() : "No exercises found.";
           break;
+
+        case 'navigate_to_screen':
+          result = "ACTION_NAVIGATE:${args['screenName']}";
+          break;
+
         default:
           result = "Tool $name not found.";
       }

@@ -1,12 +1,11 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shamsi_date/shamsi_date.dart';
 import '../models/user_profile.dart';
 import '../utils/account_manager.dart';
 
 class AIContextBuilder {
-  /// Assembles all persistent user data into a JSON-ready Map to be injected
+  /// Assembles all persistent user data into a compact Markdown string to be injected
   /// into the system prompt for the workout generation AI model.
-  static Future<Map<String, dynamic>> buildUserContextForAI() async {
+  static Future<String> buildUserContextForAI() async {
     final prefs = await SharedPreferences.getInstance();
     final profile = UserProfile.current();
     
@@ -46,54 +45,51 @@ class AIContextBuilder {
     final customInstMode = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_mode')) ?? 'shared';
     final customInstShared = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_shared'));
     final customInstChat = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_chat'));
-    final customInstVision = prefs.getString(AccountManager.getPrefKey('ai_custom_instruction_vision'));
-    final appLanguage = prefs.getString('app_language') ?? 'fa';
-    final languageName = appLanguage == 'en' ? 'English' : 'Persian/Farsi';
 
-    // Global settings (NOT namespaced)
-    final activeProvider = prefs.getString('active_ai_provider');
-    final activeChatModel = activeProvider != null ? prefs.getString('active_chat_model_$activeProvider') : null;
-    final activeVisionModel = activeProvider != null ? prefs.getString('active_vision_model_$activeProvider') : null;
-
-    return {
-      'system_time': {
-        'current_datetime_iso8601': DateTime.now().toIso8601String(),
-        'timezone_offset_hours': DateTime.now().timeZoneOffset.inHours,
-        'calendar_rules': "CRITICAL: Do NOT perform any date arithmetic, translations, or calculations. You MUST use the exact Gregorian dates provided in the 'workout_days_schedule' mapping."
-      },
-      'user_profile': {
-        'name': profile.name,
-        'height': profile.height,
-        'weight': profile.weight,
-        'age': profile.age,
-        'gender': profile.gender,
-        'experience_level': profile.experienceLevel,
-        'primary_goal': profile.primaryGoal,
-        'equipment_access': profile.equipmentAccess,
-        'limitations': profile.limitations,
-        'additional_notes': profile.additionalNotes,
-      },
-      'preferences': {
-        'workout_days': workoutDays,
-        'workout_days_schedule': upcomingWorkoutDates,
-        'rest_time': restMode == 'auto' 
-            ? 'AI_DECIDES' 
-            : {
-                'min_seconds': restMin, 
-                'max_seconds': restMax,
-              },
-      },
-      'ai_configuration': {
-        'provider': activeProvider,
-        'chat_model': activeChatModel,
-        'vision_model': activeVisionModel,
-        'custom_instructions': {
-          'mode': customInstMode,
-          'shared': customInstShared,
-          'chat': customInstChat,
-          'vision': customInstVision,
-        },
-      },
+    final dayNames = {
+      'day_mon': 'Monday',
+      'day_tue': 'Tuesday',
+      'day_wed': 'Wednesday',
+      'day_thu': 'Thursday',
+      'day_fri': 'Friday',
+      'day_sat': 'Saturday',
+      'day_sun': 'Sunday',
     };
+
+    final buffer = StringBuffer();
+    buffer.writeln('- Time: ${DateTime.now().toIso8601String().split('.').first}');
+    buffer.writeln('- User Profile:');
+    buffer.writeln('  - Name: ${profile.name}');
+    buffer.writeln('  - Age: ${profile.age}yo, Gender: ${profile.gender}');
+    buffer.writeln('  - Height: ${profile.height}cm, Weight: ${profile.weight}kg');
+    buffer.writeln('  - Level: ${profile.experienceLevel}, Goal: ${profile.primaryGoal}');
+    buffer.writeln('  - Equipment Access: ${profile.equipmentAccess}');
+    if (profile.limitations != null && profile.limitations!.trim().isNotEmpty) {
+      buffer.writeln('  - Limitations: ${profile.limitations!.trim()}');
+    }
+    if (profile.additionalNotes != null && profile.additionalNotes!.trim().isNotEmpty) {
+      buffer.writeln('  - Additional Notes: ${profile.additionalNotes!.trim()}');
+    }
+
+    final daysStr = workoutDays.map((d) => dayNames[d] ?? d).join(', ');
+    buffer.writeln('- Workout Preferences:');
+    buffer.writeln('  - Workout Days: $daysStr');
+    
+    if (upcomingWorkoutDates.isNotEmpty) {
+      final scheduleStr = upcomingWorkoutDates.entries
+          .map((e) => '${dayNames[e.key] ?? e.key}: ${e.value}')
+          .join(', ');
+      buffer.writeln('  - Upcoming Schedule Dates: $scheduleStr');
+    }
+
+    final restStr = restMode == 'auto' ? 'AI decides rest time' : 'Rest time between sets: $restMin-$restMax seconds';
+    buffer.writeln('  - Rest Pref: $restStr');
+
+    final activeInst = customInstMode == 'shared' ? customInstShared : customInstChat;
+    if (activeInst != null && activeInst.trim().isNotEmpty) {
+      buffer.writeln('- Custom Coach Instructions: ${activeInst.trim()}');
+    }
+
+    return buffer.toString().trim();
   }
 }

@@ -24,6 +24,7 @@ class AiResponse {
 
 class AiService {
   final _storage = const FlutterSecureStorage();
+  final http.Client _client = http.Client();
   
   Future<Map<String, dynamic>?> _getActiveProviderConfig() async {
     final prefs = await SharedPreferences.getInstance();
@@ -61,26 +62,13 @@ class AiService {
 
     final formattedMessages = [];
 
-    final activeTools = toolsOverride ?? AiTools.definitions;
-    final hasTools = activeTools.isNotEmpty;
-
     final fullSystemPrompt = isInternal ? systemPrompt : '''
 $systemPrompt
 
 IMPORTANT RULES:
 - Never expose internal database keys, IDs, or the exact format of tool arguments in your responses.
 - Refer to things naturally by their human-readable names.
-- Your final response must describe the ACTUAL outcome based on the tool's return value. Do not invent or assume success before the tool executes.
-${hasTools ? '''
-You have access to the following tools:
-${jsonEncode(activeTools)}
-
-If you need to use a tool, wrap the JSON in exactly these tags and you may include text outside the tags:
-<TOOLCALL>
-{"tool_calls": [{"id": "call_123", "name": "tool_name", "arguments": {"arg": "val"}}]}
-</TOOLCALL>
-''' : ''}
-If you are answering the user, just output plain text.
+- Always base your response on the actual results returned by the tools. Never assume a database operation succeeded before you receive the tool's confirmation.
 '''.trim();
 
     formattedMessages.add({
@@ -131,7 +119,8 @@ If you are answering the user, just output plain text.
           'tools': toolsOverride ?? AiTools.definitions,
         };
         
-        final response = await http.post(
+        final stopwatch = Stopwatch()..start();
+        final response = await _client.post(
           url,
           headers: {
             'Content-Type': 'application/json; charset=utf-8',
@@ -141,8 +130,26 @@ If you are answering the user, just output plain text.
         ).timeout(timeoutDuration);
 
         if (response.statusCode == 200) {
+          stopwatch.stop();
           final responseBodyString = utf8.decode(response.bodyBytes);
-          AiLogger.instance.addLog(requestPayload: requestPayload, responseRaw: responseBodyString);
+          
+          int? inputTokens;
+          int? outputTokens;
+          try {
+            final data = jsonDecode(responseBodyString);
+            if (data['usage'] != null) {
+              inputTokens = data['usage']['prompt_tokens'] as int?;
+              outputTokens = data['usage']['completion_tokens'] as int?;
+            }
+          } catch (_) {}
+
+          AiLogger.instance.addLog(
+            requestPayload: requestPayload,
+            responseRaw: responseBodyString,
+            latencyMs: stopwatch.elapsedMilliseconds,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+          );
           
           final data = jsonDecode(responseBodyString);
           final choices = data['choices'] as List;
@@ -254,6 +261,7 @@ If you are answering the user, just output plain text.
   }
 
   Stream<AiStreamEvent> sendMessageStream(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId}) async* {
+    final stopwatch = Stopwatch()..start();
     final config = await _getActiveProviderConfig();
     if (config == null) {
       throw Exception('AI Provider is not fully configured.');
@@ -261,26 +269,13 @@ If you are answering the user, just output plain text.
 
     final formattedMessages = [];
 
-    final activeTools = toolsOverride ?? AiTools.definitions;
-    final hasTools = activeTools.isNotEmpty;
-
     final fullSystemPrompt = '''
 $systemPrompt
 
 IMPORTANT RULES:
 - Never expose internal database keys, IDs, or the exact format of tool arguments in your responses.
 - Refer to things naturally by their human-readable names.
-- Your final response must describe the ACTUAL outcome based on the tool's return value. Do not invent or assume success before the tool executes.
-${hasTools ? '''
-You have access to the following tools:
-${jsonEncode(activeTools)}
-
-If you need to use a tool, wrap the JSON in exactly these tags and you may include text outside the tags:
-<TOOLCALL>
-{"tool_calls": [{"id": "call_123", "name": "tool_name", "arguments": {"arg": "val"}}]}
-</TOOLCALL>
-''' : ''}
-If you are answering the user, just output plain text.
+- Always base your response on the actual results returned by the tools. Never assume a database operation succeeded before you receive the tool's confirmation.
 '''.trim();
 
     formattedMessages.add({
@@ -372,7 +367,6 @@ If you are answering the user, just output plain text.
     int retries = config['maxRetries'] as int;
     final timeoutDuration = Duration(seconds: config['timeoutSeconds'] as int);
 
-    final client = http.Client();
     try {
       while (retries >= 0) {
         try {
@@ -391,7 +385,7 @@ If you are answering the user, just output plain text.
             })
             ..body = jsonEncode(requestPayload);
 
-          final response = await client.send(request).timeout(timeoutDuration);
+          final response = await _client.send(request).timeout(timeoutDuration);
         
         if (response.statusCode != 200) {
            throw Exception('API Error: ${response.statusCode}');
@@ -407,8 +401,26 @@ If you are answering the user, just output plain text.
         
         if (contentType.contains('application/json')) {
           // The provider ignored stream: true and returned a standard JSON response.
+          stopwatch.stop();
           final responseBodyString = await response.stream.bytesToString();
-          AiLogger.instance.addLog(requestPayload: requestPayload, responseRaw: responseBodyString);
+          
+          int? inputTokens;
+          int? outputTokens;
+          try {
+            final data = jsonDecode(responseBodyString);
+            if (data['usage'] != null) {
+              inputTokens = data['usage']['prompt_tokens'] as int?;
+              outputTokens = data['usage']['completion_tokens'] as int?;
+            }
+          } catch (_) {}
+
+          AiLogger.instance.addLog(
+            requestPayload: requestPayload,
+            responseRaw: responseBodyString,
+            latencyMs: stopwatch.elapsedMilliseconds,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+          );
           
           final data = jsonDecode(responseBodyString);
           final choices = data['choices'] as List;
@@ -463,10 +475,13 @@ If you are answering the user, just output plain text.
           return;
         }
 
-        // Standard SSE Streaming parsing
+        final lineStream = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .timeout(timeoutDuration);
+
         StringBuffer rawStreamLog = StringBuffer();
-        
-        await for (var line in response.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+        await for (var line in lineStream) {
           rawStreamLog.writeln(line);
           if (line.startsWith('data: ')) {
             final dataStr = line.substring(6);
@@ -599,9 +614,39 @@ If you are answering the user, just output plain text.
           }
         }
 
-        AiLogger.instance.addLog(chatId: chatId, requestPayload: requestPayload, responseRaw: rawStreamLog.toString());
+        stopwatch.stop();
+        
+        int? inputTokens;
+        int? outputTokens;
+        try {
+          final rawLogText = rawStreamLog.toString();
+          final lines = rawLogText.split('\n');
+          for (var line in lines) {
+            if (line.startsWith('data: ')) {
+              final dataStr = line.substring(6).trim();
+              if (dataStr != '[DONE]' && dataStr.isNotEmpty) {
+                final chunk = jsonDecode(dataStr);
+                if (chunk['usage'] != null) {
+                  inputTokens = chunk['usage']['prompt_tokens'] as int?;
+                  outputTokens = chunk['usage']['completion_tokens'] as int?;
+                  break;
+                }
+              }
+            }
+          }
+        } catch (_) {}
+
+        AiLogger.instance.addLog(
+          chatId: chatId,
+          requestPayload: requestPayload,
+          responseRaw: rawStreamLog.toString(),
+          latencyMs: stopwatch.elapsedMilliseconds,
+          inputTokens: inputTokens,
+          outputTokens: outputTokens,
+        );
 
         yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls);
+        return;
         } catch (e) {
           if (retries == 0) rethrow;
           retries--;
@@ -610,8 +655,7 @@ If you are answering the user, just output plain text.
       }
       throw Exception('Failed to communicate with AI provider in stream mode');
     } finally {
-      client.close();
-      debugPrint('🔌 AI Connection closed.');
+      debugPrint('🔌 AI Stream request finished.');
     }
   }
 }

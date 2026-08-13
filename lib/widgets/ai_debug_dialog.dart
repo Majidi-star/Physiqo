@@ -20,6 +20,94 @@ class AiDebugDialog extends StatelessWidget {
     // Sort by timestamp descending
     flattenedLogs.sort((a, b) => b.value.timestamp.compareTo(a.value.timestamp));
 
+    final activeTimeline = AiLogger.instance.getActiveTimeline();
+
+    Widget buildTimelineSection() {
+      if (activeTimeline.isEmpty) return const SizedBox.shrink();
+      return Card(
+        color: const Color(0xFF2A2A2C),
+        margin: const EdgeInsets.only(bottom: 16),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '⏱ Active Turn Timeline',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: activeTimeline.map((step) {
+                        final isPending = step.endTime == null;
+                        final duration = isPending 
+                            ? DateTime.now().difference(step.startTime)
+                            : step.endTime!.difference(step.startTime);
+                        final durationStr = duration.inSeconds > 0 
+                            ? '${(duration.inMilliseconds / 1000).toStringAsFixed(2)}s' 
+                            : '${duration.inMilliseconds}ms';
+                        
+                        IconData icon;
+                        Color color;
+                        if (isPending) {
+                          icon = Icons.hourglass_empty;
+                          color = Colors.amber;
+                        } else if (step.status == 'failed') {
+                          icon = Icons.error_outline;
+                          color = Colors.red;
+                        } else {
+                          icon = Icons.check_circle_outline;
+                          color = Colors.green;
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            children: [
+                              Icon(icon, color: color, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      step.name,
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                    if (step.details != null)
+                                      Text(
+                                        step.details!,
+                                        style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                isPending ? 'running...' : durationStr,
+                                style: TextStyle(color: isPending ? Colors.amber : Colors.grey, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Dialog(
       backgroundColor: const Color(0xFF1C1C1E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -46,6 +134,7 @@ class AiDebugDialog extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
+            buildTimelineSection(),
             Expanded(
               child: flattenedLogs.isEmpty
                   ? const Center(
@@ -70,12 +159,26 @@ class AiDebugDialog extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    'Chat ID: $chatId | Log ${flattenedLogs.length - index} - ${log.timestamp.toLocal().toString().split('.').first}',
-                                    style: const TextStyle(
-                                      color: Color(0xFFFF6B2C),
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Chat ID: $chatId | Log ${flattenedLogs.length - index} - ${log.timestamp.toLocal().toString().split('.').first}',
+                                        style: const TextStyle(
+                                          color: Color(0xFFFF6B2C),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '⏱ Latency: ${(log.latencyMs / 1000).toStringAsFixed(2)}s | 📥 Input: ${log.inputTokens} t | 📤 Output: ${log.outputTokens} t (${log.isEstimated ? "Est" : "Act"})',
+                                        style: TextStyle(
+                                          color: Colors.blue[300],
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 TextButton.icon(

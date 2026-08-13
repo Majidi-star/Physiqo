@@ -212,44 +212,72 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _processAiLoop() async {
+    if (!mounted || _activeSession == null) return;
+
+    final orchestrator = AiOrchestrator();
+    final lastUserMsg = _activeSession!.messages.lastWhere(
+      (m) => m.role == ChatMessageRole.user, 
+      orElse: () => ChatMessage(id: '', role: ChatMessageRole.user, content: '', timestamp: DateTime.now())
+    );
+    final language = orchestrator.detectLanguage(lastUserMsg.content);
+    
+    AiLogger.instance.clearTimeline();
+
     while (true) {
       if (!mounted || _activeSession == null || _generationCancelled) break;
 
-
-
       try {
-        final orchestrator = AiOrchestrator(_aiService);
-        final lastUserMsg = _activeSession!.messages.lastWhere(
-          (m) => m.role == ChatMessageRole.user, 
-          orElse: () => ChatMessage(id: '', role: ChatMessageRole.user, content: '', timestamp: DateTime.now())
-        );
-        final language = orchestrator.detectLanguage(lastUserMsg.content);
-        final intent = await orchestrator.determineIntent(lastUserMsg.content, chatId: _activeSession!.id);
-        if (_generationCancelled || !mounted) break;
-        print('🔍 Intent detected: $intent');
-        final contextData = await orchestrator.buildOrchestratedContext(intent, language);
+        AiLogger.instance.startTraceStep('Assemble Prompt & Tools');
+        final contextData = await orchestrator.buildOrchestratedContext(language);
         if (_generationCancelled || !mounted) break;
         
         final systemPrompt = '''
 ${contextData['systemPrompt']}
 
 ## User Context (Current State)
-${jsonEncode(contextData['userContext'])}
+${contextData['userContext']}
 ''';
-        print('📝 Using prompt: ${systemPrompt.substring(0, systemPrompt.length > 50 ? 50 : systemPrompt.length).replaceAll('\n', ' ')}...');
         final tools = contextData['tools'] as List<Map<String, dynamic>>;
+        AiLogger.instance.completeTraceStep(
+          details: 'Prompt: ${systemPrompt.length} chars, Tools: ${tools.length}'
+        );
 
-        List<ChatMessage> historyToKeep = _activeSession!.messages;
-        if (historyToKeep.length > 6) {
-          historyToKeep = historyToKeep.sublist(historyToKeep.length - 6);
+        List<ChatMessage> historyToKeep = [];
+        final allMessages = _activeSession!.messages;
+        int lastUserIdx = allMessages.lastIndexWhere((m) => m.role == ChatMessageRole.user);
+        
+        if (lastUserIdx != -1) {
+          final currentTurn = allMessages.sublist(lastUserIdx);
+          final historyBefore = allMessages.sublist(0, lastUserIdx);
+          
+          int historyCount = 8;
+          if (historyBefore.length > historyCount) {
+            int sliceIdx = historyBefore.length - historyCount;
+            while (sliceIdx < historyBefore.length && 
+                   historyBefore[sliceIdx].role == ChatMessageRole.tool) {
+              sliceIdx++;
+            }
+            historyToKeep.addAll(historyBefore.sublist(sliceIdx));
+          } else {
+            historyToKeep.addAll(historyBefore);
+          }
+          historyToKeep.addAll(currentTurn);
+        } else {
+          if (allMessages.length > 10) {
+            historyToKeep = allMessages.sublist(allMessages.length - 10);
+          } else {
+            historyToKeep = List.from(allMessages);
+          }
         }
 
-        final stream = _aiService.sendMessageStream(
+        AiLogger.instance.startTraceStep('LLM Stream Request', details: 'Waiting for stream...');
+        final rawStream = _aiService.sendMessageStream(
           historyToKeep,
           systemPrompt: systemPrompt,
           toolsOverride: tools,
           chatId: _activeSession!.id,
         );
+        final stream = rawStream;
         if (_generationCancelled || !mounted) break;
         
         ChatMessage streamingMsg = ChatMessage(
@@ -274,6 +302,12 @@ ${jsonEncode(contextData['userContext'])}
             if (!mounted || _activeSession == null || _generationCancelled) return;
             
             if (event.deltaText.isNotEmpty) {
+              // Once we receive actual content delta, transition trace step
+              if (AiLogger.instance.getActiveTimeline().last.name == 'LLM Stream Request') {
+                AiLogger.instance.completeTraceStep(details: 'First token received');
+                AiLogger.instance.startTraceStep('Receiving Content Stream');
+              }
+
               finalContent = event.deltaText;
               setState(() {
                 final index = _activeSession!.messages.indexWhere((m) => m.id == streamingMsg.id);
@@ -288,6 +322,9 @@ ${jsonEncode(contextData['userContext'])}
             
             if (event.isDone) {
               finalToolCalls = event.toolCalls;
+              AiLogger.instance.completeTraceStep(
+                details: 'Stream done. Length: ${finalContent.length} chars, Tool Calls: ${finalToolCalls?.length ?? 0}'
+              );
             }
           },
           onError: (e) {
@@ -359,6 +396,11 @@ ${jsonEncode(contextData['userContext'])}
 
             if (_generationCancelled || !mounted) break;
 
+            AiLogger.instance.startTraceStep(
+              'Executing Tools', 
+              details: 'Running: ${toolCalls.map((c) => c.name).join(", ")}'
+            );
+
             // Execute all tools concurrently
             final futures = toolCalls.asMap().entries.map((entry) async {
               final index = entry.key;
@@ -369,6 +411,9 @@ ${jsonEncode(contextData['userContext'])}
 
             // Wait for all to finish
             final results = await Future.wait(futures);
+            AiLogger.instance.completeTraceStep(
+              details: 'Executed ${results.length} tools successfully'
+            );
 
             if (_generationCancelled || !mounted) break;
 
