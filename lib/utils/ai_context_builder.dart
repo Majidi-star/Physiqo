@@ -57,7 +57,7 @@ class AIContextBuilder {
     };
 
     final buffer = StringBuffer();
-    buffer.writeln('- Time: ${DateTime.now().toIso8601String().split('.').first}');
+    buffer.writeln('- Current Date & Time: ${DateTime.now().toIso8601String().split('.').first} (Year: ${DateTime.now().year})');
     buffer.writeln('- User Profile:');
     buffer.writeln('  - Name: ${profile.name}');
     buffer.writeln('  - Age: ${profile.age}yo, Gender: ${profile.gender}');
