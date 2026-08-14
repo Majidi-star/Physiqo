@@ -42,6 +42,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   final List<String> _selectedImages = [];
   final _scrollController = ScrollController();
   bool _showScrollToBottom = false;
+  bool _isCheckingOverride = false;
 
   @override
   void initState() {
@@ -625,6 +626,46 @@ ${contextData['userContext']}
     );
   }
 
+  Future<void> _checkSessionOverride() async {
+    if (_isCheckingOverride) return;
+    _isCheckingOverride = true;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final overrideId = prefs.getString('active_session_id_override');
+      if (overrideId != null) {
+        await prefs.remove('active_session_id_override');
+        
+        final sessions = _repository.getAllSessions();
+        final targetSession = sessions.firstWhere(
+          (s) => s.id == overrideId, 
+          orElse: () => _activeSession ?? sessions.first,
+        );
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          AiLogger.instance.setActiveChat(targetSession.id);
+          setState(() {
+            _activeSession = targetSession;
+          });
+          
+          if (targetSession.messages.isNotEmpty && 
+              targetSession.messages.last.role == ChatMessageRole.user && 
+              !_isGenerating) {
+            setState(() {
+              _isGenerating = true;
+            });
+            _processAiLoop();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error handling session override: $e');
+    } finally {
+      _isCheckingOverride = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -635,6 +676,8 @@ ${contextData['userContext']}
         ),
       );
     }
+
+    _checkSessionOverride();
 
     final allMessages = _activeSession?.messages ?? [];
     final messages = allMessages.where((msg) {

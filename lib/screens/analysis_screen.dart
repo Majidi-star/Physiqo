@@ -7,8 +7,7 @@ import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as f
 import '../l10n/translations.dart';
 import '../repositories/chat_repository.dart';
 import '../models/chat_message.dart';
-import '../models/chat_session.dart';
-import '../utils/ai_context_builder.dart';
+import '../models/user_profile.dart';
 import '../utils/farsi_formatter.dart';
 
 class AnalysisScreen extends StatelessWidget {

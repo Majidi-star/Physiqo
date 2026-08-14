@@ -43,7 +43,7 @@ class FarsiFormatter {
   }
 
   /// Formats numbers with Farsi digits if the active language is Farsi (fa).
-  static String formatNumber(num number, String langCode) {
+  static String formatNumber(dynamic number, String langCode) {
     final str = number.toString();
     if (langCode != 'fa') return str;
     const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
