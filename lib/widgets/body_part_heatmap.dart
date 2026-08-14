@@ -84,9 +84,11 @@ class BodyPartHeatmap extends StatelessWidget {
             .firstWhere((entry) => entry.value == id)
             .key;
         final intensity = intensities[muscle] ?? 0.0;
-        // Map intensity (0.0 to 1.0) to opacity range (40% to 100%)
-        final opacity = 0.4 + 0.6 * intensity;
-        _applyColorToElement(node, baseColor, opacity);
+        // If intensity >= 0.70, it's strong (orange), otherwise it needs work (brownish-grey)
+        final color = intensity >= 0.70 ? AppTheme.primary : const Color(0xFF5A4C42);
+        // Solid opacity to match flat design
+        const opacity = 1.0;
+        _applyColorToElement(node, color, opacity);
         return; // Colored group/element, skip children recursion
       }
 

@@ -1,11 +1,15 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as fbps;
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import '../../l10n/translations.dart';
+import '../../services/ai_service.dart';
+import '../../models/chat_message.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// Represents the result of the body scan analysis.
@@ -195,37 +199,277 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
   Future<void> _startAnalysis() async {
     if (_frontPhoto == null || _backPhoto == null) return;
 
+    final aiService = AiService();
+    final isConfigured = await aiService.isProviderConfigured();
+    final isFa = Localizations.localeOf(context).languageCode == 'fa';
+
+    if (!isConfigured) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isFa
+                  ? 'لطفاً ابتدا کلید API هوش مصنوعی را در تنظیمات پیکربندی کنید.'
+                  : 'Please configure the AI API Key in settings first.',
+              style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
+            ),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        setState(() {
+          _step = CaptureStep.backPreview;
+        });
+      }
+      return;
+    }
+
     try {
       final frontFile = File(_frontPhoto!.path);
       final backFile = File(_backPhoto!.path);
 
-      // Perform the AI analysis API call stub
-      await uploadScanForAnalysis(frontFile, backFile);
+      // 1. Build localized prompts for front and back images
+      final frontPrompt = isFa
+          ? '''شما یک مربی بدنسازی و متخصص بینایی ماشین هستید. تصویر جلو از بدن کاربر را تحلیل کنید.
+عضلات جلو را بررسی کرده و ارزیابی کنید کدام عضلات توسعه‌یافته و قوی هستند (امتیاز بین 0.7 تا 1.0) و کدام عضلات ضعیف‌تر بوده و نیاز به کار دارند (امتیاز بین 0.3 تا 0.69).
+لیست عضلات برای ارزیابی:
+- chest (سینه)
+- biceps (جلوبازو)
+- abs (شکم)
+- quads (چهارسر ران)
+- calves (ساق پا)
+- delts (سرشانه)
+- traps (کول)
+- forearms (ساعد)
+
+پاسخ خود را دقیقاً در قالب JSON زیر ارسال کنید و هیچ توضیح اضافی خارج از بلاک JSON ننویسید:
+{
+  "chest": 0.85,
+  "biceps": 0.80,
+  "abs": 0.62,
+  "quads": 0.58,
+  "calves": 0.58,
+  "delts": 0.70,
+  "traps": 0.70,
+  "forearms": 0.80,
+  "description": "یک خلاصه کوتاه ۲ الی ۳ جمله‌ای به زبان فارسی درباره وضعیت کلی عضلات جلو و عدم تقارن‌ها یا نقاط قوت و ضعف بنویسید."
+}'''
+          : '''You are a professional fitness coach and computer vision expert. Analyze the front view image of the user's body.
+Assess the front muscle groups: identify which are strong and developed (score 0.7 to 1.0) and which need work (score 0.3 to 0.69).
+Muscles to assess:
+- chest
+- biceps
+- abs
+- quads
+- calves
+- delts
+- traps
+- forearms
+
+Return your response strictly in the following JSON format. Do not write any text outside the JSON block:
+{
+  "chest": 0.85,
+  "biceps": 0.80,
+  "abs": 0.62,
+  "quads": 0.58,
+  "calves": 0.58,
+  "delts": 0.70,
+  "traps": 0.70,
+  "forearms": 0.80,
+  "description": "A short 2-3 sentence summary in English describing the overall condition of the front muscles, their symmetry, strengths, and weaknesses."
+}''';
+
+      final backPrompt = isFa
+          ? '''شما یک مربی بدنسازی و متخصص بینایی ماشین هستید. تصویر پشت از بدن کاربر را تحلیل کنید.
+عضلات پشت را بررسی کرده و ارزیابی کنید کدام عضلات توسعه‌یافته و قوی هستند (امتیاز بین 0.7 تا 1.0) و کدام عضلات ضعیف‌تر بوده و نیاز به کار دارند (امتیاز بین 0.3 تا 0.69).
+لیست عضلات برای ارزیابی:
+- latsBack (زیربغل/پشت)
+- lowerLatsBack (پایین کمر/فیله)
+- glutes (باستن/سرینی)
+- hamstrings (همسترینگ/پشت پا)
+- triceps (پشت‌بازو)
+- delts (سرشانه)
+- traps (کول)
+
+پاسخ خود را دقیقاً در قالب JSON زیر ارسال کنید و هیچ توضیح اضافی خارج از بلاک JSON ننویسید:
+{
+  "latsBack": 0.85,
+  "lowerLatsBack": 0.80,
+  "glutes": 0.62,
+  "hamstrings": 0.58,
+  "triceps": 0.58,
+  "delts": 0.70,
+  "traps": 0.70,
+  "description": "یک خلاصه کوتاه ۲ الی ۳ جمله‌ای به زبان فارسی درباره وضعیت کلی عضلات پشت و عدم تقارن‌ها یا نقاط قوت و ضعف بنویسید."
+}'''
+          : '''You are a professional fitness coach and computer vision expert. Analyze the back view image of the user's body.
+Assess the back muscle groups: identify which are strong and developed (score 0.7 to 1.0) and which need work (score 0.3 to 0.69).
+Muscles to assess:
+- latsBack
+- lowerLatsBack
+- glutes
+- hamstrings
+- triceps
+- delts
+- traps
+
+Return your response strictly in the following JSON format. Do not write any text outside the JSON block:
+{
+  "latsBack": 0.85,
+  "lowerLatsBack": 0.80,
+  "glutes": 0.62,
+  "hamstrings": 0.58,
+  "triceps": 0.58,
+  "delts": 0.70,
+  "traps": 0.70,
+  "description": "A short 2-3 sentence summary in English describing the overall condition of the back muscles, their symmetry, strengths, and weaknesses."
+}''';
+
+      // 2. Submit front and back images to the vision model separately
+      final frontMsg = ChatMessage(
+        id: 'vision_front_${DateTime.now().millisecondsSinceEpoch}',
+        role: ChatMessageRole.user,
+        content: frontPrompt,
+        timestamp: DateTime.now(),
+        images: [frontFile.path],
+      );
+
+      final backMsg = ChatMessage(
+        id: 'vision_back_${DateTime.now().millisecondsSinceEpoch}',
+        role: ChatMessageRole.user,
+        content: backPrompt,
+        timestamp: DateTime.now(),
+        images: [backFile.path],
+      );
+
+      // Execute front and back vision requests concurrently
+      final responses = await Future.wait([
+        aiService.sendMessage([frontMsg], isInternal: true),
+        aiService.sendMessage([backMsg], isInternal: true),
+      ]);
+
+      final frontResponse = responses[0];
+      final backResponse = responses[1];
+
+      final frontJson = _parseVisionResponse(frontResponse.text);
+      final backJson = _parseVisionResponse(backResponse.text);
+
+      double getVal(Map<String, dynamic> json, String key, double defaultVal) {
+        final val = json[key];
+        if (val is num) return val.toDouble();
+        return defaultVal;
+      }
+
+      // Merge muscle intensities (default fallbacks if missing)
+      final Map<fbps.Muscle, double> intensities = {
+        fbps.Muscle.chestLeft: getVal(frontJson, 'chest', 0.85),
+        fbps.Muscle.chestRight: getVal(frontJson, 'chest', 0.85),
+        fbps.Muscle.bicepsLeft: getVal(frontJson, 'biceps', 0.80),
+        fbps.Muscle.bicepsRight: getVal(frontJson, 'biceps', 0.80),
+        fbps.Muscle.abs: getVal(frontJson, 'abs', 0.62),
+        fbps.Muscle.quadsLeft: getVal(frontJson, 'quads', 0.58),
+        fbps.Muscle.quadsRight: getVal(frontJson, 'quads', 0.58),
+        fbps.Muscle.calvesLeft: getVal(frontJson, 'calves', 0.58),
+        fbps.Muscle.calvesRight: getVal(frontJson, 'calves', 0.58),
+        fbps.Muscle.deltsLeft: (getVal(frontJson, 'delts', 0.70) + getVal(backJson, 'delts', 0.70)) / 2,
+        fbps.Muscle.deltsRight: (getVal(frontJson, 'delts', 0.70) + getVal(backJson, 'delts', 0.70)) / 2,
+        fbps.Muscle.trapsLeft: (getVal(frontJson, 'traps', 0.70) + getVal(backJson, 'traps', 0.70)) / 2,
+        fbps.Muscle.trapsRight: (getVal(frontJson, 'traps', 0.70) + getVal(backJson, 'traps', 0.70)) / 2,
+        fbps.Muscle.forearmsLeft: getVal(frontJson, 'forearms', 0.80),
+        fbps.Muscle.forearmsRight: getVal(frontJson, 'forearms', 0.80),
+        
+        fbps.Muscle.latsBackLeft: getVal(backJson, 'latsBack', 0.50),
+        fbps.Muscle.latsBackRight: getVal(backJson, 'latsBack', 0.50),
+        fbps.Muscle.lowerLatsBackLeft: getVal(backJson, 'lowerLatsBack', 0.50),
+        fbps.Muscle.lowerLatsBackRight: getVal(backJson, 'lowerLatsBack', 0.50),
+        fbps.Muscle.glutesLeft: getVal(backJson, 'glutes', 0.58),
+        fbps.Muscle.glutesRight: getVal(backJson, 'glutes', 0.58),
+        fbps.Muscle.hamstringsLeft: getVal(backJson, 'hamstrings', 0.58),
+        fbps.Muscle.hamstringsRight: getVal(backJson, 'hamstrings', 0.58),
+        fbps.Muscle.tricepsLeft: getVal(backJson, 'triceps', 0.80),
+        fbps.Muscle.tricepsRight: getVal(backJson, 'triceps', 0.80),
+      };
+
+      // Calculate dynamic overall score
+      final avgIntensity = intensities.values.reduce((a, b) => a + b) / intensities.length;
+      final int overallScore = (avgIntensity * 100).round();
+
+      // Aggregate descriptions
+      final frontDesc = frontJson['description']?.toString() ?? 
+          (isFa ? 'تحلیل تصویر جلو ناموفق بود.' : 'Front view analysis failed.');
+      final backDesc = backJson['description']?.toString() ?? 
+          (isFa ? 'تحلیل تصویر پشت ناموفق بود.' : 'Back view analysis failed.');
+
+      final Map<String, dynamic> analysisData = {
+        'intensities': intensities,
+        'overallScore': overallScore,
+        'frontDescription': frontDesc,
+        'backDescription': backDesc,
+        'rawMuscles': {
+          'chest': getVal(frontJson, 'chest', 0.85),
+          'biceps': getVal(frontJson, 'biceps', 0.80),
+          'abs': getVal(frontJson, 'abs', 0.62),
+          'quads': getVal(frontJson, 'quads', 0.58),
+          'calves': getVal(frontJson, 'calves', 0.58),
+          'delts': (getVal(frontJson, 'delts', 0.70) + getVal(backJson, 'delts', 0.70)) / 2,
+          'traps': (getVal(frontJson, 'traps', 0.70) + getVal(backJson, 'traps', 0.70)) / 2,
+          'forearms': getVal(frontJson, 'forearms', 0.80),
+          'latsBack': getVal(backJson, 'latsBack', 0.50),
+          'lowerLatsBack': getVal(backJson, 'lowerLatsBack', 0.50),
+          'glutes': getVal(backJson, 'glutes', 0.58),
+          'hamstrings': getVal(backJson, 'hamstrings', 0.58),
+          'triceps': getVal(backJson, 'triceps', 0.80),
+        }
+      };
 
       if (mounted) {
-        // Navigate to the analysis screen and replace this flow in the stack
-        Navigator.of(context).pushReplacementNamed('/analysis');
+        Navigator.of(context).pushReplacementNamed('/analysis', arguments: analysisData);
       }
     } catch (e) {
       debugPrint('Physiqo Camera: Error uploading or analyzing scan: $e');
       if (mounted) {
-        setState(() {
-          // Fallback to back preview if analysis fails
-          _step = CaptureStep.backPreview;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isFa
+                  ? 'خطایی در ارتباط با سرور رخ داد. برنامه به صورت پیش‌فرض نتایج آفلاین را بارگذاری می‌کند.'
+                  : 'API request failed. Loading offline fallback values.',
+              style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
+            ),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        // Fallback navigation with mock/null values
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/analysis', arguments: null);
+        }
       }
     }
   }
 
-  /// Stub function for actual AI API call.
-  /// Replace this with actual endpoint request implementation when ready.
-  Future<AnalysisResult> uploadScanForAnalysis(File front, File back) async {
-    debugPrint('Physiqo Camera: Stub - Uploading front: ${front.path}, back: ${back.path}');
-    await Future.delayed(const Duration(seconds: 4)); // Mock analysis duration
-    return const AnalysisResult(
-      status: 'success',
-      message: 'تحلیل با موفقیت انجام شد',
-    );
+  Map<String, dynamic> _parseVisionResponse(String? text) {
+    if (text == null || text.trim().isEmpty) return {};
+    try {
+      var cleaned = text.trim();
+      if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.substring(7);
+      } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.substring(3);
+      }
+      if (cleaned.endsWith('```')) {
+        cleaned = cleaned.substring(0, cleaned.length - 3);
+      }
+      cleaned = cleaned.trim();
+
+      final start = cleaned.indexOf('{');
+      final end = cleaned.lastIndexOf('}');
+      if (start != -1 && end != -1 && end >= start) {
+        cleaned = cleaned.substring(start, end + 1);
+        return jsonDecode(cleaned) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Error parsing vision response: $e');
+    }
+    return {};
   }
 
   @override
