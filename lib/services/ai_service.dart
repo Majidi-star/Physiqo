@@ -157,10 +157,12 @@ IMPORTANT RULES:
 - Always base your response on the actual results returned by the tools. Never assume a database operation succeeded before you receive the tool's confirmation.
 '''.trim();
 
-    formattedMessages.add({
-      'role': 'system',
-      'content': fullSystemPrompt,
-    });
+    if (fullSystemPrompt.isNotEmpty) {
+      formattedMessages.add({
+        'role': 'system',
+        'content': fullSystemPrompt,
+      });
+    }
 
     for (var msg in messages) {
       if (msg.role == ChatMessageRole.tool) {
@@ -187,17 +189,11 @@ IMPORTANT RULES:
       } else {
         if (msg.images != null && msg.images!.isNotEmpty) {
           final contentList = [];
-          final isLlama = config['model'].toString().toLowerCase().contains('llama');
           String textContent = msg.content;
-          if (isLlama) {
-            final imageTokens = List.generate(msg.images!.length, (_) => '<image>').join(' ');
-            textContent = '$imageTokens\n$textContent';
-          }
-          if (textContent.isNotEmpty) {
-            contentList.add({
-              'type': 'text',
-              'text': textContent,
-            });
+          final imageTokenCount = '<image>'.allMatches(textContent).length;
+          if (imageTokenCount < msg.images!.length) {
+            final missingTokens = List.generate(msg.images!.length - imageTokenCount, (_) => '<image>').join('\n');
+            textContent = '$missingTokens\n$textContent';
           }
           for (var path in msg.images!) {
             try {
@@ -221,6 +217,12 @@ IMPORTANT RULES:
               debugPrint('Error reading image for AI: $e');
             }
           }
+          if (textContent.isNotEmpty) {
+            contentList.add({
+              'type': 'text',
+              'text': textContent,
+            });
+          }
           formattedMessages.add({
             'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
             'content': contentList,
@@ -240,14 +242,13 @@ IMPORTANT RULES:
     final timeoutDuration = Duration(seconds: config['timeoutSeconds'] as int);
 
     while (retries >= 0) {
+      final requestPayload = {
+        'model': config['model'],
+        'messages': formattedMessages,
+        'tools': toolsOverride ?? AiTools.definitions,
+      };
+      final stopwatch = Stopwatch()..start();
       try {
-        final requestPayload = {
-          'model': config['model'],
-          'messages': formattedMessages,
-          'tools': toolsOverride ?? AiTools.definitions,
-        };
-        
-        final stopwatch = Stopwatch()..start();
         final response = await _client.post(
           url,
           headers: {
@@ -348,6 +349,13 @@ IMPORTANT RULES:
         }
       } catch (e) {
         if (retries == 0) {
+          AiLogger.instance.addLog(
+            requestPayload: requestPayload,
+            responseRaw: '',
+            latencyMs: stopwatch.elapsedMilliseconds,
+            error: e.toString(),
+            chatId: chatId,
+          );
           rethrow;
         }
         retries--;
@@ -410,17 +418,11 @@ IMPORTANT RULES:
         if (msg.images != null && msg.images!.isNotEmpty) {
           if (isCurrentMessage) {
             final contentList = [];
-            final isLlama = config['model'].toString().toLowerCase().contains('llama');
             String textContent = msg.content;
-            if (isLlama) {
-              final imageTokens = List.generate(msg.images!.length, (_) => '<image>').join(' ');
-              textContent = '$imageTokens\n$textContent';
-            }
-            if (textContent.isNotEmpty) {
-              contentList.add({
-                'type': 'text',
-                'text': textContent,
-              });
+            final imageTokenCount = '<image>'.allMatches(textContent).length;
+            if (imageTokenCount < msg.images!.length) {
+              final missingTokens = List.generate(msg.images!.length - imageTokenCount, (_) => '<image>').join('\n');
+              textContent = '$missingTokens\n$textContent';
             }
             for (var path in msg.images!) {
               try {
@@ -444,6 +446,12 @@ IMPORTANT RULES:
               } catch (e) {
                 debugPrint('Error reading image for AI: $e');
               }
+            }
+            if (textContent.isNotEmpty) {
+              contentList.add({
+                'type': 'text',
+                'text': textContent,
+              });
             }
             formattedMessages.add({
               'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
@@ -473,15 +481,14 @@ IMPORTANT RULES:
 
     try {
       while (retries >= 0) {
+        final requestPayload = {
+          'model': config['model'],
+          'messages': formattedMessages,
+          'tools': toolsOverride ?? AiTools.definitions,
+          'stream': true,
+          'max_tokens': 8192,
+        };
         try {
-          final requestPayload = {
-            'model': config['model'],
-            'messages': formattedMessages,
-            'tools': toolsOverride ?? AiTools.definitions,
-            'stream': true,
-            'max_tokens': 8192,
-          };
-          
           final request = http.Request('POST', url)
             ..headers.addAll({
               'Content-Type': 'application/json; charset=utf-8',
@@ -733,7 +740,16 @@ IMPORTANT RULES:
         yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls);
         return;
         } catch (e) {
-          if (retries == 0) rethrow;
+          if (retries == 0) {
+            AiLogger.instance.addLog(
+              requestPayload: requestPayload,
+              responseRaw: '',
+              latencyMs: stopwatch.elapsedMilliseconds,
+              error: e.toString(),
+              chatId: chatId,
+            );
+            rethrow;
+          }
           retries--;
           await Future.delayed(Duration(seconds: 2 * (3 - retries)));
         }

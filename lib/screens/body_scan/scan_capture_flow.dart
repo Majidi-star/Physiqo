@@ -427,15 +427,23 @@ Return your response strictly in the following JSON format. Do not write any tex
     } catch (e) {
       debugPrint('Physiqo Camera: Error uploading or analyzing scan: $e');
       if (mounted) {
+        final errMessage = e.toString();
+        final isTimeout = errMessage.contains('TimeoutException') || errMessage.contains('timed out');
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               isFa
-                  ? 'خطایی در ارتباط با سرور رخ داد. برنامه به صورت پیش‌فرض نتایج آفلاین را بارگذاری می‌کند.'
-                  : 'API request failed. Loading offline fallback values.',
+                  ? (isTimeout 
+                      ? 'زمان پاسخ‌گویی سرور به پایان رسید. لطفاً زمان تایم‌اوت را در تنظیمات هوش مصنوعی افزایش دهید.\nجزئیات: $e' 
+                      : 'خطایی در ارتباط با سرور رخ داد: $e\nبرنامه به صورت پیش‌فرض نتایج آفلاین را بارگذاری می‌کند.')
+                  : (isTimeout 
+                      ? 'API request timed out. Try increasing the timeout in AI settings.\nDetails: $e'
+                      : 'API request failed: $e\nLoading offline fallback values.'),
               style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
             ),
             backgroundColor: AppTheme.error,
+            duration: const Duration(seconds: 8),
           ),
         );
         // Fallback navigation with mock/null values
