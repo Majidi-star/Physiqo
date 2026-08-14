@@ -3,6 +3,7 @@ import '../models/exercise.dart';
 import '../theme/app_theme.dart';
 import '../widgets/physiqo_header.dart';
 import '../l10n/translations.dart';
+import '../utils/app_date_utils.dart';
 
 class ExerciseFormScreen extends StatefulWidget {
   final Exercise? exercise;
@@ -44,7 +45,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
     _defaultReps = ex?.defaultReps ?? 12;
     _defaultRestSeconds = ex?.defaultRestSeconds ?? 90;
     _estimatedMinutes = ex?.estimatedMinutes ?? 45;
-    _equipment = ex?.equipment ?? '';
+    _equipment = ex != null ? (Localizations.localeOf(context).languageCode == 'fa' ? ex.equipmentFa : ex.equipmentEn) : '';
   }
 
   @override
@@ -52,9 +53,9 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       final ex = widget.exercise;
-      _name = ex != null ? context.tr(ex.name) : '';
-      _secondaryMuscleGroupsRaw = ex?.secondaryMuscleGroups.map((m) => context.tr(m)).join('، ') ?? '';
-      _description = ex != null ? context.tr(ex.description) : '';
+      _name = ex != null ? (AppDateUtils.isFa(context) ? ex.nameFa : ex.nameEn) : '';
+      _secondaryMuscleGroupsRaw = ex != null ? (AppDateUtils.isFa(context) ? ex.targetMusclesFa : ex.targetMusclesEn) : '';
+      _description = ex != null ? (AppDateUtils.isFa(context) ? ex.descriptionFa : ex.descriptionEn) : '';
       _initialized = true;
     }
   }
@@ -74,15 +75,20 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
 
     final updatedExercise = Exercise(
       id: id,
-      name: _name,
+      nameEn: _name,
+      nameFa: _name,
       primaryMuscleGroup: _primaryMuscleGroup,
-      secondaryMuscleGroups: secondaryMuscles,
-      description: _description,
+      targetMusclesEn: secondaryMuscles.join(', '),
+      targetMusclesFa: secondaryMuscles.join('، '),
+      descriptionEn: _description,
+      descriptionFa: _description,
       defaultSets: _defaultSets,
       defaultReps: _defaultReps,
       defaultRestSeconds: _defaultRestSeconds,
       estimatedMinutes: _estimatedMinutes,
-      equipment: _equipment,
+      equipmentEn: _equipment,
+      equipmentFa: _equipment,
+      equipmentTier: 'C',
       isCustom: isCustom,
       imageAsset: widget.exercise?.imageAsset,
       isHidden: widget.exercise?.isHidden ?? false,
@@ -330,6 +336,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
       PrimaryMuscleGroup.shoulders: context.tr('muscle_shoulders'),
       PrimaryMuscleGroup.arms: context.tr('muscle_arms'),
       PrimaryMuscleGroup.abs: context.tr('muscle_abs'),
+      PrimaryMuscleGroup.cardio: AppDateUtils.isFa(context) ? 'کاردیو' : 'Cardio',
     };
 
     return Container(

@@ -136,6 +136,25 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String) {
+      final indexMap = {
+        'home': 0,
+        'moves': 1,
+        'chat': 2,
+        'body': 3,
+        'settings': 4,
+      };
+      final targetIndex = indexMap[args];
+      if (targetIndex != null) {
+        _currentIndex = targetIndex;
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,

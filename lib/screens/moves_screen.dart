@@ -12,6 +12,7 @@ import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
 import 'focused_move_screen.dart';
 import '../l10n/translations.dart';
+import '../utils/app_date_utils.dart';
 
 class MovesScreen extends StatefulWidget {
   const MovesScreen({super.key});
@@ -401,23 +402,24 @@ class _MoveCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr(exercise.name),
+                      AppDateUtils.isFa(context) ? exercise.nameFa : exercise.nameEn,
                       style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      context.tr(exercise.description),
+                      AppDateUtils.isFa(context) ? exercise.descriptionFa : exercise.descriptionEn,
                       style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (exercise.secondaryMuscleGroups.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                    if ((AppDateUtils.isFa(context) ? exercise.targetMusclesFa : exercise.targetMusclesEn).isNotEmpty) ...[
+                      const SizedBox(height: 8),
                       Wrap(
-                        spacing: 4,
-                        children: exercise.secondaryMuscleGroups.take(2).map((m) {
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: (AppDateUtils.isFa(context) ? exercise.targetMusclesFa : exercise.targetMusclesEn).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).take(2).map((m) {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(

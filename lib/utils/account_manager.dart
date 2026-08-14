@@ -75,7 +75,9 @@ class AccountManager {
 
   static Future<void> addAccount(Account account) async {
     _accounts.add(account);
-    _activeAccountId = account.id;
+    if (_activeAccountId == null) {
+      _activeAccountId = account.id;
+    }
     final prefs = await SharedPreferences.getInstance();
     await _saveState(prefs);
   }

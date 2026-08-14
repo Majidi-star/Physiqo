@@ -18,6 +18,7 @@ import '../services/ai_tools.dart';
 import '../services/ai_orchestrator.dart';
 import '../services/ai_logger.dart';
 import '../widgets/ai_debug_dialog.dart';
+import '../utils/farsi_formatter.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -227,7 +228,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     while (true) {
       if (!mounted || _activeSession == null || _generationCancelled) break;
       loopCount++;
-      if (loopCount > 4) {
+      if (loopCount > 8) {
         debugPrint('⚠️ Runaway tool calling detected. Breaking loop.');
         break;
       }
@@ -280,7 +281,7 @@ ${contextData['userContext']}
         final rawStream = _aiService.sendMessageStream(
           historyToKeep,
           systemPrompt: systemPrompt,
-          toolsOverride: loopCount >= 3 ? [] : tools,
+          toolsOverride: loopCount >= 7 ? [] : tools,
           chatId: _activeSession!.id,
         );
         final stream = rawStream;
@@ -431,9 +432,13 @@ ${contextData['userContext']}
               
               if (result.startsWith('ACTION_NAVIGATE:')) {
                  final screen = result.split(':')[1];
-                 if (screen == 'home' || screen == 'moves' || screen == 'body' || screen == 'settings') {
+                 if (screen == 'home' || screen == 'moves' || screen == 'body' || screen == 'settings' || screen == 'chat') {
                    if (mounted) {
-                     Navigator.pushReplacementNamed(context, '/main');
+                     Navigator.pushReplacementNamed(context, '/main', arguments: screen);
+                   }
+                 } else if (screen == 'analysis' || screen == 'schedule_overview' || screen == 'onboarding') {
+                   if (mounted) {
+                     Navigator.pushNamed(context, '/$screen');
                    }
                  }
               }
@@ -634,6 +639,10 @@ ${contextData['userContext']}
     final allMessages = _activeSession?.messages ?? [];
     final messages = allMessages.where((msg) {
       if (msg.role == ChatMessageRole.coach && msg.content.isEmpty) return false;
+      if (msg.role == ChatMessageRole.tool && msg.content.isEmpty) {
+        final isLast = allMessages.isNotEmpty && allMessages.last.id == msg.id;
+        if (!_isGenerating || !isLast) return false;
+      }
       return true;
     }).toList();
     final showEmptyState = messages.isEmpty && !_isGenerating;
@@ -1130,7 +1139,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
 
     final isCoach = widget.message.role == ChatMessageRole.coach;
     
-    String displayContent = widget.message.content;
+    String displayContent = FarsiFormatter.format(widget.message.content);
     List<String> parsedOptions = [];
 
     final optionsMatch = RegExp(r'<options>(.*?)</options>', dotAll: true).firstMatch(displayContent);

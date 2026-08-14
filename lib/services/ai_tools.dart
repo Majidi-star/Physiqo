@@ -108,13 +108,20 @@ class AiTools {
       "type": "function",
       "function": {
         "name": "query_exercise_database",
-        "description": "Returns a list of all available exercises in the database, including their IDs, names, and muscle groups. Use this BEFORE saving a plan to find exact exercise IDs. Example: {\"muscleGroup\": \"chest\"}",
+        "description": "Returns a list of available exercises in the database. Use this BEFORE saving a plan to find exact exercise IDs.",
         "parameters": {
           "type": "object",
           "properties": {
             "muscleGroup": {
               "type": "string",
-              "description": "Optional: Filter by primary muscle group (e.g. 'chest', 'back', 'legs', 'shoulders', 'arms', 'abs'). Leave empty to get all."
+              "description": "Filter by primary muscle group (e.g. 'chest', 'back', 'legs', 'shoulders', 'arms', 'abs')."
+            },
+            "muscleGroups": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Filter by multiple muscle groups at once (e.g. ['chest', 'legs', 'arms']). Use this to fetch all required exercises in a single call to save requests and speed up execution."
             }
           }
         }
@@ -128,7 +135,7 @@ class AiTools {
         "parameters": {
           "type": "object",
           "properties": {
-            "screenName": {"type": "string", "enum": ["home", "moves", "chat", "body", "settings"]}
+            "screenName": {"type": "string", "enum": ["home", "moves", "chat", "body", "settings", "analysis", "schedule_overview", "onboarding"]}
           },
           "required": ["screenName"]
         }
@@ -343,12 +350,166 @@ class AiTools {
             try {
               daysRaw = jsonDecode(daysArg) as List<dynamic>;
             } catch (e) {
-              result = "Failed to parse days JSON string.";
-              break;
+              try {
+                // Try cleaning up escaped quotes
+                final cleaned = daysArg.replaceAll('\\"', '"');
+                daysRaw = jsonDecode(cleaned) as List<dynamic>;
+              } catch (_) {
+                try {
+                  // Try cleaning up backslashes further
+                  final cleaned = daysArg.replaceAll('\\"', '"').replaceAll('\\\\', '\\');
+                  daysRaw = jsonDecode(cleaned) as List<dynamic>;
+                } catch (e2) {
+                  result = "Failed to parse days JSON string: $e2 (Original error: $e)";
+                  break;
+                }
+              }
             }
           } else if (daysArg is List) {
             daysRaw = daysArg;
           }
+
+          final prefs = await SharedPreferences.getInstance();
+          final workoutDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
+          final now = DateTime.now();
+          final weekdayMap = {
+            1: 'day_mon',
+            2: 'day_tue',
+            3: 'day_wed',
+            4: 'day_thu',
+            5: 'day_fri',
+            6: 'day_sat',
+            7: 'day_sun',
+          };
+          
+          // Calculate the allowed upcoming dates (next 7 days starting today)
+          final List<String> allowedDates = [];
+          for (int i = 0; i < 7; i++) {
+            final date = now.add(Duration(days: i));
+            final dayKey = weekdayMap[date.weekday]!;
+            if (workoutDays.isEmpty || workoutDays.contains(dayKey)) {
+              allowedDates.add("${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}");
+            }
+          }
+
+          final allExercises = ExerciseRepository.instance.getAllExercises();
+          final validIds = allExercises.map((e) => e.id).toSet();
+
+          List<String> invalidDates = [];
+          List<String> invalidIds = [];
+
+          for (var dayRaw in daysRaw) {
+            if (dayRaw is Map) {
+              final dateStr = dayRaw['date']?.toString() ?? '';
+              final parsedDate = DateTime.tryParse(dateStr);
+              bool isAllowed = false;
+              if (parsedDate != null) {
+                for (final allowedStr in allowedDates) {
+                  final allowedDate = DateTime.tryParse(allowedStr);
+                  if (allowedDate != null &&
+                      allowedDate.year == parsedDate.year &&
+                      allowedDate.month == parsedDate.month &&
+                      allowedDate.day == parsedDate.day) {
+                    isAllowed = true;
+                    break;
+                  }
+                }
+              }
+              if (!isAllowed) {
+                invalidDates.add(dateStr);
+              }
+
+              final titleLower = (dayRaw['title']?.toString() ?? '').toLowerCase();
+              final focusLower = (dayRaw['focus']?.toString() ?? '').toLowerCase();
+              final dayText = "$titleLower $focusLower";
+
+              final Map<String, List<String>> muscleKeywords = {
+                'chest': ['chest', 'سینه'],
+                'back': ['back', 'پشت', 'زیربغل', 'زیر بغل', 'lats'],
+                'legs': ['legs', 'leg', 'پا', 'ران', 'باسن', 'glute', 'quad', 'hamstring', 'calf'],
+                'shoulders': ['shoulders', 'shoulder', 'سرشانه', 'شانه', 'deltoid'],
+                'arms': ['arms', 'arm', 'بازو', 'bicep', 'tricep', 'forearm'],
+                'abs': ['abs', 'ab', 'شکم', 'فیله', 'core'],
+                'cardio': ['cardio', 'کاردیو', 'هوازی'],
+              };
+
+              final List<String> mentionedGroups = [];
+              muscleKeywords.forEach((group, keywords) {
+                for (final kw in keywords) {
+                  if (dayText.contains(kw)) {
+                    mentionedGroups.add(group);
+                    break;
+                  }
+                }
+              });
+
+              if (dayText.contains('push') || dayText.contains('پوش')) {
+                mentionedGroups.addAll(['chest', 'shoulders', 'arms']);
+              }
+              if (dayText.contains('pull') || dayText.contains('پول')) {
+                mentionedGroups.addAll(['back', 'arms']);
+              }
+              if (dayText.contains('upper') || dayText.contains('بالاتنه')) {
+                mentionedGroups.addAll(['chest', 'back', 'shoulders', 'arms', 'abs']);
+              }
+              if (dayText.contains('lower') || dayText.contains('پایین تنه')) {
+                mentionedGroups.addAll(['legs', 'abs']);
+              }
+              if (dayText.contains('full body') || dayText.contains('فول بادی') || dayText.contains('فولبادی')) {
+                mentionedGroups.addAll(['chest', 'back', 'legs', 'shoulders', 'arms', 'abs', 'cardio']);
+              }
+
+              final itemsRaw = dayRaw['items'] as List<dynamic>? ?? [];
+              for (var rawItem in itemsRaw) {
+                if (rawItem is Map) {
+                  final type = rawItem['type']?.toString();
+
+                  void checkExercise(String exId) {
+                    final ex = allExercises.firstWhere((e) => e.id == exId);
+                    final group = ex.primaryMuscleGroup.toString().split('.').last.toLowerCase();
+                    if (mentionedGroups.isNotEmpty && !mentionedGroups.contains(group)) {
+                      invalidIds.add("$exId (which is for $group, but day focus is '${dayRaw['focus'] ?? dayRaw['title']}')");
+                    }
+                  }
+
+                  if (type == 'single') {
+                    final exId = rawItem['exerciseId']?.toString();
+                    if (exId != null) {
+                      if (!validIds.contains(exId)) {
+                        invalidIds.add(exId);
+                      } else {
+                        checkExercise(exId);
+                      }
+                    }
+                  } else if (type == 'superset') {
+                    final exIds = rawItem['exerciseIds'] as List<dynamic>? ?? [];
+                    for (var idRaw in exIds) {
+                      final exId = idRaw.toString();
+                      if (!validIds.contains(exId)) {
+                        invalidIds.add(exId);
+                      } else {
+                        checkExercise(exId);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (invalidDates.isNotEmpty) {
+            result = "Error: The following dates are invalid: ${invalidDates.join(', ')}. "
+                     "You MUST ONLY schedule workouts on the exact dates listed under 'Upcoming Schedule Dates' in the User Context: ${allowedDates.join(', ')}.";
+            break;
+          }
+
+          if (invalidIds.isNotEmpty) {
+            result = "Error: The following exercise IDs are invalid or do not match the day's focus: ${invalidIds.join(', ')}. "
+                     "You MUST call 'query_exercise_database' to find the correct, exact exercise IDs before saving a plan. "
+                     "Do not guess or invent IDs.";
+            break;
+          }
+
           int successCount = 0;
           for (var dayRaw in daysRaw) {
             if (dayRaw is Map) {
@@ -382,22 +543,74 @@ class AiTools {
           break;
 
         case 'query_exercise_database':
-          final muscleGroup = args['muscleGroup']?.toString().toLowerCase();
-          final allExercises = ExerciseRepository.instance.getAllExercises();
+          final List<String> targetGroups = [];
           
+          String? mapToCanonical(String val) {
+            final cleaned = val.trim().toLowerCase();
+            if (cleaned == 'chest' || cleaned == 'سینه') return 'chest';
+            if (cleaned == 'back' || cleaned == 'پشت' || cleaned == 'زیربغل' || cleaned == 'زیر بغل') return 'back';
+            if (cleaned == 'legs' || cleaned == 'leg' || cleaned == 'پا' || cleaned == 'ران' || cleaned == 'باسن' || cleaned == 'glute' || cleaned == 'calf') return 'legs';
+            if (cleaned == 'shoulders' || cleaned == 'shoulder' || cleaned == 'سرشانه' || cleaned == 'شانه') return 'shoulders';
+            if (cleaned == 'arms' || cleaned == 'arm' || cleaned == 'بازو' || cleaned == 'بازوها' || cleaned == 'bicep' || cleaned == 'tricep') return 'arms';
+            if (cleaned == 'abs' || cleaned == 'ab' || cleaned == 'شکم' || cleaned == 'فیله' || cleaned == 'core') return 'abs';
+            if (cleaned == 'cardio' || cleaned == 'کاردیو') return 'cardio';
+            return null;
+          }
+
+          void addValue(dynamic val) {
+            if (val == null) return;
+            final str = val.toString();
+            final mapped = mapToCanonical(str);
+            if (mapped != null) {
+              targetGroups.add(mapped);
+            }
+          }
+
+          if (args.containsKey('muscleGroup')) {
+            addValue(args['muscleGroup']);
+          }
+          if (args.containsKey('muscleGroups')) {
+            final mGroups = args['muscleGroups'];
+            if (mGroups is List) {
+              for (var g in mGroups) {
+                addValue(g);
+              }
+            } else if (mGroups is String) {
+              try {
+                final parsed = jsonDecode(mGroups);
+                if (parsed is List) {
+                  for (var g in parsed) {
+                    addValue(g);
+                  }
+                } else {
+                  addValue(parsed);
+                }
+              } catch (_) {
+                final parts = mGroups.replaceAll(RegExp(r'[\[\]" ]'), '').split(',');
+                for (var part in parts) {
+                  addValue(part);
+                }
+              }
+            }
+          }
+
+          final allExercises = ExerciseRepository.instance.getAllExercises();
           List<Exercise> filtered = allExercises;
-          if (muscleGroup != null && muscleGroup.isNotEmpty) {
+          if (targetGroups.isNotEmpty) {
             filtered = allExercises.where((e) {
               final groupName = e.primaryMuscleGroup.toString().split('.').last.toLowerCase();
-              return groupName == muscleGroup;
+              return targetGroups.contains(groupName);
             }).toList();
           }
           
           final listMap = filtered.map((e) => {
             'id': e.id,
-            'name': e.name,
+            'name_en': e.nameEn,
+            'name_fa': e.nameFa,
             'primaryMuscleGroup': e.primaryMuscleGroup.toString().split('.').last,
-            'equipment': e.equipment,
+            'equipment_en': e.equipmentEn,
+            'equipment_fa': e.equipmentFa,
+            'tier': e.equipmentTier,
           }).toList();
           
           result = listMap.isNotEmpty ? listMap.toString() : "No exercises found.";

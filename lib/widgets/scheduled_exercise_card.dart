@@ -3,6 +3,7 @@ import '../models/exercise.dart';
 import '../theme/app_theme.dart';
 import '../screens/focused_move_screen.dart';
 import '../l10n/translations.dart';
+import '../utils/app_date_utils.dart';
 
 class ScheduledExerciseCard extends StatelessWidget {
   final Exercise exercise;
@@ -70,7 +71,7 @@ class ScheduledExerciseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    exercise.name,
+                    AppDateUtils.isFa(context) ? exercise.nameFa : exercise.nameEn,
                     style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -107,6 +108,8 @@ class ScheduledExerciseCard extends StatelessWidget {
         return context.tr('muscle_arms');
       case PrimaryMuscleGroup.abs:
         return context.tr('muscle_abs');
+      case PrimaryMuscleGroup.cardio:
+        return AppDateUtils.isFa(context) ? 'کاردیو' : 'Cardio';
     }
   }
 }

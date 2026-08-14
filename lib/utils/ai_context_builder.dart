@@ -1,6 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shamsi_date/shamsi_date.dart';
 import '../models/user_profile.dart';
 import '../utils/account_manager.dart';
+import '../utils/app_date_utils.dart';
 
 class AIContextBuilder {
   /// Assembles all persistent user data into a compact Markdown string to be injected
@@ -8,9 +10,6 @@ class AIContextBuilder {
   static Future<String> buildUserContextForAI() async {
     final prefs = await SharedPreferences.getInstance();
     final profile = UserProfile.current();
-    
-    // Ensure the profile is fully loaded from prefs
-    await profile.loadFromPrefs();
 
     // Load workout days
     final workoutDays = prefs.getStringList(AccountManager.getPrefKey('workout_days')) ?? [];
@@ -57,7 +56,19 @@ class AIContextBuilder {
     };
 
     final buffer = StringBuffer();
-    buffer.writeln('- Current Date & Time: ${DateTime.now().toIso8601String().split('.').first} (Year: ${DateTime.now().year})');
+    buffer.writeln('- Current Date & Time: ${now.toIso8601String().split('.').first} (Year: ${now.year})');
+    
+    String formatDate(DateTime d) {
+      final greg = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+      final jalali = Jalali.fromDateTime(d);
+      final shamsi = "${jalali.day} ${AppDateUtils.faMonths[jalali.month - 1]}";
+      return "$greg ($shamsi)";
+    }
+    
+    buffer.writeln('  - Today (امروز): ${formatDate(now)}');
+    buffer.writeln('  - Tomorrow (فردا): ${formatDate(now.add(const Duration(days: 1)))}');
+    buffer.writeln('  - Day after tomorrow (پس‌فردا / پس فردا): ${formatDate(now.add(const Duration(days: 2)))}');
+
     buffer.writeln('- User Profile:');
     buffer.writeln('  - Name: ${profile.name}');
     buffer.writeln('  - Age: ${profile.age}yo, Gender: ${profile.gender}');
@@ -77,7 +88,16 @@ class AIContextBuilder {
     
     if (upcomingWorkoutDates.isNotEmpty) {
       final scheduleStr = upcomingWorkoutDates.entries
-          .map((e) => '${dayNames[e.key] ?? e.key}: ${e.value}')
+          .map((e) {
+            final dateStr = e.value;
+            final date = DateTime.tryParse(dateStr);
+            if (date != null) {
+              final jalali = Jalali.fromDateTime(date);
+              final shamsi = "${jalali.day} ${AppDateUtils.faMonths[jalali.month - 1]}";
+              return '${dayNames[e.key] ?? e.key}: $dateStr ($shamsi)';
+            }
+            return '${dayNames[e.key] ?? e.key}: $dateStr';
+          })
           .join(', ');
       buffer.writeln('  - Upcoming Schedule Dates: $scheduleStr');
     }

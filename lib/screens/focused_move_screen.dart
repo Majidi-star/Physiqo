@@ -5,6 +5,7 @@ import '../models/exercise.dart';
 import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
 import '../l10n/translations.dart';
+import '../utils/app_date_utils.dart';
 
 enum ExerciseDetailContext { database, scheduledWorkout }
 
@@ -179,10 +180,10 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
-                      Text(context.tr(_exercise.name), style: AppTheme.headlineMd),
+                      Text(AppDateUtils.isFa(context) ? _exercise.nameFa : _exercise.nameEn, style: AppTheme.headlineMd),
                       const SizedBox(height: AppTheme.spacingSm),
                       Text(
-                        context.tr(_exercise.description),
+                        AppDateUtils.isFa(context) ? _exercise.descriptionFa : _exercise.descriptionEn,
                         style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
@@ -212,8 +213,8 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                             isPrimary: true,
                           ),
                           // Secondary muscle group tags
-                          for (final muscle in _exercise.secondaryMuscleGroups)
-                            _MuscleTag(label: context.tr(muscle), isPrimary: false),
+                          for (final muscle in (AppDateUtils.isFa(context) ? _exercise.targetMusclesFa : _exercise.targetMusclesEn).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty))
+                            _MuscleTag(label: muscle, isPrimary: false),
                         ],
                       ),
                       const SizedBox(height: 100),
@@ -242,6 +243,8 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
         return context.tr('muscle_arms');
       case PrimaryMuscleGroup.abs:
         return context.tr('muscle_abs');
+      case PrimaryMuscleGroup.cardio:
+        return AppDateUtils.isFa(context) ? 'کاردیو' : 'Cardio';
     }
   }
 }

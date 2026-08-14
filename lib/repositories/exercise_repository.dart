@@ -7,7 +7,7 @@ import '../utils/account_manager.dart';
 import '../data/exercise_seed.dart';
 
 class ExerciseRepository extends ChangeNotifier {
-  String get _storageKey => AccountManager.getPrefKey('physiqo_exercises');
+  String get _storageKey => AccountManager.getPrefKey('physiqo_exercises_v2');
   String get _programStorageKey => AccountManager.getPrefKey('physiqo_workout_program');
   final SharedPreferences _prefs;
 

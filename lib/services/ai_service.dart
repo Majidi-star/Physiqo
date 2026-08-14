@@ -25,14 +25,99 @@ class AiResponse {
 class AiService {
   final _storage = const FlutterSecureStorage();
   final http.Client _client = http.Client();
+
+  static List<AiToolCall> parseFallbackToolCalls(String content) {
+    try {
+      final trimmed = content.trim();
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return [];
+      
+      final parsed = jsonDecode(trimmed);
+      List<AiToolCall> calls = [];
+      
+      void addFromMap(Map map) {
+        if (map.containsKey('tool_calls')) {
+          final rawCalls = map['tool_calls'];
+          if (rawCalls is List) {
+            for (var call in rawCalls) {
+              if (call is Map) {
+                calls.add(AiToolCall(
+                  id: call['id']?.toString() ?? 'call_${DateTime.now().millisecondsSinceEpoch}',
+                  name: call['name']?.toString() ?? '',
+                  arguments: (call['arguments'] is Map) 
+                      ? (call['arguments'] as Map).cast<String, dynamic>() 
+                      : {},
+                ));
+              }
+            }
+          }
+        } else if (map.containsKey('name')) {
+          final name = map['name']?.toString();
+          final argsRaw = map['parameters'] ?? map['arguments'];
+          Map<String, dynamic> arguments = {};
+          if (argsRaw is Map) {
+            arguments = argsRaw.cast<String, dynamic>();
+          } else if (argsRaw is String) {
+            try {
+              arguments = jsonDecode(argsRaw) as Map<String, dynamic>;
+            } catch (_) {}
+          }
+          if (name != null) {
+            calls.add(AiToolCall(
+              id: map['id']?.toString() ?? 'call_${DateTime.now().millisecondsSinceEpoch}',
+              name: name,
+              arguments: arguments,
+            ));
+          }
+        } else if (map.containsKey('function')) {
+          final func = map['function'];
+          if (func is Map) {
+            final name = func['name']?.toString();
+            final argsRaw = func['arguments'];
+            Map<String, dynamic> arguments = {};
+            if (argsRaw is Map) {
+              arguments = argsRaw.cast<String, dynamic>();
+            } else if (argsRaw is String) {
+              try {
+                arguments = jsonDecode(argsRaw) as Map<String, dynamic>;
+              } catch (_) {}
+            }
+            if (name != null) {
+              calls.add(AiToolCall(
+                id: map['id']?.toString() ?? 'call_${DateTime.now().millisecondsSinceEpoch}',
+                name: name,
+                arguments: arguments,
+              ));
+            }
+          }
+        }
+      }
+
+      if (parsed is Map) {
+        addFromMap(parsed);
+      } else if (parsed is List) {
+        for (var item in parsed) {
+          if (item is Map) {
+            addFromMap(item);
+          }
+        }
+      }
+      return calls;
+    } catch (_) {
+      return [];
+    }
+  }
   
-  Future<Map<String, dynamic>?> _getActiveProviderConfig() async {
+  Future<Map<String, dynamic>?> _getActiveProviderConfig({bool hasImages = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final activeProvider = prefs.getString('active_ai_provider');
     if (activeProvider == null) return null;
 
-    final activeChatModel = prefs.getString('active_chat_model_$activeProvider');
-    if (activeChatModel == null) return null;
+    String? activeModel;
+    if (hasImages) {
+      activeModel = prefs.getString('active_vision_model_$activeProvider');
+    }
+    activeModel ??= prefs.getString('active_chat_model_$activeProvider');
+    if (activeModel == null) return null;
 
     final apiKey = await _storage.read(key: 'provider_$activeProvider');
     final baseUrl = await _storage.read(key: 'baseUrl_$activeProvider');
@@ -41,7 +126,7 @@ class AiService {
 
     return {
       'provider': activeProvider,
-      'model': activeChatModel,
+      'model': activeModel,
       'apiKey': apiKey,
       'baseUrl': baseUrl,
       'maxRetries': prefs.getInt('ai_max_retries') ?? 3,
@@ -55,7 +140,8 @@ class AiService {
   }
 
   Future<AiResponse> sendMessage(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId, bool isInternal = false}) async {
-    final config = await _getActiveProviderConfig();
+    final hasImages = messages.any((msg) => msg.images != null && msg.images!.isNotEmpty);
+    final config = await _getActiveProviderConfig(hasImages: hasImages);
     if (config == null) {
       throw Exception('AI Provider is not fully configured.');
     }
@@ -99,10 +185,52 @@ IMPORTANT RULES:
           ]
         });
       } else {
-        formattedMessages.add({
-          'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
-          'content': msg.content,
-        });
+        if (msg.images != null && msg.images!.isNotEmpty) {
+          final contentList = [];
+          final isLlama = config['model'].toString().toLowerCase().contains('llama');
+          String textContent = msg.content;
+          if (isLlama) {
+            final imageTokens = List.generate(msg.images!.length, (_) => '<image>').join(' ');
+            textContent = '$imageTokens\n$textContent';
+          }
+          if (textContent.isNotEmpty) {
+            contentList.add({
+              'type': 'text',
+              'text': textContent,
+            });
+          }
+          for (var path in msg.images!) {
+            try {
+              final file = File(path);
+              if (file.existsSync()) {
+                final bytes = file.readAsBytesSync();
+                final base64Image = base64Encode(bytes);
+                String mimeType = 'image/jpeg';
+                if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+                if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+                if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+                
+                contentList.add({
+                  'type': 'image_url',
+                  'image_url': {
+                    'url': 'data:$mimeType;base64,$base64Image',
+                  }
+                });
+              }
+            } catch (e) {
+              debugPrint('Error reading image for AI: $e');
+            }
+          }
+          formattedMessages.add({
+            'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
+            'content': contentList,
+          });
+        } else {
+          formattedMessages.add({
+            'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
+            'content': msg.content,
+          });
+        }
       }
     }
 
@@ -193,53 +321,22 @@ IMPORTANT RULES:
                     finalSurroundingText = afterText;
                   }
                   
-                  final parsed = jsonDecode(jsonString);
-                  
-                  List<AiToolCall> calls = [];
-                  List rawCalls = [];
-                  if (parsed is Map && parsed.containsKey('tool_calls')) {
-                     rawCalls = parsed['tool_calls'];
-                  } else if (parsed is List) {
-                     if (parsed.isNotEmpty && parsed[0] is Map && parsed[0].containsKey('tool_calls')) {
-                        rawCalls = parsed[0]['tool_calls'];
-                     } else {
-                        rawCalls = parsed; 
-                     }
-                  }
-
-                  if (rawCalls.isNotEmpty) {
-                    calls = rawCalls.map((call) {
-                      return AiToolCall(
-                        id: call['id'] as String,
-                        name: call['name'] as String,
-                        arguments: call['arguments'] as Map<String, dynamic>,
-                      );
-                    }).toList();
-                    return AiResponse(text: finalSurroundingText, toolCalls: calls);
+                  final fallbackCalls = parseFallbackToolCalls(jsonString);
+                  if (fallbackCalls.isNotEmpty) {
+                    return AiResponse(text: finalSurroundingText, toolCalls: fallbackCalls);
                   }
                 }
               } catch (e) {
                 // Ignore parse errors and just fall through to treating it as plain text
-                debugPrint('Failed to parse TOOLCALL block: \$e');
+                debugPrint('Failed to parse TOOLCALL block: $e');
               }
             }
 
-            // Legacy fallback text tool calls
-            if (content != null && content.trim().startsWith('{') && content.contains('"tool_calls"')) {
-              try {
-                final parsed = jsonDecode(content);
-                if (parsed['tool_calls'] != null) {
-                  final calls = (parsed['tool_calls'] as List).map((call) {
-                    return AiToolCall(
-                      id: call['id'] as String,
-                      name: call['name'] as String,
-                      arguments: call['arguments'] as Map<String, dynamic>,
-                    );
-                  }).toList();
-                  return AiResponse(text: null, toolCalls: calls);
-                }
-              } catch (e) {
-                // Not valid JSON, just return as text
+            // Direct JSON tool call format like {"name": "...", "parameters": {...}} or legacy JSON
+            if (content != null && content.trim().startsWith('{')) {
+              final fallbackCalls = parseFallbackToolCalls(content);
+              if (fallbackCalls.isNotEmpty) {
+                return AiResponse(text: null, toolCalls: fallbackCalls);
               }
             }
             
@@ -262,7 +359,8 @@ IMPORTANT RULES:
 
   Stream<AiStreamEvent> sendMessageStream(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId}) async* {
     final stopwatch = Stopwatch()..start();
-    final config = await _getActiveProviderConfig();
+    final hasImages = messages.any((msg) => msg.images != null && msg.images!.isNotEmpty);
+    final config = await _getActiveProviderConfig(hasImages: hasImages);
     if (config == null) {
       throw Exception('AI Provider is not fully configured.');
     }
@@ -312,10 +410,16 @@ IMPORTANT RULES:
         if (msg.images != null && msg.images!.isNotEmpty) {
           if (isCurrentMessage) {
             final contentList = [];
-            if (msg.content.isNotEmpty) {
+            final isLlama = config['model'].toString().toLowerCase().contains('llama');
+            String textContent = msg.content;
+            if (isLlama) {
+              final imageTokens = List.generate(msg.images!.length, (_) => '<image>').join(' ');
+              textContent = '$imageTokens\n$textContent';
+            }
+            if (textContent.isNotEmpty) {
               contentList.add({
                 'type': 'text',
-                'text': msg.content,
+                'text': textContent,
               });
             }
             for (var path in msg.images!) {
@@ -444,30 +548,20 @@ IMPORTANT RULES:
                     final startIndex = fullText.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
                     final endIndex = fullText.indexOf('</TOOLCALL>');
                     final jsonString = fullText.substring(startIndex, endIndex).trim();
-                    final parsed = jsonDecode(jsonString);
-                    List rawCalls = [];
-                    if (parsed is Map && parsed.containsKey('tool_calls')) {
-                        rawCalls = parsed['tool_calls'];
-                    } else if (parsed is List) {
-                        if (parsed.isNotEmpty && parsed[0] is Map && parsed[0].containsKey('tool_calls')) {
-                           rawCalls = parsed[0]['tool_calls'];
-                        } else {
-                           rawCalls = parsed; 
-                        }
-                    }
-                    if (rawCalls.isNotEmpty) {
-                      finalToolCalls.addAll(rawCalls.map((call) {
-                        return AiToolCall(
-                          id: call['id'] as String,
-                          name: call['name'] as String,
-                          arguments: call['arguments'] as Map<String, dynamic>,
-                        );
-                      }).toList());
+                    final fallbackCalls = parseFallbackToolCalls(jsonString);
+                    if (fallbackCalls.isNotEmpty) {
+                      finalToolCalls.addAll(fallbackCalls);
                     }
                     fullText = fullText.substring(0, fullText.indexOf('<TOOLCALL>')) + fullText.substring(endIndex + '</TOOLCALL>'.length);
                   } catch (e) {
                     debugPrint('Failed parsing flat fallback: $e');
                   }
+               } else if (fullText.trim().startsWith('{')) {
+                 final fallbackCalls = parseFallbackToolCalls(fullText);
+                 if (fallbackCalls.isNotEmpty) {
+                   finalToolCalls.addAll(fallbackCalls);
+                   fullText = ''; // Clear so it doesn't render as chat text
+                 }
                }
             }
           }
@@ -535,6 +629,8 @@ IMPORTANT RULES:
                       inFallbackToolCall = true;
                       final cleanText = fullText.substring(0, fullText.indexOf('<TOOLCALL>'));
                       yield AiStreamEvent(deltaText: cleanText);
+                    } else if (fullText.trim().startsWith('{')) {
+                      // Do not yield, we are buffering a JSON block
                     } else {
                       int lastLeftAngle = fullText.lastIndexOf('<');
                       if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
@@ -588,29 +684,18 @@ IMPORTANT RULES:
                 }
              }
 
-             final parsed = jsonDecode(jsonString);
-             
-             List rawCalls = [];
-             if (parsed is Map && parsed.containsKey('tool_calls')) {
-                 rawCalls = parsed['tool_calls'];
-             } else if (parsed is List) {
-                 if (parsed.isNotEmpty && parsed[0] is Map && parsed[0].containsKey('tool_calls')) {
-                    rawCalls = parsed[0]['tool_calls'];
-                 } else {
-                    rawCalls = parsed; 
-                 }
-             }
-             if (rawCalls.isNotEmpty) {
-               finalToolCalls.addAll(rawCalls.map((call) {
-                 return AiToolCall(
-                   id: call['id'] as String,
-                   name: call['name'] as String,
-                   arguments: call['arguments'] as Map<String, dynamic>,
-                 );
-               }).toList());
+             final fallbackCalls = parseFallbackToolCalls(jsonString);
+             if (fallbackCalls.isNotEmpty) {
+               finalToolCalls.addAll(fallbackCalls);
              }
           } catch(e) {
              debugPrint('Failed parsing streaming fallback: $e');
+          }
+        } else if (fullText.trim().startsWith('{')) {
+          final fallbackCalls = parseFallbackToolCalls(fullText);
+          if (fallbackCalls.isNotEmpty) {
+            finalToolCalls.addAll(fallbackCalls);
+            fullText = ''; // Clear so it doesn't render as chat text
           }
         }
 

@@ -20,43 +20,6 @@ class DaySelectorWidget extends StatefulWidget {
 }
 
 class _DaySelectorWidgetState extends State<DaySelectorWidget> {
-  List<bool> _hasPlans = List.filled(6, false);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPlans();
-  }
-
-  @override
-  void didUpdateWidget(DaySelectorWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedDate != widget.selectedDate) {
-      _loadPlans();
-    }
-  }
-
-  Future<void> _loadPlans() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final offset = widget.selectedDate.difference(today).inDays;
-    final int startOffset = offset - 2;
-    
-    final repo = ExerciseRepository.instance;
-    List<bool> results = [];
-    for (int i = 0; i < 6; i++) {
-      final date = today.add(Duration(days: startOffset + i));
-      final plan = await repo.getWorkoutDay(date);
-      results.add(plan != null && plan.items.isNotEmpty);
-    }
-    
-    if (mounted) {
-      setState(() {
-        _hasPlans = results;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -67,10 +30,15 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
     final offset = widget.selectedDate.difference(today).inDays;
     final int startOffset = offset - 2; // Keep selected day in middle
 
+    final repo = ExerciseRepository.instance;
+    final List<bool> hasPlans = [];
     final List<String> days = [];
+    
     for (int i = 0; i < 6; i++) {
       final date = today.add(Duration(days: startOffset + i));
       days.add(AppDateUtils.getDayNumber(date, isFa));
+      final plan = repo.getWorkoutDay(date);
+      hasPlans.add(plan != null && plan.items.isNotEmpty);
     }
 
     final prefix = offset == 0 ? (isFa ? 'امروز - ' : 'Today - ') : '';
@@ -160,7 +128,7 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
                   painter: CircuitTimelinePainter(
                     color: AppTheme.primary,
                     activeIndex: 2,
-                    hasPlans: _hasPlans,
+                    hasPlans: hasPlans,
                     isRtl: false,
                   ),
                 ),
