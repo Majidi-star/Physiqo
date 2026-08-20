@@ -1,179 +1,3 @@
-import 'dart:convert';
-import 'dart:async';
-import '../models/ai_execution_candidate.dart';
-import '../models/fallback_candidate_config.dart';
-import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../models/chat_message.dart';
-import '../models/ai_stream_event.dart';
-import 'ai_tools.dart';
-import 'ai_logger.dart';
-import 'package:flutter/foundation.dart';
-
-class AiToolCall {
-  final String id;
-  final String name;
-  final Map<String, dynamic> arguments;
-  AiToolCall({required this.id, required this.name, required this.arguments});
-}
-
-class AiResponse {
-  final String? text;
-  final List<AiToolCall>? toolCalls;
-  final String? providerServed;
-  AiResponse({this.text, this.toolCalls, this.providerServed});
-}
-
-class AiService {
-  final _storage = const FlutterSecureStorage();
-  final http.Client _client = http.Client();
-
-  static List<AiToolCall> parseFallbackToolCalls(String content) {
-    try {
-      final trimmed = content.trim();
-      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return [];
-      
-      final parsed = jsonDecode(trimmed);
-      List<AiToolCall> calls = [];
-      
-      void addFromMap(Map map) {
-        if (map.containsKey('tool_calls')) {
-          final rawCalls = map['tool_calls'];
-          if (rawCalls is List) {
-            for (var call in rawCalls) {
-              if (call is Map) {
-                calls.add(AiToolCall(
-                  id: call['id']?.toString() ?? 'call_${DateTime.now().millisecondsSinceEpoch}',
-                  name: call['name']?.toString() ?? '',
-                  arguments: (call['arguments'] is Map) 
-                      ? (call['arguments'] as Map).cast<String, dynamic>() 
-                      : {},
-                ));
-              }
-            }
-          }
-        } else if (map.containsKey('name')) {
-          final name = map['name']?.toString();
-          final argsRaw = map['parameters'] ?? map['arguments'];
-          Map<String, dynamic> arguments = {};
-          if (argsRaw is Map) {
-            arguments = argsRaw.cast<String, dynamic>();
-          } else if (argsRaw is String) {
-            try {
-              arguments = jsonDecode(argsRaw) as Map<String, dynamic>;
-            } catch (_) {}
-          }
-          if (name != null) {
-            calls.add(AiToolCall(
-              id: map['id']?.toString() ?? 'call_${DateTime.now().millisecondsSinceEpoch}',
-              name: name,
-              arguments: arguments,
-            ));
-          }
-        } else if (map.containsKey('function')) {
-          final func = map['function'];
-          if (func is Map) {
-            final name = func['name']?.toString();
-            final argsRaw = func['arguments'];
-            Map<String, dynamic> arguments = {};
-            if (argsRaw is Map) {
-              arguments = argsRaw.cast<String, dynamic>();
-            } else if (argsRaw is String) {
-              try {
-                arguments = jsonDecode(argsRaw) as Map<String, dynamic>;
-              } catch (_) {}
-            }
-            if (name != null) {
-              calls.add(AiToolCall(
-                id: map['id']?.toString() ?? 'call_${DateTime.now().millisecondsSinceEpoch}',
-                name: name,
-                arguments: arguments,
-              ));
-            }
-          }
-        }
-      }
-
-      if (parsed is Map) {
-        addFromMap(parsed);
-      } else if (parsed is List) {
-        for (var item in parsed) {
-          if (item is Map) {
-            addFromMap(item);
-          }
-        }
-      }
-      return calls;
-    } catch (_) {
-      return [];
-    }
-  }
-  
-  Future<List<AiExecutionCandidate>> _getAllProviderCandidates({bool hasImages = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final autoFailover = prefs.getBool('enable_auto_failover') ?? true;
-    
-    final activeProvider = hasImages 
-        ? (prefs.getString('active_vision_provider') ?? prefs.getString('active_chat_provider') ?? prefs.getString('active_ai_provider'))
-        : (prefs.getString('active_chat_provider') ?? prefs.getString('active_ai_provider'));
-
-    if (activeProvider == null) return [];
-
-    List<AiExecutionCandidate> candidates = [];
-    
-    Future<void> addCandidate(String providerName, String? modelOverride) async {
-      String? model = modelOverride;
-      if (model == null) {
-        if (hasImages) {
-          model = prefs.getString('active_vision_model_$providerName');
-        }
-        model ??= prefs.getString('active_chat_model_$providerName');
-      }
-
-      if (model == null) return;
-      
-      final apiKey = await _storage.read(key: 'provider_$providerName');
-      final baseUrl = await _storage.read(key: 'baseUrl_$providerName');
-      
-      if (apiKey != null && baseUrl != null) {
-        if (!candidates.any((c) => c.provider == providerName && c.modelId == model)) {
-          candidates.add(AiExecutionCandidate(
-            provider: providerName,
-            modelId: model,
-            apiKey: apiKey,
-            baseUrl: baseUrl,
-            timeoutDuration: Duration(seconds: hasImages ? 12 : 7),
-            isVisionCapable: hasImages,
-          ));
-        }
-      }
-    }
-
-    // 1. Add Primary Selected Provider
-    await addCandidate(activeProvider, null);
-
-    // 2. Add Fallback Chain
-    if (autoFailover) {
-      final chainStr = prefs.getString(hasImages ? 'fallback_chain_vision' : 'fallback_chain_text');
-      if (chainStr != null && chainStr.isNotEmpty) {
-        final chain = FallbackCandidateConfig.decodeList(chainStr);
-        for (var config in chain) {
-          if (config.isEnabled) {
-            await addCandidate(config.provider, config.modelId);
-          }
-        }
-      }
-    }
-    return candidates;
-  }
-
-  Future<bool> isProviderConfigured({bool hasImages = false}) async {
-    final candidates = await _getAllProviderCandidates(hasImages: hasImages);
-    return candidates.isNotEmpty;
-  }
-
   Future<AiResponse> sendMessage(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId, bool isInternal = false}) async {
     final hasImages = messages.any((msg) => msg.images != null && msg.images!.isNotEmpty);
     final candidates = await _getAllProviderCandidates(hasImages: hasImages);
@@ -399,7 +223,28 @@ IMPORTANT RULES:
       }
     }
     
-
+    // Offline Heuristic Fallback
+    if (hasImages) {
+      // Mock JSON for Body Scan offline fallback
+      final mockJson = '''
+{
+  "chest": 0.50,
+  "biceps": 0.50,
+  "abs": 0.50,
+  "quads": 0.50,
+  "calves": 0.50,
+  "delts": 0.50,
+  "traps": 0.50,
+  "forearms": 0.50,
+  "latsBack": 0.50,
+  "lowerLatsBack": 0.50,
+  "glutes": 0.50,
+  "hamstrings": 0.50,
+  "triceps": 0.50,
+  "description": "Offline Fallback: Network or API failure. Using default placeholder values."
+}''';
+      return AiResponse(text: mockJson, providerServed: "Offline Heuristic");
+    }
     
     throw Exception('Failed to communicate with any AI provider (Offline or all providers failed).');
   }
@@ -782,7 +627,5 @@ IMPORTANT RULES:
     }
     
     // Offline heuristic fallback for stream (text only)
-    throw Exception('Failed to communicate with any AI provider for stream.');
+    yield AiStreamEvent(deltaText: "خطا در برقراری ارتباط با سرویس‌دهنده‌های هوش مصنوعی (Offline Heuristic Fallback).", isDone: true, providerServed: "Offline Heuristic");
   }
-
-}

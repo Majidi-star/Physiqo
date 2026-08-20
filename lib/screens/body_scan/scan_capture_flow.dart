@@ -200,7 +200,7 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
     if (_frontPhoto == null || _backPhoto == null) return;
 
     final aiService = AiService();
-    final isConfigured = await aiService.isProviderConfigured();
+    final isConfigured = await aiService.isProviderConfigured(hasImages: true);
     final isFa = Localizations.localeOf(context).languageCode == 'fa';
 
     if (!isConfigured) {
@@ -404,6 +404,7 @@ Return your response strictly in the following JSON format. Do not write any tex
         'overallScore': overallScore,
         'frontDescription': frontDesc,
         'backDescription': backDesc,
+        'isOfflineEstimate': frontJson.containsKey('isOfflineEstimate') || backJson.containsKey('isOfflineEstimate'),
         'rawMuscles': {
           'chest': getVal(frontJson, 'chest', 0.85),
           'biceps': getVal(frontJson, 'biceps', 0.80),
@@ -436,10 +437,10 @@ Return your response strictly in the following JSON format. Do not write any tex
               isFa
                   ? (isTimeout 
                       ? 'زمان پاسخ‌گویی سرور به پایان رسید. لطفاً زمان تایم‌اوت را در تنظیمات هوش مصنوعی افزایش دهید.\nجزئیات: $e' 
-                      : 'خطایی در ارتباط با سرور رخ داد: $e\nبرنامه به صورت پیش‌فرض نتایج آفلاین را بارگذاری می‌کند.')
+                      : 'خطایی در ارتباط با سرور رخ داد: $e\nلطفا مجدداً تلاش کنید.')
                   : (isTimeout 
                       ? 'API request timed out. Try increasing the timeout in AI settings.\nDetails: $e'
-                      : 'API request failed: $e\nLoading offline fallback values.'),
+                      : 'API request failed: $e\nPlease try again.'),
               style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
             ),
             backgroundColor: AppTheme.error,
@@ -448,7 +449,7 @@ Return your response strictly in the following JSON format. Do not write any tex
         );
         // Fallback navigation with mock/null values
         if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/analysis', arguments: null);
+          Navigator.of(context).pop();
         }
       }
     }

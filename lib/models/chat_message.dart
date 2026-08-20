@@ -10,6 +10,7 @@ class ChatMessage {
   final String? toolName;
   final String? toolArgs;
   final List<String>? images;
+  final String? providerServed;
 
   ChatMessage({
     required this.id,
@@ -21,6 +22,7 @@ class ChatMessage {
     this.toolName,
     this.toolArgs,
     this.images,
+    this.providerServed,
   });
 
   Map<String, dynamic> toJson() => {
@@ -33,6 +35,7 @@ class ChatMessage {
         if (toolName != null) 'toolName': toolName,
         if (toolArgs != null) 'toolArgs': toolArgs,
         if (images != null) 'images': images,
+        if (providerServed != null) 'providerServed': providerServed,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -45,12 +48,14 @@ class ChatMessage {
         toolName: json['toolName'] as String?,
         toolArgs: json['toolArgs'] as String?,
         images: json['images'] != null ? List<String>.from(json['images'] as List) : null,
+        providerServed: json['providerServed'] as String?,
       );
 
   ChatMessage copyWith({
     String? content,
     bool? isEdited,
     List<String>? images,
+    String? providerServed,
   }) {
     return ChatMessage(
       id: id,
@@ -62,6 +67,7 @@ class ChatMessage {
       toolName: toolName,
       toolArgs: toolArgs,
       images: images ?? this.images,
+      providerServed: providerServed ?? this.providerServed,
     );
   }
 }

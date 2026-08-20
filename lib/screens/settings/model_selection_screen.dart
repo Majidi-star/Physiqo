@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
+import 'fallback_management_widget.dart';
 
 class ModelSelectionScreen extends StatefulWidget {
   const ModelSelectionScreen({super.key});
@@ -17,11 +18,18 @@ class ModelSelectionScreen extends StatefulWidget {
 class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
   final _storage = const FlutterSecureStorage();
   Map<String, Map<String, String>> _providers = {};
-  String? _selectedProvider;
   
+  // Pipeline Selections
+  String? _activeChatProvider;
   String? _activeChatModel;
+  List<String> _chatModelOptions = [];
+
+  String? _activeVisionProvider;
   String? _activeVisionModel;
+  List<String> _visionModelOptions = [];
   
+  // Management Section
+  String? _manageProvider;
   List<String> _allFetchedModels = [];
   Map<String, bool> _modelIsChat = {};
   Map<String, bool> _modelIsVision = {};
@@ -29,6 +37,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   String _searchQuery = '';
+  bool _enableAutoFailover = true;
 
   @override
   void initState() {
@@ -55,15 +64,26 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     setState(() {
       _providers = providers;
       if (_providers.isNotEmpty) {
-        _selectedProvider = prefs.getString('active_ai_provider') ?? _providers.keys.first;
-        if (!_providers.containsKey(_selectedProvider)) {
-          _selectedProvider = _providers.keys.first;
-        }
+        _enableAutoFailover = prefs.getBool('enable_auto_failover') ?? true;
+        _activeChatProvider = prefs.getString('active_chat_provider') ?? prefs.getString('active_ai_provider') ?? _providers.keys.first;
+        _activeVisionProvider = prefs.getString('active_vision_provider') ?? prefs.getString('active_ai_provider') ?? _providers.keys.first;
+        _manageProvider = _providers.keys.first;
+        
+        if (!_providers.containsKey(_activeChatProvider)) _activeChatProvider = _providers.keys.first;
+        if (!_providers.containsKey(_activeVisionProvider)) _activeVisionProvider = _providers.keys.first;
       }
     });
 
-    if (_selectedProvider != null) {
-      await _fetchModelsForProvider(_selectedProvider!);
+    if (_providers.isNotEmpty) {
+      _activeChatModel = prefs.getString('active_chat_model_$_activeChatProvider');
+      _activeVisionModel = prefs.getString('active_vision_model_$_activeVisionProvider');
+      
+      await _loadOptionsFromPrefs();
+      if (_manageProvider != null) {
+        await _fetchModelsForProvider(_manageProvider!);
+      } else {
+        setState(() => _isLoading = false);
+      }
     } else {
       setState(() {
         _isLoading = false;
@@ -72,7 +92,32 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     }
   }
 
-  Future<void> _fetchModelsForProvider(String providerName) async {
+  Future<void> _loadOptionsFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    
+    List<String> chatOptions = [];
+    List<String> visionOptions = [];
+    
+    for (var key in keys) {
+      if (key.startsWith('model_is_chat_${_activeChatProvider}_') && prefs.getBool(key) == true) {
+        chatOptions.add(key.replaceFirst('model_is_chat_${_activeChatProvider}_', ''));
+      }
+      if (key.startsWith('model_is_vision_${_activeVisionProvider}_') && prefs.getBool(key) == true) {
+        visionOptions.add(key.replaceFirst('model_is_vision_${_activeVisionProvider}_', ''));
+      }
+    }
+    
+    setState(() {
+      _chatModelOptions = chatOptions;
+      _visionModelOptions = visionOptions;
+      
+      if (_activeChatModel != null && !_chatModelOptions.contains(_activeChatModel)) _activeChatModel = null;
+      if (_activeVisionModel != null && !_visionModelOptions.contains(_activeVisionModel)) _activeVisionModel = null;
+    });
+  }
+
+  Future<void> _fetchModelsForProvider(String providerName, {int attempt = 1}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -91,45 +136,36 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         List<String> models = dataList.map((m) => m['id'].toString()).toList();
         
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('active_ai_provider', providerName);
-        
-        final chatModel = prefs.getString('active_chat_model_$providerName');
-        final visionModel = prefs.getString('active_vision_model_$providerName');
         
         final chatTags = <String, bool>{};
         final visionTags = <String, bool>{};
         
         for (var m in models) {
-          final isChat = prefs.getBool('model_is_chat_${providerName}_$m') ?? false;
-          final isVis = prefs.getBool('model_is_vision_${providerName}_$m') ?? false;
-          chatTags[m] = isChat;
-          visionTags[m] = isVis;
+          chatTags[m] = prefs.getBool('model_is_chat_${providerName}_$m') ?? false;
+          visionTags[m] = prefs.getBool('model_is_vision_${providerName}_$m') ?? false;
         }
         
         setState(() {
           _allFetchedModels = models;
           _modelIsChat = chatTags;
           _modelIsVision = visionTags;
-          
-          _activeChatModel = chatModel;
-          _activeVisionModel = visionModel;
-          
-          if (_activeChatModel != null && (!_allFetchedModels.contains(_activeChatModel) || _modelIsChat[_activeChatModel] != true)) {
-             _activeChatModel = null;
-          }
-          if (_activeVisionModel != null && (!_allFetchedModels.contains(_activeVisionModel) || _modelIsVision[_activeVisionModel] != true)) {
-             _activeVisionModel = null;
-          }
-          
           _isLoading = false;
         });
       } else {
+        if (attempt == 1) {
+          await Future.delayed(const Duration(milliseconds: 200));
+          return _fetchModelsForProvider(providerName, attempt: 2);
+        }
         setState(() {
           _isLoading = false;
           _errorMessage = context.tr('model_error_list').replaceAll('{code}', response.statusCode.toString());
         });
       }
     } catch (e) {
+      if (attempt == 1) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        return _fetchModelsForProvider(providerName, attempt: 2);
+      }
       setState(() {
         _isLoading = false;
         _errorMessage = context.tr('model_error_network');
@@ -139,34 +175,52 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
   
   Future<void> _toggleTag(String model, bool isChatTag, bool val) async {
     final prefs = await SharedPreferences.getInstance();
-    final provider = _selectedProvider!;
+    final provider = _manageProvider!;
     
     setState(() {
       if (isChatTag) {
         _modelIsChat[model] = val;
-        if (!val && _activeChatModel == model) _activeChatModel = null;
       } else {
         _modelIsVision[model] = val;
-        if (!val && _activeVisionModel == model) _activeVisionModel = null;
       }
     });
     
     if (isChatTag) {
       await prefs.setBool('model_is_chat_${provider}_$model', val);
-      if (_activeChatModel == null) await prefs.remove('active_chat_model_$provider');
     } else {
       await prefs.setBool('model_is_vision_${provider}_$model', val);
-      if (_activeVisionModel == null) await prefs.remove('active_vision_model_$provider');
     }
+    
+    // Reload dropdown options if the managed provider matches active
+    await _loadOptionsFromPrefs();
+  }
+
+  Future<void> _updateActiveChatProvider(String? val) async {
+    if (val == null) return;
+    setState(() => _activeChatProvider = val);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('active_chat_provider', val);
+    _activeChatModel = prefs.getString('active_chat_model_$val');
+    await _loadOptionsFromPrefs();
+  }
+
+  Future<void> _updateActiveVisionProvider(String? val) async {
+    if (val == null) return;
+    setState(() => _activeVisionProvider = val);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('active_vision_provider', val);
+    _activeVisionModel = prefs.getString('active_vision_model_$val');
+    await _loadOptionsFromPrefs();
   }
 
   Future<void> _updateActiveChatModel(String? val) async {
     setState(() => _activeChatModel = val);
     final prefs = await SharedPreferences.getInstance();
     if (val != null) {
-      await prefs.setString('active_chat_model_${_selectedProvider!}', val);
+      await prefs.setString('active_chat_provider', _activeChatProvider!);
+      await prefs.setString('active_chat_model_${_activeChatProvider!}', val);
     } else {
-      await prefs.remove('active_chat_model_${_selectedProvider!}');
+      await prefs.remove('active_chat_model_${_activeChatProvider!}');
     }
   }
 
@@ -174,13 +228,20 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     setState(() => _activeVisionModel = val);
     final prefs = await SharedPreferences.getInstance();
     if (val != null) {
-      await prefs.setString('active_vision_model_${_selectedProvider!}', val);
+      await prefs.setString('active_vision_provider', _activeVisionProvider!);
+      await prefs.setString('active_vision_model_${_activeVisionProvider!}', val);
     } else {
-      await prefs.remove('active_vision_model_${_selectedProvider!}');
+      await prefs.remove('active_vision_model_${_activeVisionProvider!}');
     }
   }
 
-  Widget _buildDropdown(String label, String? value, List<String> options, Function(String?) onChanged) {
+    Future<void> _toggleAutoFailover(bool val) async {
+    setState(() => _enableAutoFailover = val);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('enable_auto_failover', val);
+  }
+
+  Widget _buildDropdown(String label, String? value, List<String> options, Function(String?) onChanged, {bool isLtr = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -192,7 +253,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              value: value,
+              value: options.contains(value) ? value : (options.isNotEmpty ? options.first : null),
               dropdownColor: AppTheme.surfaceHigh,
               icon: const Icon(Icons.expand_more, color: AppTheme.textSecondary),
               style: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary),
@@ -200,9 +261,10 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
               items: options.map((opt) {
                 return DropdownMenuItem(
                   value: opt,
-                  child: Text(opt, textDirection: TextDirection.ltr),
+                  child: Text(opt, textDirection: isLtr ? TextDirection.ltr : null),
                 );
               }).toList(),
+              hint: Text(context.tr('model_none_selected'), style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary)),
             ),
           ),
         ),
@@ -210,11 +272,21 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     );
   }
 
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primary, size: 20),
+          const SizedBox(width: AppTheme.spacingSm),
+          Text(title, style: AppTheme.headlineMd.copyWith(fontSize: 18)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chatOptions = _allFetchedModels.where((m) => _modelIsChat[m] == true).toList();
-    final visionOptions = _allFetchedModels.where((m) => _modelIsVision[m] == true).toList();
-
     final filteredModels = _searchQuery.isEmpty 
         ? _allFetchedModels 
         : _allFetchedModels.where((m) => m.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
@@ -236,19 +308,83 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
                     : ListView(
                         padding: const EdgeInsets.all(AppTheme.gutter),
                         children: [
-                          if (_providers.isNotEmpty)
+                          if (_providers.isNotEmpty) ...[
+                            
+                            Container(
+                              margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
+                              decoration: AppTheme.cardDecoration(),
+                              child: Column(
+                                children: [
+                                  SwitchListTile(
+                                    title: Text(context.tr('model_auto_failover_title') ?? 'Universal Auto-Failover', style: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary)),
+                                    subtitle: Text(context.tr('model_auto_failover_desc') ?? 'تغییر خودکار ارائه‌دهنده در صورت بروز خطا', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                                    value: _enableAutoFailover,
+                                    activeColor: AppTheme.primary,
+                                    onChanged: _toggleAutoFailover,
+                                  ),
+                                  if (_enableAutoFailover)
+                                    Padding(
+                                      padding: const EdgeInsets.all(AppTheme.spacingMd),
+                                      child: FallbackManagementWidget(providerDetails: _providers),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            _buildSectionHeader(context.tr('model_text_generation'), Icons.chat_bubble_outline),
                             _buildDropdown(
                               context.tr('model_provider_label'),
-                              _selectedProvider,
+                              _activeChatProvider,
+                              _providers.keys.toList(),
+                              _updateActiveChatProvider,
+                            ),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            _buildDropdown(
+                              context.tr('model_text_active'),
+                              _activeChatModel,
+                              _chatModelOptions,
+                              _updateActiveChatModel,
+                              isLtr: true,
+                            ),
+                            
+                            const SizedBox(height: AppTheme.spacingXl),
+                            const Divider(color: AppTheme.outline),
+                            
+                            _buildSectionHeader(context.tr('model_vision_generation'), Icons.image_outlined),
+                            _buildDropdown(
+                              context.tr('model_provider_label'),
+                              _activeVisionProvider,
+                              _providers.keys.toList(),
+                              _updateActiveVisionProvider,
+                            ),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            _buildDropdown(
+                              context.tr('model_vision_active'),
+                              _activeVisionModel,
+                              _visionModelOptions,
+                              _updateActiveVisionModel,
+                              isLtr: true,
+                            ),
+                            
+                            const SizedBox(height: AppTheme.spacingXl),
+                            const Divider(color: AppTheme.outline),
+                            
+                            _buildSectionHeader(context.tr('model_manage_models'), Icons.settings_applications_outlined),
+                            
+                            _buildDropdown(
+                              context.tr('model_provider_label'),
+                              _manageProvider,
                               _providers.keys.toList(),
                               (val) {
-                                if (val != null && val != _selectedProvider) {
-                                  setState(() => _selectedProvider = val);
+                                if (val != null && val != _manageProvider) {
+                                  setState(() => _manageProvider = val);
                                   _fetchModelsForProvider(val);
                                 }
                               },
                             ),
-                          const SizedBox(height: AppTheme.spacingLg),
+                            const SizedBox(height: AppTheme.spacingLg),
+                          ],
+                          
                           if (_errorMessage != null)
                             Container(
                               padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -258,28 +394,14 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
                                   Text(_errorMessage!, style: AppTheme.bodyMd.copyWith(color: AppTheme.error)),
                                   const SizedBox(height: AppTheme.spacingMd),
                                   ElevatedButton(
-                                    onPressed: _selectedProvider != null ? () => _fetchModelsForProvider(_selectedProvider!) : _loadData,
+                                    onPressed: _manageProvider != null ? () => _fetchModelsForProvider(_manageProvider!) : _loadData,
                                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.surface),
                                     child: Text(context.tr('action_retry'), style: TextStyle(color: AppTheme.textPrimary)),
                                   ),
                                 ],
                               ),
                             )
-                          else ...[
-                            _buildDropdown(
-                              context.tr('model_text_active'),
-                              _activeChatModel,
-                              chatOptions,
-                              _updateActiveChatModel,
-                            ),
-                            const SizedBox(height: AppTheme.spacingLg),
-                            _buildDropdown(
-                              context.tr('model_vision_active'),
-                              _activeVisionModel,
-                              visionOptions,
-                              _updateActiveVisionModel,
-                            ),
-                            const SizedBox(height: AppTheme.spacingXl),
+                          else if (_providers.isNotEmpty) ...[
                             TextField(
                               style: AppTheme.bodyLg,
                               textDirection: TextDirection.ltr,

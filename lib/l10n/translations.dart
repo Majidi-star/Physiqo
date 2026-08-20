@@ -3,6 +3,17 @@ import 'package:flutter/widgets.dart';
 class Translations {
   static const Map<String, Map<String, String>> _localizedValues = {
     'fa': {
+      'model_auto_failover_title': 'تغییر خودکار به مدل پشتیبان',
+
+      'fallback_chain_title': 'زنجیره اولویت مدل‌های جایگزین',
+      'add_fallback': 'افزودن مدل پشتیبان',
+      'select_provider': 'انتخاب ارائه‌دهنده',
+      'model_name': 'نام مدل',
+
+      'model_auto_failover_desc': 'سوئیچ خودکار به مدلهای جایگزین در صورت بروز خطا',
+      'model_text_generation': 'تولید و پردازش متن',
+      'model_vision_generation': 'پردازش و تحلیل تصویر',
+
       // General
       'back': 'بازگشت',
       'yes': 'بله',
@@ -60,6 +71,10 @@ class Translations {
       
       // Analysis Screen
       'analysis_title': 'نتایج تحلیل',
+
+      'analysis_offline_estimate': '⚠️ تخمین تقریبی',
+      'analysis_offline_estimate_desc': 'ارتباط با هوش مصنوعی برقرار نشد. این اعداد تخمینی هستند و توسط هوش مصنوعی اسکن نشده‌اند.',
+
       'analysis_subtitle': 'تحلیل هوش مصنوعی | ۱۵ آبان',
       'analysis_needs_work': 'نیاز به کار',
       'analysis_strong': 'قوی',
@@ -549,6 +564,17 @@ class Translations {
       'exercise_abs_13_desc': 'توضیحات تمرین شکم 13',
     },
     'en': {
+      'model_auto_failover_title': 'Universal Auto-Failover',
+
+      'fallback_chain_title': 'Fallback Priority Chain',
+      'add_fallback': 'Add Backup Model',
+      'select_provider': 'Select Provider',
+      'model_name': 'Model Name',
+
+      'model_auto_failover_desc': 'Automatically switch to backup models if the active provider fails',
+      'model_text_generation': 'Text Generation',
+      'model_vision_generation': 'Vision Processing',
+
       // General
       'back': 'Back',
       'yes': 'Yes',
@@ -620,6 +646,10 @@ class Translations {
       
       // Analysis Screen
       'analysis_title': 'Analysis Results',
+
+      'analysis_offline_estimate': '⚠️ Offline Estimate',
+      'analysis_offline_estimate_desc': 'AI analysis is currently unavailable. These measurements are rough approximations and not scanned by AI.',
+
       'analysis_subtitle': 'AI Analysis | Nov 6',
       'analysis_needs_work': 'Needs Work',
       'analysis_strong': 'Strong',

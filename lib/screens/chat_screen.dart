@@ -54,10 +54,8 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     
     _scrollController.addListener(() {
       if (_scrollController.hasClients) {
-        final maxScroll = _scrollController.position.maxScrollExtent;
-        final currentScroll = _scrollController.offset;
         setState(() {
-          _showScrollToBottom = maxScroll - currentScroll > 150;
+          _showScrollToBottom = _scrollController.offset > 150;
         });
       }
     });
@@ -97,11 +95,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 300,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      _scrollController.jumpTo(0.0);
     }
   }
 
@@ -321,11 +315,10 @@ ${contextData['userContext']}
                 final index = _activeSession!.messages.indexWhere((m) => m.id == streamingMsg.id);
                 if (index != -1) {
                   final msgs = List<ChatMessage>.from(_activeSession!.messages);
-                  msgs[index] = streamingMsg.copyWith(content: finalContent);
+                  msgs[index] = streamingMsg.copyWith(content: finalContent, providerServed: event.providerServed);
                   _activeSession = _activeSession!.copyWith(messages: msgs);
                 }
               });
-              _scrollToBottom();
             }
             
             if (event.isDone) {
@@ -361,7 +354,7 @@ ${contextData['userContext']}
         
         if (mounted && _activeSession != null) {
           if (finalContent.isNotEmpty) {
-            final completedMsg = streamingMsg.copyWith(content: finalContent);
+            final completedMsg = _activeSession!.messages.firstWhere((m) => m.id == streamingMsg.id, orElse: () => streamingMsg).copyWith(content: finalContent);
             await _repository.addMessage(_activeSession!.id, completedMsg);
           } else {
             final msgs = List<ChatMessage>.from(_activeSession!.messages);
@@ -690,6 +683,7 @@ ${contextData['userContext']}
     }).toList();
     final showEmptyState = messages.isEmpty && !_isGenerating;
     final isLtr = _isLtrChat ?? (Directionality.of(context) == TextDirection.ltr);
+    final displayMessages = messages.reversed.toList();
 
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
@@ -743,18 +737,20 @@ ${contextData['userContext']}
                               children: [
                                 ListView.builder(
                                   controller: _scrollController,
+                                  reverse: true,
+                                  physics: const ClampingScrollPhysics(),
                                   padding: const EdgeInsets.only(
                                     left: AppTheme.gutter,
                                     right: AppTheme.gutter,
                                     top: AppTheme.gutter,
                                     bottom: AppTheme.gutter * 2,
                                   ),
-                                  itemCount: messages.length + (_isGenerating ? 1 : 0),
+                                  itemCount: displayMessages.length + (_isGenerating ? 1 : 0),
                                   itemBuilder: (context, index) {
-                                    if (_isGenerating && index == messages.length) {
+                                    if (_isGenerating && index == 0) {
                                       return const _TypingIndicatorBubble();
                                     }
-                                    final msg = messages[index];
+                                    final msg = displayMessages[_isGenerating ? index - 1 : index];
                                     return _ChatBubble(
                                       message: msg,
                                       onEdit: () {},
@@ -1346,6 +1342,17 @@ class _ChatBubbleState extends State<_ChatBubble> {
                                 ),
                               );
                             }).toList(),
+                          ),
+                        ],
+                        
+                        if (widget.message.providerServed != null && isCoach) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Served by ${widget.message.providerServed}',
+                            style: AppTheme.labelMd.copyWith(
+                              color: AppTheme.textSecondary.withValues(alpha: 0.5),
+                              fontSize: 9,
+                            ),
                           ),
                         ],
                         if (widget.message.isEdited) ...[
