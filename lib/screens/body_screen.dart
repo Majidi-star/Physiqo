@@ -107,11 +107,15 @@ class _BodyScreenState extends State<BodyScreen> {
                     Row(
                       textDirection: TextDirection.rtl,
                       children: [
-                        Text(
-                          context.tr('body_target_muscles'),
-                          style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
+                        Expanded(
+                          child: Text(
+                            context.tr('body_target_muscles'),
+                            style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(

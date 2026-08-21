@@ -251,8 +251,7 @@ final Map<String, String> langAr = {
   'ai_guide_q2': 'كيف تحصل عليه؟',
   'ai_guide_a2': 'يمكنك إنشاء مفتاح خاص بك عبر زيارة مواقع مثل platform.openai.com أو Google Cloud Console. تُخزَّن مفاتيحك محليًا على هذا الجهاز فقط وهي آمنة تمامًا.',
   'ai_guide_q3': 'أنواع النماذج',
-  'ai_guide_a3': 'النموذج النصي: يُستخدم لإنشاء خطط التمرين والمحادثة.
-نموذج الرؤية: يُستخدم لتحليل صور فحص الجسم.',
+  'ai_guide_a3': 'النموذج النصي: يُستخدم لإنشاء خطط التمرين والمحادثة.\nنموذج الرؤية: يُستخدم لتحليل صور فحص الجسم.',
   'scan_analyzing': 'جارٍ التحليل...',
   'scan_camera_permission_desc': 'لالتقاط صورتين أمامية وخلفية لتحليل الفحص، يرجى تفعيل الوصول إلى الكاميرا في إعدادات هاتفك.',
   'form_exercise_name': 'اسم التمرين',
@@ -996,4 +995,13 @@ final Map<String, String> langAr = {
   'db_ex_desc_cardio_16': 'التبديل بين فترات عالية الشدة وفترات تعافٍ على دراجة ثابتة.',
   'db_ex_target_cardio_16': 'العضلات الرباعية للفخذ، الجهاز القلبي الوعائي',
   'db_ex_equip_cardio_16': 'آلة كارديو',
+  'tool_running_query_exercise_database': 'Searching exercise database...',
+  'tool_done_query_exercise_database': 'Searched exercise database',
+  'tool_running_save_workout_plan': 'Saving workout plan...',
+  'tool_done_save_workout_plan': 'Saved workout plan',
+  'tool_running_calculate_macros': 'Calculating macros...',
+  'tool_done_calculate_macros': 'Calculated macros',
+  'tool_group_summary': 'Executed {} actions',
+  'tool_custom_running': 'Running {}...',
+  'tool_custom_done': 'Executed {}',
 };

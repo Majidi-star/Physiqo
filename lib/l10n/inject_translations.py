@@ -76,7 +76,7 @@ def update_dart_file_from_json(json_path):
                 missing_count += 1
                 
             # Escape single quotes and format exactly like dart expects
-            t = str(t).replace("'", "\\'")
+            t = str(t).replace("'", "\\'").replace("\n", "\\n")
             new_content += f"  '{k}': '{t}',\n"
         elif line.strip() == '};' or line.strip() == '':
             pass 

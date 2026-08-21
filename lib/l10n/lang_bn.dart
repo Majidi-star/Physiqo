@@ -251,8 +251,7 @@ final Map<String, String> langBn = {
   'ai_guide_q2': 'কীভাবে একটা পাবেন? ',
   'ai_guide_a2': 'আপনি platform.openai.com বা Google Cloud Console-এর মতো সাইটে গিয়ে আপনার নিজস্ব ব্যক্তিগত কী তৈরি করতে পারেন। আপনার কী শুধুমাত্র এই ডিভাইসে স্থানীয়ভাবে সংরক্ষিত থাকে এবং সম্পূর্ণ নিরাপদ। ',
   'ai_guide_q3': 'মডেলের প্রকার ',
-  'ai_guide_a3': 'টেক্সট মডেল: ওয়ার্কআউট তৈরি এবং চ্যাটের জন্য ব্যবহৃত হয়।
-ভিশন মডেল: বডি স্ক্যানের ছবি বিশ্লেষণের জন্য ব্যবহৃত হয়। ',
+  'ai_guide_a3': 'টেক্সট মডেল: ওয়ার্কআউট তৈরি এবং চ্যাটের জন্য ব্যবহৃত হয়।\nভিশন মডেল: বডি স্ক্যানের ছবি বিশ্লেষণের জন্য ব্যবহৃত হয়। ',
   'scan_analyzing': 'বিশ্লেষণ করছি... ',
   'scan_camera_permission_desc': 'স্ক্যান বিশ্লেষণের জন্য সামনে এবং পিছনের ছবি তুলতে, অনুগ্রহ করে আপনার ফোনের সেটিংসে ক্যামেরা অ্যাক্সেস সক্রিয় করুন। ',
   'form_exercise_name': 'ব্যায়ামের নাম ',
@@ -996,4 +995,13 @@ final Map<String, String> langBn = {
   'db_ex_desc_cardio_16': 'স্টেশনারি বাইকে উচ্চ-তীব্রতা এবং পুনরুদ্ধার ইন্টারভ্যালের পরিবর্তন। ',
   'db_ex_target_cardio_16': 'কোয়াডস, কার্ডিওভাসকুলার সিস্টেম ',
   'db_ex_equip_cardio_16': 'কার্ডিও মেশিন ',
+  'tool_running_query_exercise_database': 'Searching exercise database...',
+  'tool_done_query_exercise_database': 'Searched exercise database',
+  'tool_running_save_workout_plan': 'Saving workout plan...',
+  'tool_done_save_workout_plan': 'Saved workout plan',
+  'tool_running_calculate_macros': 'Calculating macros...',
+  'tool_done_calculate_macros': 'Calculated macros',
+  'tool_group_summary': 'Executed {} actions',
+  'tool_custom_running': 'Running {}...',
+  'tool_custom_done': 'Executed {}',
 };

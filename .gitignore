@@ -60,3 +60,7 @@ local.properties
 # google-services.json
 # GoogleService-Info.plist
 secrets.json
+
+# Graphify / AI tool artifacts
+graphify-out/
+scratch/

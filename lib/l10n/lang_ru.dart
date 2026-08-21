@@ -251,8 +251,7 @@ final Map<String, String> langRu = {
   'ai_guide_q2': 'Как его получить? ',
   'ai_guide_a2': 'Вы можете создать свой личный ключ, посетив сайты вроде platform.openai.com или Google Cloud Console. Ваши ключи хранятся только локально на этом устройстве и полностью защищены. ',
   'ai_guide_q3': 'Типы моделей ',
-  'ai_guide_a3': 'Текстовая модель: используется для генерации тренировок и чата.
-Модель зрения: используется для анализа фото сканирования тела. ',
+  'ai_guide_a3': 'Текстовая модель: используется для генерации тренировок и чата.\nМодель зрения: используется для анализа фото сканирования тела. ',
   'scan_analyzing': 'Анализ... ',
   'scan_camera_permission_desc': 'Для съёмки фото спереди и сзади для анализа сканирования разрешите доступ к камере в настройках телефона. ',
   'form_exercise_name': 'Название упражнения ',
@@ -996,4 +995,13 @@ final Map<String, String> langRu = {
   'db_ex_desc_cardio_16': 'Чередование высокоинтенсивных интервалов и отдыха на велотренажёре. ',
   'db_ex_target_cardio_16': 'Квадрицепс, сердечно-сосудистая система ',
   'db_ex_equip_cardio_16': 'Кардиотренажёр ',
+  'tool_running_query_exercise_database': 'Searching exercise database...',
+  'tool_done_query_exercise_database': 'Searched exercise database',
+  'tool_running_save_workout_plan': 'Saving workout plan...',
+  'tool_done_save_workout_plan': 'Saved workout plan',
+  'tool_running_calculate_macros': 'Calculating macros...',
+  'tool_done_calculate_macros': 'Calculated macros',
+  'tool_group_summary': 'Executed {} actions',
+  'tool_custom_running': 'Running {}...',
+  'tool_custom_done': 'Executed {}',
 };

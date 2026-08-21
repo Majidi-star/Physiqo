@@ -43,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   final _scrollController = ScrollController();
   bool _showScrollToBottom = false;
   bool _isCheckingOverride = false;
+  bool _autoScrollEnabled = true;
 
   @override
   void initState() {
@@ -54,6 +55,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     
     _scrollController.addListener(() {
       if (_scrollController.hasClients) {
+        final isAtBottom = _scrollController.offset <= 60.0;
+        
+        if (isAtBottom) {
+          _autoScrollEnabled = true;
+        } else {
+          _autoScrollEnabled = false;
+        }
+
         setState(() {
           _showScrollToBottom = _scrollController.offset > 150;
         });
@@ -199,6 +208,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     
     setState(() {
       _isGenerating = true;
+      _autoScrollEnabled = true;
     });
     _refreshActiveSession();
     
@@ -319,6 +329,10 @@ ${contextData['userContext']}
                   _activeSession = _activeSession!.copyWith(messages: msgs);
                 }
               });
+              
+              if (_autoScrollEnabled) {
+                _scrollToBottom();
+              }
             }
             
             if (event.isDone) {
@@ -684,6 +698,24 @@ ${contextData['userContext']}
     final showEmptyState = messages.isEmpty && !_isGenerating;
     final isLtr = _isLtrChat ?? (Directionality.of(context) == TextDirection.ltr);
     final displayMessages = messages.reversed.toList();
+    
+    final List<dynamic> displayItems = [];
+    List<ChatMessage> currentToolGroup = [];
+    
+    for (var msg in displayMessages) {
+      if (msg.role == ChatMessageRole.tool) {
+        currentToolGroup.add(msg);
+      } else {
+        if (currentToolGroup.isNotEmpty) {
+          displayItems.add(currentToolGroup);
+          currentToolGroup = [];
+        }
+        displayItems.add(msg);
+      }
+    }
+    if (currentToolGroup.isNotEmpty) {
+      displayItems.add(currentToolGroup);
+    }
 
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
@@ -745,12 +777,18 @@ ${contextData['userContext']}
                                     top: AppTheme.gutter,
                                     bottom: AppTheme.gutter * 2,
                                   ),
-                                  itemCount: displayMessages.length + (_isGenerating ? 1 : 0),
+                                  itemCount: displayItems.length + (_isGenerating ? 1 : 0),
                                   itemBuilder: (context, index) {
                                     if (_isGenerating && index == 0) {
                                       return const _TypingIndicatorBubble();
                                     }
-                                    final msg = displayMessages[_isGenerating ? index - 1 : index];
+                                    final item = displayItems[_isGenerating ? index - 1 : index];
+                                    
+                                    if (item is List<ChatMessage>) {
+                                      return _ToolGroupBubble(tools: item);
+                                    }
+                                    
+                                    final msg = item as ChatMessage;
                                     return _ChatBubble(
                                       message: msg,
                                       onEdit: () {},
@@ -790,7 +828,10 @@ ${contextData['userContext']}
                                       mini: true,
                                       backgroundColor: AppTheme.surfaceHigh,
                                       foregroundColor: AppTheme.primary,
-                                      onPressed: _scrollToBottom,
+                                      onPressed: () {
+                                        _autoScrollEnabled = true;
+                                        _scrollToBottom();
+                                      },
                                       child: const Icon(Icons.keyboard_arrow_down),
                                     ),
                                   ),
@@ -1094,84 +1135,7 @@ class _ChatBubbleState extends State<_ChatBubble> {
   @override
   Widget build(BuildContext context) {
     if (widget.message.role == ChatMessageRole.tool) {
-      final isFa = Localizations.localeOf(context).languageCode == 'fa';
-      bool isWorking = widget.message.content.isEmpty;
-      
-      String toolName = widget.message.toolName ?? 'unknown_tool';
-      String displayName = toolName.replaceAll('_', ' ');
-      // Capitalize first letter of each word
-      displayName = displayName.split(' ').map((str) => str.isNotEmpty ? '${str[0].toUpperCase()}${str.substring(1)}' : '').join(' ');
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        child: Align(
-          alignment: isFa ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.surface.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              border: Border.all(
-                color: isWorking ? AppTheme.primary.withValues(alpha: 0.4) : AppTheme.outline.withValues(alpha: 0.2),
-                width: 1,
-              ),
-              boxShadow: [
-                if (isWorking)
-                  BoxShadow(
-                    color: AppTheme.primary.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  )
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isWorking)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2, 
-                      color: AppTheme.primary
-                    ),
-                  )
-                else
-                  const Icon(
-                    Icons.check_circle_outline, 
-                    size: 18, 
-                    color: Colors.greenAccent
-                  ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isWorking 
-                          ? (isFa ? 'در حال اجرای ابزار' : 'Executing Tool') 
-                          : (isFa ? 'ابزار اجرا شد' : 'Tool Executed'),
-                      style: AppTheme.labelMd.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontSize: 10,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      toolName,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 13,
-                        color: isWorking ? AppTheme.textPrimary : AppTheme.textPrimary.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     if (widget.message.role == ChatMessageRole.system) {
@@ -1767,6 +1731,215 @@ class _TypingIndicatorBubbleState extends State<_TypingIndicatorBubble> with Sin
             );
           }),
         ),
+      ),
+    );
+  }
+}
+
+Map<String, dynamic> _getToolMetadata(String toolName, bool isWorking, BuildContext context) {
+  String title = '';
+  IconData icon = Icons.build_circle_outlined;
+  
+  switch (toolName) {
+    case 'query_exercise_database':
+      title = isWorking 
+        ? context.tr('tool_running_query_exercise_database') 
+        : context.tr('tool_done_query_exercise_database');
+      icon = Icons.fitness_center_rounded;
+      break;
+    case 'save_workout_plan':
+      title = isWorking 
+        ? context.tr('tool_running_save_workout_plan') 
+        : context.tr('tool_done_save_workout_plan');
+      icon = Icons.bookmark_added_rounded;
+      break;
+    case 'calculate_macros':
+      title = isWorking 
+        ? context.tr('tool_running_calculate_macros') 
+        : context.tr('tool_done_calculate_macros');
+      icon = Icons.restaurant_menu_rounded;
+      break;
+    default:
+      String formatted = toolName.replaceAll('_', ' ');
+      formatted = formatted.split(' ').map((str) => str.isNotEmpty ? '${str[0].toUpperCase()}${str.substring(1)}' : '').join(' ');
+      title = isWorking 
+        ? context.tr('tool_custom_running').replaceAll('{}', formatted)
+        : context.tr('tool_custom_done').replaceAll('{}', formatted);
+      icon = Icons.miscellaneous_services_rounded;
+  }
+  
+  return {'title': title, 'icon': icon};
+}
+
+class _ToolGroupBubble extends StatefulWidget {
+  final List<ChatMessage> tools;
+
+  const _ToolGroupBubble({required this.tools});
+
+  @override
+  State<_ToolGroupBubble> createState() => _ToolGroupBubbleState();
+}
+
+class _ToolGroupBubbleState extends State<_ToolGroupBubble> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.tools.isEmpty) return const SizedBox.shrink();
+    
+    final isFa = Localizations.localeOf(context).languageCode == 'fa';
+    bool isWorking = widget.tools.any((t) => t.content.isEmpty);
+    
+    String headerTitle = '';
+    IconData headerIcon = Icons.build_circle_outlined;
+    
+    // Reverse the tools so they show in chronological order inside the accordion
+    final chronoTools = widget.tools.reversed.toList();
+    
+    if (widget.tools.length == 1) {
+      final meta = _getToolMetadata(widget.tools.first.toolName ?? 'unknown', isWorking, context);
+      headerTitle = meta['title'];
+      headerIcon = meta['icon'];
+    } else {
+      headerTitle = context.tr('tool_group_summary').replaceAll('{}', widget.tools.length.toString());
+      headerIcon = Icons.account_tree_rounded;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: AppTheme.gutter),
+      child: Align(
+        alignment: isFa ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.85,
+          decoration: BoxDecoration(
+            color: AppTheme.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
+                borderRadius: _isExpanded 
+                    ? const BorderRadius.vertical(top: Radius.circular(10)) 
+                    : BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      if (isWorking)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
+                        )
+                      else
+                        Icon(headerIcon, size: 16, color: AppTheme.textSecondary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          headerTitle,
+                          style: AppTheme.labelMd.copyWith(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        size: 18,
+                        color: AppTheme.textSecondary.withOpacity(0.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_isExpanded)
+                Container(
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: AppTheme.outline)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: chronoTools.map((tool) {
+                      return _ToolAccordionItem(tool: tool);
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolAccordionItem extends StatelessWidget {
+  final ChatMessage tool;
+
+  const _ToolAccordionItem({required this.tool});
+
+  @override
+  Widget build(BuildContext context) {
+    bool isWorking = tool.content.isEmpty;
+    final meta = _getToolMetadata(tool.toolName ?? 'unknown', isWorking, context);
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppTheme.outline)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (isWorking)
+                const SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.primary),
+                )
+              else
+                Icon(meta['icon'], size: 12, color: AppTheme.textSecondary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  meta['title'],
+                  style: AppTheme.labelMd.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            constraints: const BoxConstraints(maxHeight: 250),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: SingleChildScrollView(
+              child: Text(
+                isWorking ? 'Executing...' : tool.content,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: AppTheme.textSecondary.withOpacity(0.8),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

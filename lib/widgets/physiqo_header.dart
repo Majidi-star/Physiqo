@@ -64,43 +64,51 @@ class PhysiqoHeader extends StatelessWidget implements PreferredSizeWidget {
   List<Widget> _buildProfileHeader() {
     return [
       // Profile on the right (start of row in RTL)
-      ListenableBuilder(
-        listenable: UserProfile.current(),
-        builder: (context, child) {
-          final profile = UserProfile.current();
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppTheme.surfaceHigh,
-                backgroundImage: profile.photoPath != null ? FileImage(File(profile.photoPath!)) : null,
-                child: profile.photoPath == null ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 20) : null,
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    profile.name,
-                    style: AppTheme.bodyLg.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
+      Expanded(
+        child: ListenableBuilder(
+          listenable: UserProfile.current(),
+          builder: (context, child) {
+            final profile = UserProfile.current();
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppTheme.surfaceHigh,
+                  backgroundImage: profile.photoPath != null ? FileImage(File(profile.photoPath!)) : null,
+                  child: profile.photoPath == null ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 20) : null,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        profile.name,
+                        style: AppTheme.bodyLg.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${context.tr('header_height')}: ${profile.height} / ${context.tr('header_weight')}: ${profile.weight}',
+                        style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${context.tr('header_height')}: ${profile.height} / ${context.tr('header_weight')}: ${profile.weight}',
-                    style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
+                ),
+              ],
+            );
+          },
+        ),
       ),
-      const Spacer(),
+      const SizedBox(width: 8),
       // Logo on the left (end of row in RTL)
       const PhysiqoLogo(height: 24),
     ];

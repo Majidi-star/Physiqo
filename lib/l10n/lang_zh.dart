@@ -251,8 +251,7 @@ final Map<String, String> langZh = {
   'ai_guide_q2': '如何获取？',
   'ai_guide_a2': '你可以访问 platform.openai.com 或 Google Cloud Console 等网站创建自己的私密密钥。你的密钥仅保存在本设备上，安全无虞。',
   'ai_guide_q3': '模型类型',
-  'ai_guide_a3': '文本模型：用于生成训练计划和聊天。
-视觉模型：用于身体扫描照片分析。',
+  'ai_guide_a3': '文本模型：用于生成训练计划和聊天。\n视觉模型：用于身体扫描照片分析。',
   'scan_analyzing': '分析中…',
   'scan_camera_permission_desc': '为了拍摄用于扫描分析的正面和背面照片，请在手机设置中开启相机权限。',
   'form_exercise_name': '动作名称',
@@ -996,4 +995,13 @@ final Map<String, String> langZh = {
   'db_ex_desc_cardio_16': '在固定自行车上交替进行高强度和恢复间歇。',
   'db_ex_target_cardio_16': '股四头肌、心血管系统',
   'db_ex_equip_cardio_16': '有氧器械',
+  'tool_running_query_exercise_database': 'Searching exercise database...',
+  'tool_done_query_exercise_database': 'Searched exercise database',
+  'tool_running_save_workout_plan': 'Saving workout plan...',
+  'tool_done_save_workout_plan': 'Saved workout plan',
+  'tool_running_calculate_macros': 'Calculating macros...',
+  'tool_done_calculate_macros': 'Calculated macros',
+  'tool_group_summary': 'Executed {} actions',
+  'tool_custom_running': 'Running {}...',
+  'tool_custom_done': 'Executed {}',
 };

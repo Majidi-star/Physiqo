@@ -251,8 +251,7 @@ final Map<String, String> langUr = {
   'ai_guide_q2': 'یہ کیسے حاصل کریں؟',
   'ai_guide_a2': 'آپ platform.openai.com یا Google Cloud Console جیسی ویب سائٹس پر جا کر اپنی ذاتی کی بنا سکتے ہیں۔ آپ کی کیز صرف اسی ڈیوائس پر محفوظ رہتی ہیں اور مکمل طور پر محفوظ ہیں۔',
   'ai_guide_q3': 'ماڈل کی اقسام',
-  'ai_guide_a3': 'ٹیکسٹ ماڈل: ورک آؤٹ پلان بنانے اور چیٹ کے لیے استعمال ہوتا ہے۔
-ویژن ماڈل: باڈی اسکین تصاویر کے تجزیے کے لیے استعمال ہوتا ہے۔',
+  'ai_guide_a3': 'ٹیکسٹ ماڈل: ورک آؤٹ پلان بنانے اور چیٹ کے لیے استعمال ہوتا ہے۔\nویژن ماڈل: باڈی اسکین تصاویر کے تجزیے کے لیے استعمال ہوتا ہے۔',
   'scan_analyzing': 'تجزیہ ہو رہا ہے...',
   'scan_camera_permission_desc': 'سامنے اور پیچھے کی تصاویر لینے کے لیے برائے مہربانی اپنے فون کی ترتیبات میں کیمرے کی اجازت فعال کریں۔',
   'form_exercise_name': 'ورزش کا نام',
@@ -996,4 +995,13 @@ final Map<String, String> langUr = {
   'db_ex_desc_cardio_16': 'اسٹیشنری بائیک پر زیادہ شدت اور بحالی کے وقفوں کا تبادلہ۔',
   'db_ex_target_cardio_16': 'کواڈز، قلبی نظام',
   'db_ex_equip_cardio_16': 'کارڈیو مشین',
+  'tool_running_query_exercise_database': 'Searching exercise database...',
+  'tool_done_query_exercise_database': 'Searched exercise database',
+  'tool_running_save_workout_plan': 'Saving workout plan...',
+  'tool_done_save_workout_plan': 'Saved workout plan',
+  'tool_running_calculate_macros': 'Calculating macros...',
+  'tool_done_calculate_macros': 'Calculated macros',
+  'tool_group_summary': 'Executed {} actions',
+  'tool_custom_running': 'Running {}...',
+  'tool_custom_done': 'Executed {}',
 };

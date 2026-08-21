@@ -994,5 +994,14 @@
     "db_ex_name_cardio_16": "Stationary Bike Sprints (HIIT)",
     "db_ex_desc_cardio_16": "Alternating high-intensity and recovery intervals on a stationary bike.",
     "db_ex_target_cardio_16": "Quads, Cardiovascular System",
-    "db_ex_equip_cardio_16": "Cardio Machine"
+    "db_ex_equip_cardio_16": "Cardio Machine",
+    "tool_running_query_exercise_database": "Searching exercise database...",
+    "tool_done_query_exercise_database": "Searched exercise database",
+    "tool_running_save_workout_plan": "Saving workout plan...",
+    "tool_done_save_workout_plan": "Saved workout plan",
+    "tool_running_calculate_macros": "Calculating macros...",
+    "tool_done_calculate_macros": "Calculated macros",
+    "tool_group_summary": "Executed {} actions",
+    "tool_custom_running": "Running {}...",
+    "tool_custom_done": "Executed {}"
 }

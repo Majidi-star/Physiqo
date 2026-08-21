@@ -251,8 +251,7 @@ final Map<String, String> langHi = {
   'ai_guide_q2': 'इसे कैसे प्राप्त करें?',
   'ai_guide_a2': 'आप platform.openai.com या Google Cloud Console जैसी वेबसाइटों पर जाकर अपनी निजी कुंजी बना सकते हैं। आपकी कुंजियां केवल इस डिवाइस पर संग्रहीत होती हैं और पूरी तरह सुरक्षित होती हैं।',
   'ai_guide_q3': 'मॉडल प्रकार',
-  'ai_guide_a3': 'टेक्स्ट मॉडल: वर्कआउट प्लान बनाने और चैट के लिए उपयोग किया जाता है।
-विज़न मॉडल: बॉडी स्कैन फोटो विश्लेषण के लिए उपयोग किया जाता है।',
+  'ai_guide_a3': 'टेक्स्ट मॉडल: वर्कआउट प्लान बनाने और चैट के लिए उपयोग किया जाता है।\nविज़न मॉडल: बॉडी स्कैन फोटो विश्लेषण के लिए उपयोग किया जाता है।',
   'scan_analyzing': 'विश्लेषण हो रहा है...',
   'scan_camera_permission_desc': 'स्कैन विश्लेषण के लिए सामने और पीछे की फोटो लेने हेतु, कृपया अपने फोन की सेटिंग्स में कैमरा एक्सेस सक्षम करें।',
   'form_exercise_name': 'एक्सरसाइज का नाम',
@@ -996,4 +995,13 @@ final Map<String, String> langHi = {
   'db_ex_desc_cardio_16': 'स्टेशनरी बाइक पर हाई-इंटेंसिटी और रिकवरी इंटरवल को बदल-बदलकर करना।',
   'db_ex_target_cardio_16': 'क्वाड्स, हृदय-संवहनी तंत्र',
   'db_ex_equip_cardio_16': 'कार्डियो मशीन',
+  'tool_running_query_exercise_database': 'Searching exercise database...',
+  'tool_done_query_exercise_database': 'Searched exercise database',
+  'tool_running_save_workout_plan': 'Saving workout plan...',
+  'tool_done_save_workout_plan': 'Saved workout plan',
+  'tool_running_calculate_macros': 'Calculating macros...',
+  'tool_done_calculate_macros': 'Calculated macros',
+  'tool_group_summary': 'Executed {} actions',
+  'tool_custom_running': 'Running {}...',
+  'tool_custom_done': 'Executed {}',
 };
