@@ -45,7 +45,6 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
     _defaultReps = ex?.defaultReps ?? 12;
     _defaultRestSeconds = ex?.defaultRestSeconds ?? 90;
     _estimatedMinutes = ex?.estimatedMinutes ?? 45;
-    _equipment = ex != null ? (Localizations.localeOf(context).languageCode == 'fa' ? ex.equipmentFa : ex.equipmentEn) : '';
   }
 
   @override
@@ -56,6 +55,7 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
       _name = ex != null ? (AppDateUtils.isFa(context) ? ex.nameFa : ex.nameEn) : '';
       _secondaryMuscleGroupsRaw = ex != null ? (AppDateUtils.isFa(context) ? ex.targetMusclesFa : ex.targetMusclesEn) : '';
       _description = ex != null ? (AppDateUtils.isFa(context) ? ex.descriptionFa : ex.descriptionEn) : '';
+      _equipment = ex != null ? (AppDateUtils.isFa(context) ? ex.equipmentFa : ex.equipmentEn) : '';
       _initialized = true;
     }
   }

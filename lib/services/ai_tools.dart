@@ -33,7 +33,7 @@ class AiTools {
             },
             "unitSystem": {"type": "string", "enum": ["metric", "imperial"]},
             "defaultRestTime": {"type": "number", "description": "Rest time between sets in seconds"},
-            "appLanguage": {"type": "string", "enum": ["fa", "en"]}
+            "appLanguage": {"type": "string", "enum": ["fa", "en", "zh", "hi", "es", "ar", "fr", "bn", "pt", "ru", "ur"]}
           }
         }
       }
@@ -245,12 +245,25 @@ class AiTools {
           }
 
           if (args.containsKey('appLanguage')) {
-            final lang = args['appLanguage']?.toString() ?? 'fa';
+            final lang = args['appLanguage']?.toString() ?? 'en';
             await prefs.setString('app_language', lang);
             if (context.mounted) {
+              final Map<String, Locale> locales = {
+                'en': const Locale('en', 'US'),
+                'fa': const Locale('fa', 'IR'),
+                'zh': const Locale('zh', 'CN'),
+                'hi': const Locale('hi', 'IN'),
+                'es': const Locale('es', 'ES'),
+                'ar': const Locale('ar', 'SA'),
+                'fr': const Locale('fr', 'FR'),
+                'bn': const Locale('bn', 'BD'),
+                'pt': const Locale('pt', 'PT'),
+                'ru': const Locale('ru', 'RU'),
+                'ur': const Locale('ur', 'PK'),
+              };
               import_main.PhysiqoApp.setLocale(
                 context, 
-                Locale(lang == 'en' ? 'en' : 'fa', lang == 'en' ? 'US' : 'IR')
+                locales[lang] ?? const Locale('en', 'US')
               );
             }
           }

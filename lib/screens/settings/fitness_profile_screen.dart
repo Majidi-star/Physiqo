@@ -97,6 +97,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
   }) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppTheme.surfaceHigh,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusMd)),
@@ -105,19 +106,20 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacingMd),
-                  child: Text(title, style: AppTheme.headlineMd),
-                ),
-                const Divider(color: AppTheme.outline, height: 1),
-                ...options.map((option) {
-                  final isSelected = option == currentValue;
-                  return ListTile(
-                    title: Text(
-                      _mapVal(option),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(AppTheme.spacingMd),
+                    child: Text(title, style: AppTheme.headlineMd),
+                  ),
+                  const Divider(color: AppTheme.outline, height: 1),
+                  ...options.map((option) {
+                    final isSelected = option == currentValue;
+                    return ListTile(
+                      title: Text(
+                        _mapVal(option),
                       style: AppTheme.bodyLg.copyWith(
                         color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -134,6 +136,7 @@ class _FitnessProfileScreenState extends State<FitnessProfileScreen> {
               ],
             ),
           ),
+        ),
         );
       },
     );

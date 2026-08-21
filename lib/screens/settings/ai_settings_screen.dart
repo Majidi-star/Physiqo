@@ -12,61 +12,66 @@ class AISettingsScreen extends StatelessWidget {
   void _showHelpBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppTheme.surfaceHigh,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXl)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(AppTheme.gutter),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(2),
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.gutter),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.textSecondary.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  Text(context.tr('ai_guide'), style: AppTheme.headlineMd),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  Text(
+                    context.tr('ai_guide_q1'),
+                    style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text(
+                    context.tr('ai_guide_a1'),
+                    style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  Text(
+                    context.tr('ai_guide_q2'),
+                    style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text(
+                    context.tr('ai_guide_a2'),
+                    style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  Text(
+                    context.tr('ai_guide_q3'),
+                    style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text(
+                    context.tr('ai_guide_a3'),
+                    style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: AppTheme.spacingXl),
+                ],
               ),
-              const SizedBox(height: AppTheme.spacingLg),
-              Text(context.tr('ai_guide'), style: AppTheme.headlineMd),
-              const SizedBox(height: AppTheme.spacingMd),
-              Text(
-                context.tr('ai_guide_q1'),
-                style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              Text(
-                context.tr('ai_guide_a1'),
-                style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-              Text(
-                context.tr('ai_guide_q2'),
-                style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              Text(
-                context.tr('ai_guide_a2'),
-                style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-              Text(
-                context.tr('ai_guide_q3'),
-                style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
-              ),
-              const SizedBox(height: AppTheme.spacingSm),
-              Text(
-                context.tr('ai_guide_a3'),
-                style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: AppTheme.spacingXl),
-            ],
+            ),
           ),
         );
       },

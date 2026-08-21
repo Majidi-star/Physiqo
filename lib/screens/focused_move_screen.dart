@@ -180,10 +180,10 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
-                      Text(AppDateUtils.isFa(context) ? _exercise.nameFa : _exercise.nameEn, style: AppTheme.headlineMd),
+                      Text(_exercise.getLocalizedName(context), style: AppTheme.headlineMd),
                       const SizedBox(height: AppTheme.spacingSm),
                       Text(
-                        AppDateUtils.isFa(context) ? _exercise.descriptionFa : _exercise.descriptionEn,
+                        _exercise.getLocalizedDescription(context),
                         style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: AppTheme.spacingLg),
@@ -213,7 +213,7 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                             isPrimary: true,
                           ),
                           // Secondary muscle group tags
-                          for (final muscle in (AppDateUtils.isFa(context) ? _exercise.targetMusclesFa : _exercise.targetMusclesEn).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty))
+                          for (final muscle in _exercise.getLocalizedTargetMuscles(context).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty))
                             _MuscleTag(label: muscle, isPrimary: false),
                         ],
                       ),

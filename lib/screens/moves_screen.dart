@@ -402,14 +402,14 @@ class _MoveCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppDateUtils.isFa(context) ? exercise.nameFa : exercise.nameEn,
+                      exercise.getLocalizedName(context),
                       style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.w700),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      AppDateUtils.isFa(context) ? exercise.descriptionFa : exercise.descriptionEn,
+                      exercise.getLocalizedDescription(context),
                       style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

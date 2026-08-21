@@ -1,3 +1,7 @@
+import 'package:flutter/material.dart';
+import '../l10n/translations.dart';
+import '../utils/app_date_utils.dart';
+
 enum PrimaryMuscleGroup { chest, back, legs, shoulders, arms, abs, cardio }
 
 class Exercise {
@@ -61,6 +65,34 @@ class Exercise {
         'imageAsset': imageAsset,
         'isHidden': isHidden,
       };
+
+  String getLocalizedName(BuildContext context) {
+    if (!isCustom) {
+      return context.tr('db_ex_name_$id');
+    }
+    return AppDateUtils.isFa(context) ? nameFa : nameEn;
+  }
+
+  String getLocalizedTargetMuscles(BuildContext context) {
+    if (!isCustom) {
+      return context.tr('db_ex_target_$id');
+    }
+    return AppDateUtils.isFa(context) ? targetMusclesFa : targetMusclesEn;
+  }
+
+  String getLocalizedDescription(BuildContext context) {
+    if (!isCustom) {
+      return context.tr('db_ex_desc_$id');
+    }
+    return AppDateUtils.isFa(context) ? descriptionFa : descriptionEn;
+  }
+
+  String getLocalizedEquipment(BuildContext context) {
+    if (!isCustom) {
+      return context.tr('db_ex_equip_$id');
+    }
+    return AppDateUtils.isFa(context) ? equipmentFa : equipmentEn;
+  }
 
   factory Exercise.fromJson(Map<String, dynamic> json) => Exercise(
         id: json['id'] as String,

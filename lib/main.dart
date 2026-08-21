@@ -60,7 +60,7 @@ class PhysiqoApp extends StatefulWidget {
 }
 
 class _PhysiqoAppState extends State<PhysiqoApp> {
-  Locale _locale = const Locale('fa', 'IR');
+  Locale _locale = const Locale('en', 'US');
 
   @override
   void initState() {
@@ -72,11 +72,31 @@ class _PhysiqoAppState extends State<PhysiqoApp> {
     final prefs = await SharedPreferences.getInstance();
     final langCode = prefs.getString('app_language');
     if (langCode != null) {
-      if (langCode == 'en') {
-        setState(() => _locale = const Locale('en', 'US'));
-      } else {
+      if (langCode == 'fa') {
         setState(() => _locale = const Locale('fa', 'IR'));
+      } else if (langCode == 'zh') {
+        setState(() => _locale = const Locale('zh', 'CN'));
+      } else if (langCode == 'hi') {
+        setState(() => _locale = const Locale('hi', 'IN'));
+      } else if (langCode == 'es') {
+        setState(() => _locale = const Locale('es', 'ES'));
+      } else if (langCode == 'ar') {
+        setState(() => _locale = const Locale('ar', 'SA'));
+      } else if (langCode == 'fr') {
+        setState(() => _locale = const Locale('fr', 'FR'));
+      } else if (langCode == 'bn') {
+        setState(() => _locale = const Locale('bn', 'BD'));
+      } else if (langCode == 'pt') {
+        setState(() => _locale = const Locale('pt', 'PT'));
+      } else if (langCode == 'ru') {
+        setState(() => _locale = const Locale('ru', 'RU'));
+      } else if (langCode == 'ur') {
+        setState(() => _locale = const Locale('ur', 'PK'));
+      } else {
+        setState(() => _locale = const Locale('en', 'US'));
       }
+    } else {
+      await prefs.setString('app_language', 'en');
     }
   }
 
@@ -94,8 +114,17 @@ class _PhysiqoAppState extends State<PhysiqoApp> {
       theme: AppTheme.darkTheme,
       locale: _locale,
       supportedLocales: const [
-        Locale('fa', 'IR'),
         Locale('en', 'US'),
+        Locale('fa', 'IR'),
+        Locale('zh', 'CN'),
+        Locale('hi', 'IN'),
+        Locale('es', 'ES'),
+        Locale('ar', 'SA'),
+        Locale('fr', 'FR'),
+        Locale('bn', 'BD'),
+        Locale('pt', 'PT'),
+        Locale('ru', 'RU'),
+        Locale('ur', 'PK'),
       ],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

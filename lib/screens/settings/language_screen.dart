@@ -13,7 +13,7 @@ class LanguageScreen extends StatefulWidget {
 }
 
 class _LanguageScreenState extends State<LanguageScreen> {
-  String _selectedLang = 'fa';
+  String _selectedLang = 'en';
   bool _isLoading = true;
 
   @override
@@ -25,7 +25,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
   Future<void> _loadLang() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _selectedLang = prefs.getString('app_language') ?? 'fa';
+      _selectedLang = prefs.getString('app_language') ?? 'en';
       _isLoading = false;
     });
   }
@@ -38,11 +38,20 @@ class _LanguageScreenState extends State<LanguageScreen> {
     });
     
     if (mounted) {
-      if (lang == 'en') {
-        PhysiqoApp.setLocale(context, const Locale('en', 'US'));
-      } else {
-        PhysiqoApp.setLocale(context, const Locale('fa', 'IR'));
-      }
+      final Map<String, Locale> locales = {
+        'en': const Locale('en', 'US'),
+        'fa': const Locale('fa', 'IR'),
+        'zh': const Locale('zh', 'CN'),
+        'hi': const Locale('hi', 'IN'),
+        'es': const Locale('es', 'ES'),
+        'ar': const Locale('ar', 'SA'),
+        'fr': const Locale('fr', 'FR'),
+        'bn': const Locale('bn', 'BD'),
+        'pt': const Locale('pt', 'PT'),
+        'ru': const Locale('ru', 'RU'),
+        'ur': const Locale('ur', 'PK'),
+      };
+      PhysiqoApp.setLocale(context, locales[lang] ?? const Locale('en', 'US'));
     }
   }
 
@@ -101,8 +110,17 @@ class _LanguageScreenState extends State<LanguageScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: AppTheme.spacingLg),
-                          _buildLangOption(context.tr('lang_fa_label'), 'fa'),
-                          _buildLangOption(context.tr('lang_en_label'), 'en'),
+                          _buildLangOption('English (English)', 'en'),
+                          _buildLangOption('Persian (فارسی)', 'fa'),
+                          _buildLangOption('Chinese (中文)', 'zh'),
+                          _buildLangOption('Hindi (हिन्दी)', 'hi'),
+                          _buildLangOption('Spanish (Español)', 'es'),
+                          _buildLangOption('Arabic (العربية)', 'ar'),
+                          _buildLangOption('French (Français)', 'fr'),
+                          _buildLangOption('Bengali (বাংলা)', 'bn'),
+                          _buildLangOption('Portuguese (Português)', 'pt'),
+                          _buildLangOption('Russian (Русский)', 'ru'),
+                          _buildLangOption('Urdu (اردو)', 'ur'),
                         ],
                       ),
                     ),

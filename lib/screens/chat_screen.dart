@@ -1094,34 +1094,81 @@ class _ChatBubbleState extends State<_ChatBubble> {
   @override
   Widget build(BuildContext context) {
     if (widget.message.role == ChatMessageRole.tool) {
-      return Center(
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceHigh,
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-            border: Border.all(color: AppTheme.outline.withValues(alpha: 0.5)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.message.content.isEmpty)
-                const SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary),
-                )
-              else
-                const Icon(Icons.check_circle, size: 14, color: AppTheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                widget.message.content.isEmpty 
-                  ? context.tr('chat_status_thinking')
-                  : context.tr('chat_status_completed'),
-                style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+      final isFa = Localizations.localeOf(context).languageCode == 'fa';
+      bool isWorking = widget.message.content.isEmpty;
+      
+      String toolName = widget.message.toolName ?? 'unknown_tool';
+      String displayName = toolName.replaceAll('_', ' ');
+      // Capitalize first letter of each word
+      displayName = displayName.split(' ').map((str) => str.isNotEmpty ? '${str[0].toUpperCase()}${str.substring(1)}' : '').join(' ');
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Align(
+          alignment: isFa ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.surface.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: isWorking ? AppTheme.primary.withValues(alpha: 0.4) : AppTheme.outline.withValues(alpha: 0.2),
+                width: 1,
               ),
-            ],
+              boxShadow: [
+                if (isWorking)
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  )
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isWorking)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2, 
+                      color: AppTheme.primary
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.check_circle_outline, 
+                    size: 18, 
+                    color: Colors.greenAccent
+                  ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isWorking 
+                          ? (isFa ? 'در حال اجرای ابزار' : 'Executing Tool') 
+                          : (isFa ? 'ابزار اجرا شد' : 'Tool Executed'),
+                      style: AppTheme.labelMd.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      toolName,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        color: isWorking ? AppTheme.textPrimary : AppTheme.textPrimary.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );
