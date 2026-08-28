@@ -165,16 +165,24 @@ class _MovesScreenState extends State<MovesScreen> {
 
   Widget _buildUpcomingPlans() {
     final scheduledDatesStr = ExerciseRepository.instance.getAllScheduledWorkoutDates();
-    if (scheduledDatesStr.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Divider(color: AppTheme.outline),
         const SizedBox(height: AppTheme.spacingMd),
-        Text(
-          context.tr('moves_upcoming_plans'),
-          style: AppTheme.headlineMd,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              context.tr('moves_upcoming_plans'),
+              style: AppTheme.headlineMd,
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings, color: AppTheme.textSecondary),
+              onPressed: () => Navigator.pushNamed(context, '/schedule_overview'),
+            ),
+          ],
         ),
         const SizedBox(height: AppTheme.spacingMd),
         GestureDetector(
@@ -193,7 +201,7 @@ class _MovesScreenState extends State<MovesScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.1),
+                    color: AppTheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                   ),
                   child: const Icon(
@@ -208,19 +216,23 @@ class _MovesScreenState extends State<MovesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'برنامه تمرینی جاری',
+                        'برنامه تمرینی جاری / مدیریت دستی',
                         style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'شامل ${scheduledDatesStr.length} روز تمرینی',
+                        scheduledDatesStr.isEmpty
+                            ? 'هیچ برنامه‌ای ثبت نشده. برای ایجاد ضربه بزنید.'
+                            : 'شامل ${scheduledDatesStr.length} روز تمرینی',
                         style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'شروع از ${scheduledDatesStr.first} تا ${scheduledDatesStr.last}',
-                        style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-                      ),
+                      if (scheduledDatesStr.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'شروع از ${scheduledDatesStr.first} تا ${scheduledDatesStr.last}',
+                          style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -26,6 +26,7 @@ class ScheduleOverviewScreen extends StatefulWidget {
 class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
   List<WorkoutDay> _allPlans = [];
   WorkoutDay? _sharePosterPlan;
+  bool _shareAllAsImageActive = false;
   final GlobalKey _posterBoundaryKey = GlobalKey();
 
   @override
@@ -623,6 +624,403 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
     }
   }
 
+  void _shareAllPlans(BuildContext context) async {
+    if (_allPlans.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('برنامه‌ای برای اشتراک‌گذاری وجود ندارد.', style: TextStyle(fontFamily: 'Vazirmatn'))),
+      );
+      return;
+    }
+
+    final selection = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text(
+          'اشتراک‌گذاری کل برنامه تمرینی',
+          style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold),
+          textAlign: TextAlign.right,
+        ),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'text'),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text('ارسال به صورت متن', style: TextStyle(fontFamily: 'Vazirmatn')),
+                SizedBox(width: 12),
+                Icon(Icons.text_fields, color: AppTheme.primary),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'image'),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text('ارسال به صورت تصویر', style: TextStyle(fontFamily: 'Vazirmatn')),
+                SizedBox(width: 12),
+                Icon(Icons.image, color: AppTheme.primary),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (selection == 'text') {
+      final buffer = StringBuffer();
+      buffer.writeln('💪 برنامه تمرینی من در فیزیقو (Physiqo) 💪\n');
+
+      for (var plan in _allPlans) {
+        final dateParts = plan.date.split('-');
+        final y = int.parse(dateParts[0]);
+        final m = int.parse(dateParts[1]);
+        final d = int.parse(dateParts[2].split('_')[0]);
+        final jalali = Jalali.fromDateTime(DateTime(y, m, d));
+        final shamsiStr = "${jalali.day} ${AppDateUtils.faMonths[jalali.month - 1]}";
+
+        buffer.writeln('📅 تاریخ: $shamsiStr (${plan.date.split('_')[0]})');
+        buffer.writeln('🏋️ عنوان: ${plan.title}');
+        if (plan.focus.isNotEmpty) {
+          buffer.writeln('🎯 تمرکز: ${plan.focus}');
+        }
+        buffer.writeln('---');
+
+        for (int i = 0; i < plan.items.length; i++) {
+          final item = plan.items[i];
+          if (item is SingleMoveItem) {
+            final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(item.exerciseId);
+            if (ex != null) {
+              buffer.writeln('${i + 1}. ${ex.getLocalizedName(context)}: ${ex.defaultSets} ست × ${ex.defaultReps} تکرار');
+            }
+          } else if (item is SupersetItem) {
+            final List<String> names = [];
+            for (var id in item.exerciseIds) {
+              final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(id);
+              if (ex != null) {
+                names.add('${ex.getLocalizedName(context)} (${ex.defaultSets}×${ex.defaultReps})');
+              }
+            }
+            buffer.writeln('${i + 1}. سوپرست [${names.join(' + ')}]');
+          }
+        }
+        buffer.writeln('\n====================\n');
+      }
+
+      await Share.share(buffer.toString());
+    } else if (selection == 'image') {
+      await _captureAndShareCollageImage();
+    }
+  }
+
+  Future<void> _captureAndShareCollageImage() async {
+    setState(() {
+      _shareAllAsImageActive = true;
+    });
+
+    // Wait for widget compilation and painting
+    await Future.delayed(const Duration(milliseconds: 250));
+
+    try {
+      final boundary = _posterBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception("RepaintBoundary findRenderObject returned null");
+      }
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception("toByteData returned null");
+      }
+
+      final pngBytes = byteData.buffer.asUint8List();
+
+      final tempDir = await getTemporaryDirectory();
+      final file = await File('${tempDir.path}/physiqo_all_workouts.png').create();
+      await file.writeAsBytes(pngBytes);
+
+      final isFa = AppDateUtils.isFa(context);
+      final shareText = isFa ? 'برنامه تمرینی کامل من در فیزیقو' : 'My complete workout plan on Physiqo';
+      
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: shareText,
+        subject: 'برنامه تمرینی فیزیقو',
+      );
+    } catch (e) {
+      debugPrint("Error exporting collage: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطا در خروجی تصویر: $e')),
+      );
+    } finally {
+      setState(() {
+        _shareAllAsImageActive = false;
+      });
+    }
+  }
+
+  Widget _buildShareCollagePoster() {
+    final isFa = AppDateUtils.isFa(context);
+    return Container(
+      width: 450,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.outline, width: 2),
+      ),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'PHYSIQO',
+                  style: AppTheme.headlineMd.copyWith(
+                    color: AppTheme.primary,
+                    letterSpacing: 2,
+                    fontSize: 22,
+                  ),
+                ),
+                Text(
+                  'برنامه تمرینی کامل شما',
+                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(color: AppTheme.outline, thickness: 1.5),
+            const SizedBox(height: 16),
+            ..._allPlans.map((plan) {
+              final dateParts = plan.date.split('-');
+              final y = int.parse(dateParts[0]);
+              final m = int.parse(dateParts[1]);
+              final d = int.parse(dateParts[2].split('_')[0]);
+              final displayFullDate = AppDateUtils.formatFullDate(DateTime(y, m, d), isFa);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.outline),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          plan.title.isNotEmpty ? plan.title : 'تمرین روز',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
+                        ),
+                        Text(
+                          displayFullDate,
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                    if (plan.focus.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        plan.focus,
+                        style: const TextStyle(color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    const Divider(color: AppTheme.outline, height: 1),
+                    const SizedBox(height: 8),
+                    ...plan.items.map((item) {
+                      if (item is SingleMoveItem) {
+                        final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(item.exerciseId);
+                        if (ex != null) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  ex.getLocalizedName(context),
+                                  style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                                ),
+                                Text(
+                                  '${ex.defaultSets}×${ex.defaultReps}',
+                                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      } else if (item is SupersetItem) {
+                        final List<String> names = [];
+                        for (var id in item.exerciseIds) {
+                          final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(id);
+                          if (ex != null) {
+                            names.add('${ex.getLocalizedName(context)} (${ex.defaultSets}×${ex.defaultReps})');
+                          }
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.link, size: 14, color: AppTheme.primary),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'سوپرست: ${names.join(' + ')}',
+                                  style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                '✨ ساخته شده با Physiqo',
+                style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addSupersetToPlan(BuildContext context, WorkoutDay plan, Function(WorkoutDay) onUpdate) async {
+    final allExercises = ExerciseRepository.instance.getAllExercises();
+    allExercises.sort((a, b) => a.primaryMuscleGroup.toString().compareTo(b.primaryMuscleGroup.toString()));
+
+    final List<String> selectedIds = [];
+
+    final List<Exercise>? selected = await showModalBottomSheet<List<Exercise>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.8,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, scrollController) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.outline,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: selectedIds.length >= 2
+                                ? () {
+                                    final list = allExercises.where((e) => selectedIds.contains(e.id)).toList();
+                                    Navigator.pop(context, list);
+                                  }
+                                : null,
+                            child: Text(
+                              'ثبت (${selectedIds.length})',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: selectedIds.length >= 2 ? AppTheme.primary : AppTheme.textSecondary,
+                                fontFamily: 'Vazirmatn',
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            'انتخاب سوپرست (حداقل ۲ حرکت)',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: 'Vazirmatn'),
+                            textAlign: TextAlign.right,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: AppTheme.outline),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollController,
+                          itemCount: allExercises.length,
+                          itemBuilder: (context, index) {
+                            final ex = allExercises[index];
+                            final isChecked = selectedIds.contains(ex.id);
+                            final muscleGroupLabel = ex.primaryMuscleGroup.toString().split('.').last;
+
+                            return CheckboxListTile(
+                              activeColor: AppTheme.primary,
+                              checkColor: AppTheme.onPrimary,
+                              value: isChecked,
+                              onChanged: (val) {
+                                setSheetState(() {
+                                  if (val == true) {
+                                    selectedIds.add(ex.id);
+                                  } else {
+                                    selectedIds.remove(ex.id);
+                                  }
+                                });
+                              },
+                              title: Text(
+                                ex.getLocalizedName(context),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.right,
+                              ),
+                              subtitle: Text(
+                                muscleGroupLabel,
+                                style: const TextStyle(color: AppTheme.textSecondary),
+                                textAlign: TextAlign.right,
+                              ),
+                              secondary: const Icon(Icons.fitness_center, color: AppTheme.textSecondary),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+
+    if (selected != null && selected.length >= 2) {
+      final updatedItems = List<WorkoutItem>.from(plan.items)
+        ..add(SupersetItem(selected.map((e) => e.id).toList()));
+      onUpdate(plan.copyWith(items: updatedItems));
+    }
+  }
+
   void _showShareMenu(BuildContext context, WorkoutDay plan) {
     showModalBottomSheet(
       context: context,
@@ -794,7 +1192,10 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
   Widget _buildSharePoster(WorkoutDay plan) {
     final isFa = AppDateUtils.isFa(context);
     final dateParts = plan.date.split('-');
-    final dt = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
+    final year = int.parse(dateParts[0]);
+    final month = int.parse(dateParts[1]);
+    final day = int.parse(dateParts[2].split('_')[0]);
+    final dt = DateTime(year, month, day);
     final displayFullDate = AppDateUtils.formatFullDate(dt, isFa);
 
     return Container(
@@ -1135,7 +1536,6 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: AppTheme.spacingSm),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ElevatedButton.icon(
                           onPressed: () => _addPlanManually(context),
@@ -1145,14 +1545,33 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
-                          icon: const Icon(Icons.add, size: 18, color: AppTheme.onPrimary),
+                          icon: const Icon(Icons.add, size: 16, color: AppTheme.onPrimary),
                           label: const Text(
                             'برنامه جدید',
-                            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary),
+                            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary, fontSize: 13),
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _shareAllPlans(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.surfaceHigh,
+                            foregroundColor: AppTheme.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                              side: const BorderSide(color: AppTheme.outline),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.share, size: 16, color: AppTheme.primary),
+                          label: const Text(
+                            'اشتراک‌گذاری کل',
+                            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
+                          ),
+                        ),
+                        const Spacer(),
                         Text(
                           'برنامه‌های تمرینی شما',
                           style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
@@ -1271,9 +1690,11 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
             top: -9999,
             child: RepaintBoundary(
               key: _posterBoundaryKey,
-              child: _sharePosterPlan != null
-                  ? _buildSharePoster(_sharePosterPlan!)
-                  : const SizedBox.shrink(),
+              child: _shareAllAsImageActive
+                  ? _buildShareCollagePoster()
+                  : (_sharePosterPlan != null
+                      ? _buildSharePoster(_sharePosterPlan!)
+                      : const SizedBox.shrink()),
             ),
           ),
         ],

@@ -54,6 +54,7 @@ class ExerciseRepository extends ChangeNotifier {
   Future<void> _saveExercises(List<Exercise> exercises) async {
     final raw = jsonEncode(exercises.map((e) => e.toJson()).toList());
     await _prefs.setString(_storageKey, raw);
+    notifyListeners();
   }
 
   List<Exercise> getAllExercises() {
