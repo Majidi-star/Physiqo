@@ -12,6 +12,7 @@ import 'settings/default_rest_time_screen.dart';
 import 'settings/workout_days_screen.dart';
 import 'settings/language_screen.dart';
 import 'settings/about_screen.dart';
+import 'settings/guide_screen.dart';
 import '../models/user_profile.dart';
 import '../utils/unit_utils.dart';
 import '../l10n/translations.dart';
@@ -177,11 +178,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     label: context.tr('settings_language'),
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LanguageScreen())),
                   ),
-                  _SettingsItem(
-                    icon: Icons.info_outline, 
-                    label: context.tr('settings_about'),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen())),
-                  ),
+                   _SettingsItem(
+                     icon: Icons.help_outline, 
+                     label: context.tr('settings_user_guide'),
+                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuideScreen())),
+                   ),
+                   _SettingsItem(
+                     icon: Icons.info_outline, 
+                     label: context.tr('settings_about'),
+                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen())),
+                   ),
                 ],
               ),
               const SizedBox(height: 100),
