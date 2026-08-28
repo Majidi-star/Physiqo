@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../screens/focused_move_screen.dart';
 import '../l10n/translations.dart';
 import '../utils/app_date_utils.dart';
+import '../utils/farsi_formatter.dart';
 
 class ScheduledExerciseCard extends StatelessWidget {
   final Exercise exercise;
@@ -80,11 +81,11 @@ class ScheduledExerciseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${context.tr('home_sets')}${exercise.defaultSets}${context.tr('home_reps')}${exercise.defaultReps}',
+                    '${context.tr('home_sets')}${FarsiFormatter.formatNumber(exercise.defaultSets, Localizations.localeOf(context).languageCode)}${context.tr('home_reps')}${FarsiFormatter.formatNumber(exercise.defaultReps, Localizations.localeOf(context).languageCode)}',
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                   ),
                   Text(
-                    '${context.tr('home_est_time')}${exercise.estimatedMinutes}${context.tr('home_mins')}',
+                    '${context.tr('home_est_time')}${FarsiFormatter.formatNumber(exercise.estimatedMinutes, Localizations.localeOf(context).languageCode)}${context.tr('home_mins')}',
                     style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                   ),
                 ],

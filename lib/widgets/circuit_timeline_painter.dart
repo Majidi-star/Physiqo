@@ -16,23 +16,11 @@ class CircuitTimelinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final glowPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeJoin = StrokeJoin.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-
     final linePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
       ..strokeJoin = StrokeJoin.round;
-
-    final nodeGlowPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
     final nodePaint = Paint()
       ..color = color
@@ -80,7 +68,6 @@ class CircuitTimelinePainter extends CustomPainter {
       }
     }
 
-    canvas.drawPath(mainPath, glowPaint);
     canvas.drawPath(mainPath, linePaint);
 
     final inactiveNodePaint = Paint()
@@ -97,11 +84,9 @@ class CircuitTimelinePainter extends CustomPainter {
       bool isActive = i == activeIndex;
       bool hasPlan = i < hasPlans.length ? hasPlans[i] : false;
       
-      double glowRadius = isActive ? 8.0 : 5.0;
       double innerRadius = isActive ? 5.0 : 4.0;
       
       if (hasPlan || isActive) {
-        canvas.drawCircle(Offset(x, cy), glowRadius, nodeGlowPaint);
         canvas.drawCircle(Offset(x, cy), innerRadius, nodePaint);
       } else {
         canvas.drawCircle(Offset(x, cy), innerRadius, inactiveNodePaint);

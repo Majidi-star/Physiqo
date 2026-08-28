@@ -58,29 +58,33 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
               IconButton(
                 icon: const Icon(Icons.calendar_today, color: AppTheme.primary, size: 20),
                 onPressed: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: widget.selectedDate,
-                    firstDate: today.subtract(const Duration(days: 365)),
-                    lastDate: today.add(const Duration(days: 365)),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.dark(
-                            primary: AppTheme.primary,
-                            onPrimary: AppTheme.onPrimary,
-                            surface: AppTheme.surfaceHigh,
-                            onSurface: AppTheme.textPrimary,
+                  if (isFa) {
+                    _showShamsiDatePicker(context, widget.selectedDate, widget.onDateSelected);
+                  } else {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: widget.selectedDate,
+                      firstDate: today.subtract(const Duration(days: 365)),
+                      lastDate: today.add(const Duration(days: 365)),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: AppTheme.primary,
+                              onPrimary: AppTheme.onPrimary,
+                              surface: AppTheme.surfaceHigh,
+                              onSurface: AppTheme.textPrimary,
+                            ),
                           ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
+                          child: child!,
+                        );
+                      },
+                    );
 
-                  if (picked != null) {
-                    final pickedDate = DateTime(picked.year, picked.month, picked.day);
-                    widget.onDateSelected(pickedDate);
+                    if (picked != null) {
+                      final pickedDate = DateTime(picked.year, picked.month, picked.day);
+                      widget.onDateSelected(pickedDate);
+                    }
                   }
                 },
                 constraints: const BoxConstraints(),
@@ -156,6 +160,120 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showShamsiDatePicker(
+    BuildContext context,
+    DateTime initialDate,
+    ValueChanged<DateTime> onDateSelected,
+  ) {
+    final initialJalali = Jalali.fromDateTime(initialDate);
+    int selectedYear = initialJalali.year;
+    int selectedMonth = initialJalali.month;
+    int selectedDay = initialJalali.day;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final months = AppDateUtils.faMonths;
+            int maxDays = 30;
+            if (selectedMonth <= 6) {
+              maxDays = 31;
+            } else if (selectedMonth == 12) {
+              final r = selectedYear % 33;
+              final isLeap = r == 1 || r == 5 || r == 9 || r == 13 || r == 17 || r == 22 || r == 26 || r == 30;
+              maxDays = isLeap ? 30 : 29;
+            }
+            if (selectedDay > maxDays) {
+              selectedDay = maxDays;
+            }
+
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: AppTheme.surface,
+                title: const Text('انتخاب تاریخ', style: AppTheme.headlineMd),
+                content: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Day
+                    DropdownButton<int>(
+                      value: selectedDay,
+                      dropdownColor: AppTheme.surfaceHigh,
+                      items: List.generate(maxDays, (i) => i + 1).map((d) {
+                        return DropdownMenuItem<int>(
+                          value: d,
+                          child: Text(d.toString(), style: AppTheme.bodyLg),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedDay = val;
+                          });
+                        }
+                      },
+                    ),
+                    // Month
+                    DropdownButton<int>(
+                      value: selectedMonth,
+                      dropdownColor: AppTheme.surfaceHigh,
+                      items: List.generate(12, (i) => i + 1).map((m) {
+                        return DropdownMenuItem<int>(
+                          value: m,
+                          child: Text(months[m - 1], style: AppTheme.bodyLg),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedMonth = val;
+                          });
+                        }
+                      },
+                    ),
+                    // Year
+                    DropdownButton<int>(
+                      value: selectedYear,
+                      dropdownColor: AppTheme.surfaceHigh,
+                      items: List.generate(5, (i) => initialJalali.year - 2 + i).map((y) {
+                        return DropdownMenuItem<int>(
+                          value: y,
+                          child: Text(y.toString(), style: AppTheme.bodyLg),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedYear = val;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('انصراف', style: TextStyle(color: AppTheme.textSecondary)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      final jalali = Jalali(selectedYear, selectedMonth, selectedDay);
+                      onDateSelected(jalali.toDateTime());
+                      Navigator.pop(context);
+                    },
+                    child: const Text('تایید', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

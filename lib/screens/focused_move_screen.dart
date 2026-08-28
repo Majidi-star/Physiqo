@@ -6,6 +6,8 @@ import '../repositories/exercise_repository.dart';
 import 'exercise_form_screen.dart';
 import '../l10n/translations.dart';
 import '../utils/app_date_utils.dart';
+import '../utils/farsi_formatter.dart';
+import '../widgets/physiqo_back_button.dart';
 
 enum ExerciseDetailContext { database, scheduledWorkout }
 
@@ -95,11 +97,10 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: 8),
                 child: Row(
                   children: [
-                    // Back button on the right (start of row in RTL)
-                    IconButton(
-                      icon: const Icon(Icons.arrow_forward_ios, color: AppTheme.textPrimary, size: 20),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                     PhysiqoBackButton(
+                       onTap: () => Navigator.pop(context),
+                       size: 24,
+                     ),
                     const Spacer(),
                     Text(context.tr('focused_move_details'), style: AppTheme.headlineMd),
                     const Spacer(),
@@ -191,11 +192,11 @@ class _FocusedMoveScreenState extends State<FocusedMoveScreen> {
                       if (_args.context == ExerciseDetailContext.scheduledWorkout) ...[
                         Row(
                           children: [
-                            Expanded(child: _DetailChip(label: context.tr('focused_move_sets'), value: '${_args.sets ?? _exercise.defaultSets}')),
+                            Expanded(child: _DetailChip(label: context.tr('focused_move_sets'), value: FarsiFormatter.formatNumber(_args.sets ?? _exercise.defaultSets, Localizations.localeOf(context).languageCode))),
                             const SizedBox(width: AppTheme.spacingSm),
-                            Expanded(child: _DetailChip(label: context.tr('focused_move_reps'), value: '${_args.reps ?? _exercise.defaultReps}')),
+                            Expanded(child: _DetailChip(label: context.tr('focused_move_reps'), value: FarsiFormatter.formatNumber(_args.reps ?? _exercise.defaultReps, Localizations.localeOf(context).languageCode))),
                             const SizedBox(width: AppTheme.spacingSm),
-                            Expanded(child: _DetailChip(label: context.tr('focused_move_rest'), value: '${_args.restSeconds ?? _exercise.defaultRestSeconds}${context.tr('focused_move_seconds')}')),
+                            Expanded(child: _DetailChip(label: context.tr('focused_move_rest'), value: '${FarsiFormatter.formatNumber(_args.restSeconds ?? _exercise.defaultRestSeconds, Localizations.localeOf(context).languageCode)}${context.tr('focused_move_seconds')}')),
                           ],
                         ),
                         const SizedBox(height: AppTheme.spacingLg),

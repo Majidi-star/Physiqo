@@ -144,7 +144,7 @@ class AiService {
             modelId: model,
             apiKey: apiKey,
             baseUrl: baseUrl,
-            timeoutDuration: Duration(seconds: hasImages ? 12 : 7),
+            timeoutDuration: Duration(seconds: hasImages ? 30 : 15),
             isVisionCapable: hasImages,
           ));
         }
@@ -281,13 +281,18 @@ IMPORTANT RULES:
       };
       final stopwatch = Stopwatch()..start();
       
+      final headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Authorization': 'Bearer ${candidate.apiKey}',
+      };
+      if (candidate.baseUrl.contains('generativelanguage.googleapis.com') || candidate.provider.toLowerCase() == 'gemini') {
+        headers['x-goog-api-key'] = candidate.apiKey;
+      }
+
       try {
         final response = await _client.post(
           url,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer ${candidate.apiKey}',
-          },
+          headers: headers,
           body: jsonEncode(requestPayload),
         ).timeout(candidate.timeoutDuration);
 
@@ -522,11 +527,16 @@ IMPORTANT RULES:
       };
 
       try {
+        final headers = {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': 'Bearer ${candidate.apiKey}',
+        };
+        if (candidate.baseUrl.contains('generativelanguage.googleapis.com') || candidate.provider.toLowerCase() == 'gemini') {
+          headers['x-goog-api-key'] = candidate.apiKey;
+        }
+
         final request = http.Request('POST', url)
-          ..headers.addAll({
-            'Content-Type': 'application/json; charset=utf-8',
-            'Authorization': 'Bearer ${candidate.apiKey}',
-          })
+          ..headers.addAll(headers)
           ..body = jsonEncode(requestPayload);
 
         final response = await _client.send(request).timeout(candidate.timeoutDuration);

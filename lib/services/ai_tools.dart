@@ -401,14 +401,11 @@ class AiTools {
             7: 'day_sun',
           };
           
-          // Calculate the allowed upcoming dates (next 7 days starting today)
+          // Calculate the allowed upcoming dates (past 2 days and next 30 days starting today)
           final List<String> allowedDates = [];
-          for (int i = 0; i < 7; i++) {
+          for (int i = -2; i < 30; i++) {
             final date = now.add(Duration(days: i));
-            final dayKey = weekdayMap[date.weekday]!;
-            if (workoutDays.isEmpty || workoutDays.contains(dayKey)) {
-              allowedDates.add("${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}");
-            }
+            allowedDates.add("${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}");
           }
 
           final allExercises = ExerciseRepository.instance.getAllExercises();
@@ -487,7 +484,7 @@ class AiTools {
                     final ex = allExercises.firstWhere((e) => e.id == exId);
                     final group = ex.primaryMuscleGroup.toString().split('.').last.toLowerCase();
                     if (mentionedGroups.isNotEmpty && !mentionedGroups.contains(group)) {
-                      invalidIds.add("$exId (which is for $group, but day focus is '${dayRaw['focus'] ?? dayRaw['title']}')");
+                      debugPrint("⚠️ Warning: Exercise $exId is for $group, but day focus is '${dayRaw['focus'] ?? dayRaw['title']}'");
                     }
                   }
 

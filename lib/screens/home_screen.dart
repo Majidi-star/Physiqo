@@ -9,6 +9,7 @@ import '../models/exercise.dart';
 import '../models/workout_day.dart';
 import '../repositories/exercise_repository.dart';
 import '../l10n/translations.dart';
+import '../utils/farsi_formatter.dart';
 import 'package:shamsi_date/shamsi_date.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -61,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: AppTheme.spacingSm),
                         // ─── Meta info ─────────────────────────────────
                         Text(
-                          context.tr('home_meta_info'),
+                          _getDynamicMeta(context, _todayPlans),
                           style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                           textAlign: TextAlign.center,
                         ),
@@ -126,6 +127,66 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
-    return const SizedBox.shrink();
+  }
+
+  String _getDynamicMeta(BuildContext context, List<WorkoutDay> plans) {
+    final isFa = Localizations.localeOf(context).languageCode == 'fa';
+    if (plans.isEmpty || plans.every((p) => p.items.isEmpty)) {
+      return isFa ? 'برنامه‌ای برای امروز برنامه‌ریزی نشده است.' : 'No workouts scheduled for today.';
+    }
+    
+    int totalMinutes = 0;
+    final List<String> focuses = [];
+    
+    for (var plan in plans) {
+      if (plan.focus.isNotEmpty && !focuses.contains(plan.focus)) {
+        focuses.add(plan.focus);
+      }
+      for (var item in plan.items) {
+        if (item is SingleMoveItem) {
+          final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(item.exerciseId);
+          if (ex != null) {
+            totalMinutes += ex.estimatedMinutes;
+          }
+        } else if (item is SupersetItem) {
+          for (var id in item.exerciseIds) {
+            final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(id);
+            if (ex != null) {
+              totalMinutes += ex.estimatedMinutes;
+            }
+          }
+        }
+      }
+    }
+    
+    final focusText = focuses.join(isFa ? ' و ' : ' & ');
+    String durationStr = '';
+    
+    if (totalMinutes >= 60) {
+      final hours = totalMinutes ~/ 60;
+      final mins = totalMinutes % 60;
+      final hourLabel = isFa ? 'ساعت' : 'h';
+      final minLabel = isFa ? 'دقیقه' : 'm';
+      
+      final formattedHours = FarsiFormatter.formatNumber(hours, isFa ? 'fa' : 'en');
+      final formattedMins = FarsiFormatter.formatNumber(mins, isFa ? 'fa' : 'en');
+      
+      if (mins > 0) {
+        durationStr = isFa 
+            ? '$formattedHours $hourLabel و $formattedMins $minLabel' 
+            : '$formattedHours$hourLabel $formattedMins$minLabel';
+      } else {
+        durationStr = isFa ? '$formattedHours $hourLabel' : '$formattedHours$hourLabel';
+      }
+    } else {
+      final minLabel = isFa ? ' دقیقه' : ' mins';
+      durationStr = '${FarsiFormatter.formatNumber(totalMinutes, isFa ? 'fa' : 'en')}$minLabel';
+    }
+    
+    if (isFa) {
+      return 'زمان تقریبی: $durationStr${focusText.isNotEmpty ? "   |   تمرکز: $focusText" : ""}';
+    } else {
+      return 'Est. Time: $durationStr${focusText.isNotEmpty ? "   |   Focus: $focusText" : ""}';
+    }
   }
 }
