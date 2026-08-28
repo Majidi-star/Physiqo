@@ -111,8 +111,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
 
             return AlertDialog(
               backgroundColor: AppTheme.surface,
-              title: const Text(
-                context.tr('schedule_change_date'),
+              title: Text(context.tr('schedule_change_date'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn'),
                 textAlign: TextAlign.right,
               ),
@@ -125,7 +124,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       child: DropdownButtonFormField<int>(
                         dropdownColor: AppTheme.surface,
                         value: selectedYear,
-                        decoration: const InputDecoration(labelText: context.tr('schedule_year'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        decoration: InputDecoration(labelText: context.tr('schedule_year'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
                         items: years.map((y) => DropdownMenuItem(
                           value: y,
                           child: Text(y.toString(), style: const TextStyle(color: AppTheme.textPrimary)),
@@ -142,7 +141,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       child: DropdownButtonFormField<int>(
                         dropdownColor: AppTheme.surface,
                         value: selectedMonth,
-                        decoration: const InputDecoration(labelText: context.tr('schedule_month'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        decoration: InputDecoration(labelText: context.tr('schedule_month'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
                         items: List.generate(12, (index) => index + 1).map((m) => DropdownMenuItem(
                           value: m,
                           child: Text(months[m - 1], style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
@@ -159,7 +158,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       child: DropdownButtonFormField<int>(
                         dropdownColor: AppTheme.surface,
                         value: selectedDay,
-                        decoration: const InputDecoration(labelText: context.tr('schedule_day'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        decoration: InputDecoration(labelText: context.tr('schedule_day'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
                         items: List.generate(maxDays, (index) => index + 1).map((d) => DropdownMenuItem(
                           value: d,
                           child: Text(d.toString(), style: const TextStyle(color: AppTheme.textPrimary)),
@@ -276,8 +275,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
 
             return AlertDialog(
               backgroundColor: AppTheme.surface,
-              title: const Text(
-                context.tr('schedule_create_title'),
+              title: Text(context.tr('schedule_create_title'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn'),
                 textAlign: TextAlign.right,
               ),
@@ -421,8 +419,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       ),
                     ),
                   ),
-                  const Text(
-                    context.tr('schedule_select_exercise'),
+                  Text(context.tr('schedule_select_exercise'),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Vazirmatn'),
                     textAlign: TextAlign.right,
                   ),
@@ -1576,8 +1573,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         icon: const Icon(Icons.add, size: 20, color: AppTheme.primary),
-                        label: const Text(
-                          context.tr('schedule_add_exercise'),
+                        label: Text(context.tr('schedule_add_exercise'),
                           style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                       ),
@@ -1630,8 +1626,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
                                 icon: const Icon(Icons.add, size: 16, color: AppTheme.onPrimary),
-                                label: const Text(
-                                  context.tr('schedule_new_plan'),
+                                label: Text(context.tr('schedule_new_plan'),
                                   style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary, fontSize: 13),
                                 ),
                               ),
@@ -1650,8 +1645,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
                                 icon: const Icon(Icons.share, size: 16, color: AppTheme.primary),
-                                label: const Text(
-                                  context.tr('schedule_share_all'),
+                                label: Text(context.tr('schedule_share_all'),
                                   style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
                                 ),
                               ),
