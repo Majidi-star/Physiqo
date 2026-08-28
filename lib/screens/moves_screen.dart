@@ -232,20 +232,22 @@ class _MovesScreenState extends State<MovesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'برنامه تمرینی جاری / مدیریت دستی',
+                        context.tr('moves_current_plan'),
                         style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         scheduledDatesStr.isEmpty
-                            ? 'هیچ برنامه‌ای ثبت نشده. برای ایجاد ضربه بزنید.'
-                            : 'شامل ${scheduledDatesStr.length} روز تمرینی',
+                            ? context.tr('moves_no_plan')
+                            : context.tr('moves_days_count').replaceAll('{0}', scheduledDatesStr.length.toString()),
                         style: AppTheme.bodyMd.copyWith(color: AppTheme.primary),
                       ),
                       if (scheduledDatesStr.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'شروع از ${scheduledDatesStr.first} تا ${scheduledDatesStr.last}',
+                          context.tr('moves_date_range')
+                              .replaceAll('{0}', scheduledDatesStr.first)
+                              .replaceAll('{1}', scheduledDatesStr.last),
                           style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                         ),
                       ],

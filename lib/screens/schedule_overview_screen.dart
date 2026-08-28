@@ -112,7 +112,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
             return AlertDialog(
               backgroundColor: AppTheme.surface,
               title: const Text(
-                'تغییر تاریخ (شمسی)',
+                context.tr('schedule_change_date'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn'),
                 textAlign: TextAlign.right,
               ),
@@ -125,7 +125,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       child: DropdownButtonFormField<int>(
                         dropdownColor: AppTheme.surface,
                         value: selectedYear,
-                        decoration: const InputDecoration(labelText: 'سال', labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        decoration: const InputDecoration(labelText: context.tr('schedule_year'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
                         items: years.map((y) => DropdownMenuItem(
                           value: y,
                           child: Text(y.toString(), style: const TextStyle(color: AppTheme.textPrimary)),
@@ -142,7 +142,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       child: DropdownButtonFormField<int>(
                         dropdownColor: AppTheme.surface,
                         value: selectedMonth,
-                        decoration: const InputDecoration(labelText: 'ماه', labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        decoration: const InputDecoration(labelText: context.tr('schedule_month'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
                         items: List.generate(12, (index) => index + 1).map((m) => DropdownMenuItem(
                           value: m,
                           child: Text(months[m - 1], style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
@@ -159,7 +159,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       child: DropdownButtonFormField<int>(
                         dropdownColor: AppTheme.surface,
                         value: selectedDay,
-                        decoration: const InputDecoration(labelText: 'روز', labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        decoration: const InputDecoration(labelText: context.tr('schedule_day'), labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
                         items: List.generate(maxDays, (index) => index + 1).map((d) => DropdownMenuItem(
                           value: d,
                           child: Text(d.toString(), style: const TextStyle(color: AppTheme.textPrimary)),
@@ -277,7 +277,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
             return AlertDialog(
               backgroundColor: AppTheme.surface,
               title: const Text(
-                'ایجاد برنامه تمرینی جدید',
+                context.tr('schedule_create_title'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn'),
                 textAlign: TextAlign.right,
               ),
@@ -291,7 +291,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(isFa ? 'تاریخ برنامه:' : 'Schedule Date:'),
+                          Text(context.tr('schedule_date')),
                           TextButton.icon(
                             icon: const Icon(Icons.calendar_today, size: 16),
                             label: Text(displayDateStr),
@@ -321,7 +321,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                         controller: titleController,
                         textAlign: TextAlign.right,
                         decoration: InputDecoration(
-                          labelText: context.tr('plan_title_label'),
+                          labelText: context.tr('schedule_title_label'),
                           labelStyle: const TextStyle(color: AppTheme.textSecondary),
                           enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
                           focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
@@ -333,7 +333,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                         controller: focusController,
                         textAlign: TextAlign.right,
                         decoration: InputDecoration(
-                          labelText: context.tr('plan_focus_label'),
+                          labelText: context.tr('schedule_focus'),
                           labelStyle: const TextStyle(color: AppTheme.textSecondary),
                           enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
                           focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
@@ -351,7 +351,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(isFa ? 'ایجاد' : 'Create', style: const TextStyle(color: AppTheme.primary)),
+                  child: Text(context.tr('schedule_create'), style: const TextStyle(color: AppTheme.primary)),
                 ),
               ],
             );
@@ -375,7 +375,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
 
       final newPlan = WorkoutDay(
         date: finalDateKey,
-        title: titleController.text.trim().isNotEmpty ? titleController.text.trim() : 'تمرین روز',
+        title: titleController.text.trim().isNotEmpty ? titleController.text.trim() : context.tr('schedule_default_title'),
         focus: focusController.text.trim(),
         items: [],
       );
@@ -422,7 +422,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                     ),
                   ),
                   const Text(
-                    'انتخاب حرکت تمرینی',
+                    context.tr('schedule_select_exercise'),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Vazirmatn'),
                     textAlign: TextAlign.right,
                   ),
@@ -492,7 +492,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
               controller: titleController,
               textAlign: TextAlign.right,
               decoration: InputDecoration(
-                labelText: context.tr('plan_title_label'),
+                labelText: context.tr('schedule_title_label'),
                 labelStyle: const TextStyle(color: AppTheme.textSecondary),
                 enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
                 focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
@@ -504,7 +504,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
               controller: focusController,
               textAlign: TextAlign.right,
               decoration: InputDecoration(
-                labelText: context.tr('plan_focus_label'),
+                labelText: context.tr('schedule_focus'),
                 labelStyle: const TextStyle(color: AppTheme.textSecondary),
                 enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
                 focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
@@ -544,7 +544,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
     final dt = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
     final dateStr = AppDateUtils.formatFullDate(dt, isFa);
     
-    buffer.writeln('💪 ${plan.title.isNotEmpty ? plan.title : 'برنامه تمرینی'}');
+    buffer.writeln('💪 ${plan.title.isNotEmpty ? plan.title : context.tr('schedule_default_title')}');
     if (plan.focus.isNotEmpty) {
       buffer.writeln('🎯 تمرکز: ${plan.focus}');
     }
@@ -628,7 +628,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
     final isFa = AppDateUtils.isFa(context);
     if (_allPlans.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isFa ? 'برنامه‌ای برای اشتراک‌گذاری وجود ندارد.' : 'No plans to share.', style: const TextStyle(fontFamily: 'Vazirmatn'))),
+        SnackBar(content: Text(context.tr('schedule_share_no_plan'), style: const TextStyle(fontFamily: 'Vazirmatn'))),
       );
       return;
     }
@@ -638,7 +638,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
       builder: (context) => SimpleDialog(
         backgroundColor: AppTheme.surface,
         title: Text(
-          isFa ? 'اشتراک‌گذاری کل برنامه تمرینی' : 'Share Entire Workout Plan',
+          context.tr('schedule_share_all_title'),
           style: const TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold),
           textAlign: isFa ? TextAlign.right : TextAlign.left,
         ),
@@ -650,7 +650,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
               children: [
                 if (!isFa) const Icon(Icons.text_fields, color: AppTheme.primary),
                 if (!isFa) const SizedBox(width: 12),
-                Text(isFa ? 'ارسال به صورت متن' : 'Share as Text', style: const TextStyle(fontFamily: 'Vazirmatn')),
+                Text(context.tr('schedule_share_text'), style: const TextStyle(fontFamily: 'Vazirmatn')),
                 if (isFa) const SizedBox(width: 12),
                 if (isFa) const Icon(Icons.text_fields, color: AppTheme.primary),
               ],
@@ -663,7 +663,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
               children: [
                 if (!isFa) const Icon(Icons.image, color: AppTheme.primary),
                 if (!isFa) const SizedBox(width: 12),
-                Text(isFa ? 'ارسال به صورت تک تصویر (کلاژ)' : 'Share as single Image Collage', style: const TextStyle(fontFamily: 'Vazirmatn')),
+                Text(context.tr('schedule_share_image'), style: const TextStyle(fontFamily: 'Vazirmatn')),
                 if (isFa) const SizedBox(width: 12),
                 if (isFa) const Icon(Icons.image, color: AppTheme.primary),
               ],
@@ -676,7 +676,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
               children: [
                 if (!isFa) const Icon(Icons.photo_library, color: AppTheme.primary),
                 if (!isFa) const SizedBox(width: 12),
-                Text(isFa ? 'ارسال به صورت تصاویر جداگانه هر روز' : 'Share as separate Images', style: const TextStyle(fontFamily: 'Vazirmatn')),
+                Text(context.tr('schedule_share_images'), style: const TextStyle(fontFamily: 'Vazirmatn')),
                 if (isFa) const SizedBox(width: 12),
                 if (isFa) const Icon(Icons.photo_library, color: AppTheme.primary),
               ],
@@ -860,7 +860,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                   ),
                 ),
                 Text(
-                  'برنامه تمرینی کامل شما',
+                  context.tr('schedule_share_all_title'),
                   style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                 ),
               ],
@@ -890,7 +890,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          plan.title.isNotEmpty ? plan.title : 'تمرین روز',
+                          plan.title.isNotEmpty ? plan.title : context.tr('schedule_default_title'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
                         ),
                         Text(
@@ -946,7 +946,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  'سوپرست: ${names.join(' + ')}',
+                                  "${context.tr('schedule_superset')} ${names.join(' + ')}",
                                   style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
                                 ),
                               ),
@@ -1187,7 +1187,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'ست‌ها: ${exercise.defaultSets} • تکرارها: ${exercise.defaultReps} • استراحت: ${exercise.defaultRestSeconds} ثانیه',
+                  context.tr('schedule_sets_reps').replaceAll('{0}', exercise.defaultSets.toString()).replaceAll('{1}', exercise.defaultReps.toString()).replaceAll('{2}', exercise.defaultRestSeconds.toString()),
                   style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                 ),
               ],
@@ -1247,7 +1247,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'ست‌ها: ${ex.defaultSets} • تکرارها: ${ex.defaultReps}',
+                        context.tr('schedule_sets_reps_short').replaceAll('{0}', ex.defaultSets.toString()).replaceAll('{1}', ex.defaultReps.toString()),
                         style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
                       ),
                     ],
@@ -1296,7 +1296,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                   ),
                 ),
                 Text(
-                  'برنامه تمرینی هوشمند',
+                  context.tr('schedule_smart_plan'),
                   style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
                 ),
               ],
@@ -1305,7 +1305,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
             const Divider(color: AppTheme.outline, thickness: 1.5),
             const SizedBox(height: 16),
             Text(
-              plan.title.isNotEmpty ? plan.title : 'تمرین روز',
+              plan.title.isNotEmpty ? plan.title : context.tr('schedule_default_title'),
               style: AppTheme.headlineLg.copyWith(fontSize: 26),
             ),
             if (plan.focus.isNotEmpty) ...[
@@ -1348,7 +1348,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
             const SizedBox(height: 12),
             Center(
               child: Text(
-                'تنظیم شده با مربی هوش مصنوعی Physiqo',
+                context.tr('schedule_ai_coach'),
                 style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
               ),
             ),
@@ -1505,7 +1505,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  plan.title.isNotEmpty ? plan.title : 'تمرین روز',
+                                  plan.title.isNotEmpty ? plan.title : context.tr('schedule_default_title'),
                                   style: AppTheme.headlineMd,
                                   textAlign: TextAlign.right,
                                 ),
@@ -1577,7 +1577,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                         ),
                         icon: const Icon(Icons.add, size: 20, color: AppTheme.primary),
                         label: const Text(
-                          'افزودن حرکت به برنامه',
+                          context.tr('schedule_add_exercise'),
                           style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                       ),
@@ -1611,7 +1611,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'برنامه‌های تمرینی شما',
+                          context.tr('schedule_my_plans'),
                           style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
                           textAlign: TextAlign.right,
                         ),
@@ -1631,7 +1631,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                                 ),
                                 icon: const Icon(Icons.add, size: 16, color: AppTheme.onPrimary),
                                 label: const Text(
-                                  'برنامه جدید',
+                                  context.tr('schedule_new_plan'),
                                   style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary, fontSize: 13),
                                 ),
                               ),
@@ -1651,7 +1651,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                                 ),
                                 icon: const Icon(Icons.share, size: 16, color: AppTheme.primary),
                                 label: const Text(
-                                  'اشتراک‌گذاری کل',
+                                  context.tr('schedule_share_all'),
                                   style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
                                 ),
                               ),

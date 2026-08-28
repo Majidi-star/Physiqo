@@ -11,20 +11,21 @@ import 'lang_pt.dart';
 import 'lang_hi.dart';
 import 'lang_bn.dart';
 import 'lang_ur.dart';
+import 'schedule_translations.dart';
 
 class Translations {
   static final Map<String, Map<String, String>> _localizedValues = {
-    'en': langEn,
-    'fa': langFa,
-    'zh': langZh,
-    'es': langEs,
-    'ar': langAr,
-    'fr': langFr,
-    'ru': langRu,
-    'pt': langPt,
-    'hi': langHi,
-    'bn': langBn,
-    'ur': langUr,
+    'en': {...langEn, ...?scheduleTranslations['en']},
+    'fa': {...langFa, ...?scheduleTranslations['fa']},
+    'zh': {...langZh, ...?scheduleTranslations['zh']},
+    'es': {...langEs, ...?scheduleTranslations['es']},
+    'ar': {...langAr, ...?scheduleTranslations['ar']},
+    'fr': {...langFr, ...?scheduleTranslations['fr']},
+    'ru': {...langRu, ...?scheduleTranslations['ru']},
+    'pt': {...langPt, ...?scheduleTranslations['pt']},
+    'hi': {...langHi, ...?scheduleTranslations['hi']},
+    'bn': {...langBn, ...?scheduleTranslations['bn']},
+    'ur': {...langUr, ...?scheduleTranslations['ur']},
   };
 
   static const Map<String, Map<String, String>> _extraValues = {
