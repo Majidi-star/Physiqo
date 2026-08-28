@@ -1535,46 +1535,56 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                   const Divider(color: AppTheme.outline, height: 1),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: AppTheme.spacingSm),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: () => _addPlanManually(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: AppTheme.onPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          icon: const Icon(Icons.add, size: 16, color: AppTheme.onPrimary),
-                          label: const Text(
-                            'برنامه جدید',
-                            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary, fontSize: 13),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _shareAllPlans(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.surfaceHigh,
-                            foregroundColor: AppTheme.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                              side: const BorderSide(color: AppTheme.outline),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          icon: const Icon(Icons.share, size: 16, color: AppTheme.primary),
-                          label: const Text(
-                            'اشتراک‌گذاری کل',
-                            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
-                          ),
-                        ),
-                        const Spacer(),
                         Text(
                           'برنامه‌های تمرینی شما',
                           style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.right,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _addPlanManually(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: AppTheme.onPrimary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                icon: const Icon(Icons.add, size: 16, color: AppTheme.onPrimary),
+                                label: const Text(
+                                  'برنامه جدید',
+                                  style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary, fontSize: 13),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _shareAllPlans(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.surfaceHigh,
+                                  foregroundColor: AppTheme.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                    side: const BorderSide(color: AppTheme.outline),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                ),
+                                icon: const Icon(Icons.share, size: 16, color: AppTheme.primary),
+                                label: const Text(
+                                  'اشتراک‌گذاری کل',
+                                  style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
