@@ -802,13 +802,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(AppTheme.gutter),
+                padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: 8),
                 child: Column(
                   children: [
-                    Text(
-                      context.tr('onboarding_title'),
-                      style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
-                      textAlign: TextAlign.center,
+                    Row(
+                      children: [
+                        if (_currentStep > 0)
+                          IconButton(
+                            icon: const BackButtonIcon(),
+                            color: AppTheme.textPrimary,
+                            onPressed: () => setState(() => _currentStep--),
+                          )
+                        else
+                          const SizedBox(width: 48),
+                        Expanded(
+                          child: Text(
+                            context.tr('onboarding_title'),
+                            style: AppTheme.headlineMd.copyWith(color: AppTheme.primary),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(width: 48),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     // Progress Indicator Steps
