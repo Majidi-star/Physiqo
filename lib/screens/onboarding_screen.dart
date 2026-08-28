@@ -722,7 +722,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Container(
       width: 40,
       height: 2,
-      margin: const EdgeInsets.symmetric(horizontal: 4, bottom: 14),
+      margin: const EdgeInsets.only(left: 4, right: 4, bottom: 14),
       color: AppTheme.outline,
     );
   }

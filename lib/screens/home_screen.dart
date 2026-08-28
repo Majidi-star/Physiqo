@@ -127,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+    return const SizedBox.shrink();
   }
 
   String _getDynamicMeta(BuildContext context, List<WorkoutDay> plans) {
