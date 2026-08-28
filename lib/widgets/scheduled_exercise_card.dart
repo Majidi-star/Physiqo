@@ -8,11 +8,13 @@ import '../utils/app_date_utils.dart';
 class ScheduledExerciseCard extends StatelessWidget {
   final Exercise exercise;
   final VoidCallback onRefresh;
+  final VoidCallback? onDelete;
 
   const ScheduledExerciseCard({
     super.key,
     required this.exercise,
     required this.onRefresh,
+    this.onDelete,
   });
 
   @override
@@ -88,6 +90,12 @@ class ScheduledExerciseCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (onDelete != null) ...[
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: AppTheme.error),
+                onPressed: onDelete,
+              ),
+            ],
           ],
         ),
       ),

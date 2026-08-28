@@ -69,7 +69,24 @@ final Map<String, String> langEn = {
       'moves_upcoming_plans': 'Scheduled Workout Plans',
       'moves_full_schedule': 'View Full Schedule',
       'plan_day_info': 'Day',
-      
+
+      'edit': 'Edit',
+      'delete': 'Delete',
+      'share': 'Share',
+      'export_image': 'Export as Image',
+      'export_text': 'Copy Text Plan',
+      'change_date': 'Change Date',
+      'confirm_delete_plan': 'Are you sure you want to delete this workout plan?',
+      'confirm_delete_plan_title': 'Delete Workout Plan',
+      'edit_plan_title': 'Edit Plan Title',
+      'edit_plan_focus': 'Edit Plan Focus',
+      'plan_title_label': 'Title',
+      'plan_focus_label': 'Focus / Muscle Group',
+      'save': 'Save',
+      'cancel': 'Cancel',
+      'workout_plan_copied': 'Workout plan text copied!',
+      'share_workout_plan': 'Share Workout Plan',
+
       // Focused Move Screen
       'focused_move_details': 'Exercise Details',
       'focused_move_delete_confirm': 'Are you sure you want to delete this exercise?',

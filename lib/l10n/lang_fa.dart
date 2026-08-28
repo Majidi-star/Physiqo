@@ -56,6 +56,23 @@ final Map<String, String> langFa = {
       'moves_full_schedule': 'مشاهده کل برنامه',
       'plan_day_info': 'روز',
       
+      'edit': 'ویرایش',
+      'delete': 'حذف',
+      'share': 'اشتراک‌گذاری',
+      'export_image': 'خروجی به صورت تصویر',
+      'export_text': 'کپی متنی برنامه',
+      'change_date': 'تغییر تاریخ',
+      'confirm_delete_plan': 'آیا از حذف این برنامه تمرینی مطمئن هستید؟',
+      'confirm_delete_plan_title': 'حذف برنامه تمرینی',
+      'edit_plan_title': 'ویرایش عنوان برنامه',
+      'edit_plan_focus': 'ویرایش تمرکز برنامه',
+      'plan_title_label': 'عنوان',
+      'plan_focus_label': 'تمرکز / عضله هدف',
+      'save': 'ذخیره',
+      'cancel': 'انصراف',
+      'workout_plan_copied': 'متن برنامه تمرینی کپی شد!',
+      'share_workout_plan': 'اشتراک‌گذاری برنامه تمرینی',
+
       // Focused Move Screen
       'focused_move_details': 'جزئیات حرکت',
       'focused_move_delete_confirm': 'آیا از حذف این حرکت مطمئن هستید؟',

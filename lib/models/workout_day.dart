@@ -55,6 +55,20 @@ class WorkoutDay {
     required this.items,
   });
 
+  WorkoutDay copyWith({
+    String? date,
+    String? title,
+    String? focus,
+    List<WorkoutItem>? items,
+  }) {
+    return WorkoutDay(
+      date: date ?? this.date,
+      title: title ?? this.title,
+      focus: focus ?? this.focus,
+      items: items ?? this.items,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'date': date,
     'title': title,

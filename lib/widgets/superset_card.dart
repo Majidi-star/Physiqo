@@ -7,11 +7,15 @@ import 'scheduled_exercise_card.dart';
 class SupersetCard extends StatelessWidget {
   final List<Exercise> exercises;
   final VoidCallback onRefresh;
+  final Function(String exerciseId)? onRemoveExercise;
+  final VoidCallback? onDeleteAll;
 
   const SupersetCard({
     super.key,
     required this.exercises,
     required this.onRefresh,
+    this.onRemoveExercise,
+    this.onDeleteAll,
   });
 
   @override
@@ -31,13 +35,25 @@ class SupersetCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: AppTheme.spacingSm, left: AppTheme.spacingSm, right: AppTheme.spacingSm),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.link, color: AppTheme.primary, size: 16),
-                const SizedBox(width: AppTheme.spacingSm),
-                Text(
-                  context.tr('superset'),
-                  style: AppTheme.labelMd.copyWith(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Icon(Icons.link, color: AppTheme.primary, size: 16),
+                    const SizedBox(width: AppTheme.spacingSm),
+                    Text(
+                      context.tr('superset'),
+                      style: AppTheme.labelMd.copyWith(color: AppTheme.primary, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
+                if (onDeleteAll != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppTheme.error, size: 18),
+                    onPressed: onDeleteAll,
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
               ],
             ),
           ),
@@ -47,6 +63,9 @@ class SupersetCard extends StatelessWidget {
               child: ScheduledExerciseCard(
                 exercise: exercises[index],
                 onRefresh: onRefresh,
+                onDelete: onRemoveExercise != null
+                    ? () => onRemoveExercise!(exercises[index].id)
+                    : null,
               ),
             );
           }),
