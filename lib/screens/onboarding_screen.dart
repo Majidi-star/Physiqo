@@ -48,6 +48,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _storage = const FlutterSecureStorage();
 
   @override
+  void initState() {
+    super.initState();
+    _loadLang();
+  }
+
+  Future<void> _loadLang() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedLang = prefs.getString('app_language') ?? 'en';
+    });
+  }
+
+  @override
   void dispose() {
     _apiUrlController.dispose();
     _apiKeyController.dispose();
@@ -235,29 +248,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // --- UI Step Builders ---
 
   Widget _buildStep0Language() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          context.tr('onboarding_lang_subtitle'),
-          style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: AppTheme.spacingLg),
-        _buildLangCard('English (انگلیسی)', 'en'),
-        const SizedBox(height: AppTheme.spacingSm),
-        _buildLangCard('فارسی (Persian)', 'fa'),
-        const Spacer(),
-        ElevatedButton(
-          onPressed: () => setState(() => _currentStep = 1),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primary,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.tr('onboarding_lang_subtitle'),
+            style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
+            textAlign: TextAlign.center,
           ),
-          child: const Text('Next / بعدی', style: TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-        ),
-      ],
+          const SizedBox(height: AppTheme.spacingMd),
+          _buildLangCard('English (English)', 'en'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Persian (فارسی)', 'fa'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Chinese (中文)', 'zh'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Hindi (हिन्दी)', 'hi'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Spanish (Español)', 'es'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Arabic (العربية)', 'ar'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('French (Français)', 'fr'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Bengali (বাংলা)', 'bn'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Portuguese (Português)', 'pt'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Russian (Русский)', 'ru'),
+          const SizedBox(height: AppTheme.spacingSm),
+          _buildLangCard('Urdu (اردو)', 'ur'),
+          const SizedBox(height: AppTheme.spacingLg),
+          ElevatedButton(
+            onPressed: () => setState(() => _currentStep = 1),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+            ),
+            child: const Text('Next / بعدی', style: TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -330,6 +363,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedProvider,
+                isExpanded: true,
                 dropdownColor: AppTheme.surfaceHigh,
                 items: ['OpenRouter', 'Nvidia NIM', 'Reka', 'Gemini', 'OpenAI', 'Anthropic', 'Custom']
                     .map((p) => DropdownMenuItem(value: p, child: Text(p, style: AppTheme.bodyLg)))
@@ -481,6 +515,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Text(isFa ? 'سن' : 'Age', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                     const SizedBox(height: 6),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                       decoration: BoxDecoration(
                         color: AppTheme.surfaceHigh,
@@ -489,6 +524,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: _selectedAge,
+                          isExpanded: true,
                           dropdownColor: AppTheme.surfaceHigh,
                           items: List.generate(80, (i) => i + 10)
                               .map((a) => DropdownMenuItem(value: a, child: Text(a.toString(), style: AppTheme.bodyLg)))
@@ -510,6 +546,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Text(isFa ? 'جنسیت' : 'Gender', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                     const SizedBox(height: 6),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                       decoration: BoxDecoration(
                         color: AppTheme.surfaceHigh,
@@ -518,6 +555,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedGender,
+                          isExpanded: true,
                           dropdownColor: AppTheme.surfaceHigh,
                           items: ['gender_male', 'gender_female', 'gender_prefer_not_to_say']
                               .map((g) => DropdownMenuItem(value: g, child: Text(context.tr(g), style: AppTheme.bodyLg)))
@@ -544,6 +582,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Text(isFa ? 'هدف اصلی' : 'Primary Goal', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                     const SizedBox(height: 6),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                       decoration: BoxDecoration(
                         color: AppTheme.surfaceHigh,
@@ -552,6 +591,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedGoal,
+                          isExpanded: true,
                           dropdownColor: AppTheme.surfaceHigh,
                           items: ['goal_muscle', 'goal_fat_loss', 'goal_strength', 'goal_maintenance']
                               .map((g) => DropdownMenuItem(value: g, child: Text(context.tr(g), style: AppTheme.bodyLg)))
@@ -573,6 +613,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Text(isFa ? 'تجهیزات در دسترس' : 'Equipment Access', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                     const SizedBox(height: 6),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                       decoration: BoxDecoration(
                         color: AppTheme.surfaceHigh,
@@ -581,6 +622,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedEquip,
+                          isExpanded: true,
                           dropdownColor: AppTheme.surfaceHigh,
                           items: ['equip_full_gym', 'equip_home', 'equip_none']
                               .map((e) => DropdownMenuItem(value: e, child: Text(context.tr(e), style: AppTheme.bodyLg)))
