@@ -86,5 +86,11 @@ Center AI button: circular waveform ring of dense radial orange spikes, no fille
 - **No big downloads** — User has limited internet; avoid triggering npm installs that download browsers
 - **After architecture change** — Update this AGENTS.md
 
+## Onboarding & Internationalization
+- **11-Language Setup:** Supports English (`en`), Persian (`fa`), Chinese (`zh`), Hindi (`hi`), Spanish (`es`), Arabic (`ar`), French (`fr`), Bengali (`bn`), Portuguese (`pt`), Russian (`ru`), and Urdu (`ur`).
+- **Instant Hot-Swapping:** Onboarding Step 0 sets the app-wide locale instantly, aligning language alignment and directionality.
+- **Metric/Imperial Toggle:** In onboarding Step 2, users choose their unit system (`metric` or `imperial`). It dynamically sets height/weight suffix labels (`cm`/`kg` vs `in`/`lbs`) and stores configuration properties.
+- **Docked Button Layout Rule:** To prevent vertical or horizontal overflows, Action Buttons must remain docked at the bottom of the screens, while input controls scroll dynamically inside `Expanded` SingleChildScrollViews.
+
 ## MCP Config Fix
 The user's `mcp_config.json` needs updating. See `c:\Projects\Physiqo\mcp_config_fix.json` — replace content in `C:\Users\Amirhosein\.gemini\config\mcp_config.json` manually.
