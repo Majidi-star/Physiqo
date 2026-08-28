@@ -188,9 +188,11 @@ class _MovesScreenState extends State<MovesScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              context.tr('moves_upcoming_plans'),
-              style: AppTheme.headlineMd,
+            Expanded(
+              child: Text(
+                context.tr('moves_upcoming_plans'),
+                style: AppTheme.headlineMd,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.settings, color: AppTheme.textSecondary),
