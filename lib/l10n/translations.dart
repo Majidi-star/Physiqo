@@ -12,20 +12,21 @@ import 'lang_hi.dart';
 import 'lang_bn.dart';
 import 'lang_ur.dart';
 import 'schedule_translations.dart';
+import 'chat_translations.dart';
 
 class Translations {
   static final Map<String, Map<String, String>> _localizedValues = {
-    'en': {...langEn, ...?scheduleTranslations['en']},
-    'fa': {...langFa, ...?scheduleTranslations['fa']},
-    'zh': {...langZh, ...?scheduleTranslations['zh']},
-    'es': {...langEs, ...?scheduleTranslations['es']},
-    'ar': {...langAr, ...?scheduleTranslations['ar']},
-    'fr': {...langFr, ...?scheduleTranslations['fr']},
-    'ru': {...langRu, ...?scheduleTranslations['ru']},
-    'pt': {...langPt, ...?scheduleTranslations['pt']},
-    'hi': {...langHi, ...?scheduleTranslations['hi']},
-    'bn': {...langBn, ...?scheduleTranslations['bn']},
-    'ur': {...langUr, ...?scheduleTranslations['ur']},
+    'en': {...langEn, ...?scheduleTranslations['en'], ...?chatTranslations['en']},
+    'fa': {...langFa, ...?scheduleTranslations['fa'], ...?chatTranslations['fa']},
+    'zh': {...langZh, ...?scheduleTranslations['zh'], ...?chatTranslations['zh']},
+    'es': {...langEs, ...?scheduleTranslations['es'], ...?chatTranslations['es']},
+    'ar': {...langAr, ...?scheduleTranslations['ar'], ...?chatTranslations['ar']},
+    'fr': {...langFr, ...?scheduleTranslations['fr'], ...?chatTranslations['fr']},
+    'ru': {...langRu, ...?scheduleTranslations['ru'], ...?chatTranslations['ru']},
+    'pt': {...langPt, ...?scheduleTranslations['pt'], ...?chatTranslations['pt']},
+    'hi': {...langHi, ...?scheduleTranslations['hi'], ...?chatTranslations['hi']},
+    'bn': {...langBn, ...?scheduleTranslations['bn'], ...?chatTranslations['bn']},
+    'ur': {...langUr, ...?scheduleTranslations['ur'], ...?chatTranslations['ur']},
   };
 
   static const Map<String, Map<String, String>> _extraValues = {

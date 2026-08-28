@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/ai_logger.dart';
+import '../l10n/translations.dart';
 
 class AiDebugDialog extends StatelessWidget {
   const AiDebugDialog({super.key});
@@ -119,9 +120,9 @@ class AiDebugDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'AI Debug Logs',
-                  style: TextStyle(
+                Text(
+                  context.tr('ai_debug_logs_title'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -137,10 +138,10 @@ class AiDebugDialog extends StatelessWidget {
             buildTimelineSection(),
             Expanded(
               child: flattenedLogs.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'No logs available yet.',
-                        style: TextStyle(color: Colors.grey),
+                        context.tr('ai_debug_no_logs'),
+                        style: const TextStyle(color: Colors.white54),
                       ),
                     )
                   : ListView.separated(
@@ -163,7 +164,7 @@ class AiDebugDialog extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Chat ID: $chatId | Log ${flattenedLogs.length - index} - ${log.timestamp.toLocal().toString().split('.').first}',
+                                        "${context.tr('ai_debug_chat_id').replaceAll('{0}', chatId)} | ${context.tr('ai_debug_log_num').replaceAll('{0}', (flattenedLogs.length - index).toString())} - ${log.timestamp.toLocal().toString().split('.').first}",
                                         style: const TextStyle(
                                           color: Color(0xFFFF6B2C),
                                           fontWeight: FontWeight.bold,
@@ -171,7 +172,7 @@ class AiDebugDialog extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '⏱ Latency: ${(log.latencyMs / 1000).toStringAsFixed(2)}s | 📥 Input: ${log.inputTokens} t | 📤 Output: ${log.outputTokens} t (${log.isEstimated ? "Est" : "Act"})',
+                                        "${context.tr('ai_debug_latency').replaceAll('{0}', (log.latencyMs / 1000).toStringAsFixed(2))} | ${context.tr('ai_debug_input').replaceAll('{0}', log.inputTokens.toString())} | ${context.tr('ai_debug_output').replaceAll('{0}', log.outputTokens.toString())} (${log.isEstimated ? context.tr('ai_debug_est') : context.tr('ai_debug_act')})",
                                         style: TextStyle(
                                           color: Colors.blue[300],
                                           fontSize: 12,
@@ -183,14 +184,14 @@ class AiDebugDialog extends StatelessWidget {
                                 ),
                                 TextButton.icon(
                                   icon: const Icon(Icons.copy, color: Color(0xFFFF6B2C), size: 16),
-                                  label: const Text(
-                                    'Copy JSON',
-                                    style: TextStyle(color: Color(0xFFFF6B2C)),
+                                  label: Text(
+                                    context.tr('ai_debug_copy_json'),
+                                    style: const TextStyle(color: Color(0xFFFF6B2C)),
                                   ),
                                   onPressed: () {
                                     Clipboard.setData(ClipboardData(text: jsonText));
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Log copied to clipboard')),
+                                      SnackBar(content: Text(context.tr('ai_debug_copied'))),
                                     );
                                   },
                                 ),
