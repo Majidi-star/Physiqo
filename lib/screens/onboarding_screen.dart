@@ -23,6 +23,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentStep = 0; // 0: Language, 1: AI Settings, 2: Profile
   String _selectedLang = 'en';
+  String _selectedUnitSystem = 'metric';
 
   // AI Setup Controllers & State
   String _selectedProvider = 'OpenRouter';
@@ -113,6 +114,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       final Map<String, Locale> locales = {
         'en': const Locale('en', 'US'),
         'fa': const Locale('fa', 'IR'),
+        'zh': const Locale('zh', 'CN'),
+        'hi': const Locale('hi', 'IN'),
+        'es': const Locale('es', 'ES'),
+        'ar': const Locale('ar', 'SA'),
+        'fr': const Locale('fr', 'FR'),
+        'bn': const Locale('bn', 'BD'),
+        'pt': const Locale('pt', 'PT'),
+        'ru': const Locale('ru', 'RU'),
+        'ur': const Locale('ur', 'PK'),
       };
       PhysiqoApp.setLocale(context, locales[lang] ?? const Locale('en', 'US'));
     }
@@ -237,7 +247,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       equipmentAccess: _selectedEquip == 'equip_full_gym' ? 'باشگاه کامل' : (_selectedEquip == 'equip_home' ? 'وسایل خانگی' : 'بدون وسیله'),
       limitations: _limitationsController.text.trim(),
       additionalNotes: _notesController.text.trim(),
-      unitSystem: 'metric',
+      unitSystem: _selectedUnitSystem,
     );
 
     if (mounted) {
@@ -248,49 +258,61 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // --- UI Step Builders ---
 
   Widget _buildStep0Language() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            context.tr('onboarding_lang_subtitle'),
-            style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
-            textAlign: TextAlign.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.tr('onboarding_lang_subtitle'),
+          style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildLangCard('English', 'en'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('فارسی', 'fa'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('中文', 'zh'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('हिन्दी', 'hi'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('Español', 'es'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('العربية', 'ar'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('Français', 'fr'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('বাংলা', 'bn'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('Português', 'pt'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('Русский', 'ru'),
+                const SizedBox(height: AppTheme.spacingSm),
+                _buildLangCard('اردو', 'ur'),
+              ],
+            ),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
-          _buildLangCard('English (English)', 'en'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Persian (فارسی)', 'fa'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Chinese (中文)', 'zh'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Hindi (हिन्दी)', 'hi'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Spanish (Español)', 'es'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Arabic (العربية)', 'ar'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('French (Français)', 'fr'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Bengali (বাংলা)', 'bn'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Portuguese (Português)', 'pt'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Russian (Русский)', 'ru'),
-          const SizedBox(height: AppTheme.spacingSm),
-          _buildLangCard('Urdu (اردو)', 'ur'),
-          const SizedBox(height: AppTheme.spacingLg),
-          ElevatedButton(
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
             onPressed: () => setState(() => _currentStep = 1),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
             ),
-            child: const Text('Next / بعدی', style: TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+            child: Text(
+              context.tr('onboarding_next'),
+              style: const TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -320,117 +342,129 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildStep1AiSetup() {
     final isFa = _selectedLang == 'fa';
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingMd),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              border: Border.all(color: AppTheme.outline),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppTheme.outline),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.psychology, color: AppTheme.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              context.tr('onboarding_ai_guide_title'),
+                              style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        context.tr('onboarding_ai_guide_body'),
+                        style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary, height: 1.6),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                
+                // Selection fields
+                Text(isFa ? 'ارائه‌دهنده سرویس' : 'API Provider', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceHigh,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedProvider,
+                      isExpanded: true,
+                      dropdownColor: AppTheme.surfaceHigh,
+                      items: ['OpenRouter', 'Nvidia NIM', 'Reka', 'Gemini', 'OpenAI', 'Anthropic', 'Custom']
+                          .map((p) => DropdownMenuItem(value: p, child: Text(p, style: AppTheme.bodyLg)))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) _onProviderChanged(val);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildFormTextField(isFa ? 'آدرس پایگاه API (Base URL)' : 'Base URL', _apiUrlController),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildFormTextField(isFa ? 'کلید ارتباطی (API Key)' : 'API Key', _apiKeyController, obscure: true),
+                const SizedBox(height: AppTheme.spacingMd),
+
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.psychology, color: AppTheme.primary),
-                    const SizedBox(width: 8),
-                    Text(context.tr('onboarding_ai_guide_title'), style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold)),
+                    TextButton.icon(
+                      onPressed: _testingConnection ? null : _testConnection,
+                      icon: _testingConnection 
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary))
+                          : const Icon(Icons.bolt, color: AppTheme.primary),
+                      label: Text(isFa ? 'تست اتصال' : 'Test Connection', style: const TextStyle(color: AppTheme.primary)),
+                    ),
+                    if (_testResultStatus != null)
+                      Expanded(
+                        child: Text(
+                          _testResultStatus!,
+                          textAlign: TextAlign.end,
+                          style: AppTheme.labelMd.copyWith(color: _testResultColor, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  context.tr('onboarding_ai_guide_body'),
-                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary, height: 1.6),
-                ),
+                const SizedBox(height: AppTheme.spacingMd),
               ],
             ),
           ),
-          const SizedBox(height: AppTheme.spacingLg),
-          
-          // Selection fields
-          Text(isFa ? 'ارائه‌دهنده سرویس' : 'API Provider', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceHigh,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedProvider,
-                isExpanded: true,
-                dropdownColor: AppTheme.surfaceHigh,
-                items: ['OpenRouter', 'Nvidia NIM', 'Reka', 'Gemini', 'OpenAI', 'Anthropic', 'Custom']
-                    .map((p) => DropdownMenuItem(value: p, child: Text(p, style: AppTheme.bodyLg)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) _onProviderChanged(val);
-                },
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _currentStep = 2),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppTheme.outline),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+                ),
+                child: Text(context.tr('onboarding_ai_skip'), style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
               ),
             ),
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-          _buildFormTextField(isFa ? 'آدرس پایگاه API (Base URL)' : 'Base URL', _apiUrlController),
-          const SizedBox(height: AppTheme.spacingMd),
-          _buildFormTextField(isFa ? 'کلید ارتباطی (API Key)' : 'API Key', _apiKeyController, obscure: true),
-          const SizedBox(height: AppTheme.spacingMd),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton.icon(
-                onPressed: _testingConnection ? null : _testConnection,
-                icon: _testingConnection 
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary))
-                    : const Icon(Icons.bolt, color: AppTheme.primary),
-                label: Text(isFa ? 'تست اتصال' : 'Test Connection', style: const TextStyle(color: AppTheme.primary)),
-              ),
-              if (_testResultStatus != null)
-                Expanded(
-                  child: Text(
-                    _testResultStatus!,
-                    textAlign: TextAlign.end,
-                    style: AppTheme.labelMd.copyWith(color: _testResultColor, fontWeight: FontWeight.bold),
-                  ),
+            const SizedBox(width: AppTheme.spacingMd),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => setState(() => _currentStep = 2),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
                 ),
-            ],
-          ),
-          const SizedBox(height: 30),
-
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => setState(() => _currentStep = 2),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.outline),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
-                  ),
-                  child: Text(context.tr('onboarding_ai_skip'), style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
-                ),
+                child: Text(context.tr('onboarding_next'), style: const TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold)),
               ),
-              const SizedBox(width: AppTheme.spacingMd),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => setState(() => _currentStep = 2),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
-                  ),
-                  child: Text(isFa ? 'بعدی' : 'Next', style: const TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -460,200 +494,274 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildStep2Profile() {
     final isFa = _selectedLang == 'fa';
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: GestureDetector(
-              onTap: _pickImage,
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 44,
-                    backgroundColor: AppTheme.surfaceHigh,
-                    backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
-                    child: _photoPath == null 
-                      ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 44)
-                      : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.camera_alt, color: AppTheme.onPrimary, size: 14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 44,
+                          backgroundColor: AppTheme.surfaceHigh,
+                          backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
+                          child: _photoPath == null 
+                            ? const Icon(Icons.person, color: AppTheme.textSecondary, size: 44)
+                            : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt, color: AppTheme.onPrimary, size: 14),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildTextField(context.tr('profile_name_label'), _nameController),
+                const SizedBox(height: AppTheme.spacingMd),
+                
+                // Unit System Selection
+                Text(isFa ? 'سیستم واحد اندازه‌گیری' : 'Unit System', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildUnitButton(isFa ? 'متریک (cm/kg)' : 'Metric (cm/kg)', 'metric'),
+                    ),
+                    const SizedBox(width: AppTheme.spacingMd),
+                    Expanded(
+                      child: _buildUnitButton(isFa ? 'امپریال (in/lbs)' : 'Imperial (in/lbs)', 'imperial'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        context.tr('profile_height_label'),
+                        _heightController,
+                        type: TextInputType.number,
+                        suffix: _selectedUnitSystem == 'metric' ? 'cm' : 'in',
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingMd),
+                    Expanded(
+                      child: _buildTextField(
+                        context.tr('profile_weight_label'),
+                        _weightController,
+                        type: TextInputType.number,
+                        suffix: _selectedUnitSystem == 'metric' ? 'kg' : 'lbs',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(isFa ? 'سن' : 'Age', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: _selectedAge,
+                                isExpanded: true,
+                                dropdownColor: AppTheme.surfaceHigh,
+                                items: List.generate(80, (i) => i + 10)
+                                    .map((a) => DropdownMenuItem(value: a, child: Text(a.toString(), style: AppTheme.bodyLg)))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedAge = val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(isFa ? 'جنسیت' : 'Gender', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedGender,
+                                isExpanded: true,
+                                dropdownColor: AppTheme.surfaceHigh,
+                                items: ['gender_male', 'gender_female', 'gender_prefer_not_to_say']
+                                    .map((g) => DropdownMenuItem(value: g, child: Text(context.tr(g), style: AppTheme.bodyLg)))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedGender = val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(isFa ? 'هدف اصلی' : 'Primary Goal', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedGoal,
+                                isExpanded: true,
+                                dropdownColor: AppTheme.surfaceHigh,
+                                items: ['goal_muscle', 'goal_fat_loss', 'goal_strength', 'goal_maintenance']
+                                    .map((g) => DropdownMenuItem(value: g, child: Text(context.tr(g), style: AppTheme.bodyLg)))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedGoal = val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(isFa ? 'تجهیزات در دسترس' : 'Equipment Access', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceHigh,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedEquip,
+                                isExpanded: true,
+                                dropdownColor: AppTheme.surfaceHigh,
+                                items: ['equip_full_gym', 'equip_home', 'equip_none']
+                                    .map((e) => DropdownMenuItem(value: e, child: Text(context.tr(e), style: AppTheme.bodyLg)))
+                                    .toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedEquip = val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildFormTextField(context.tr('onboarding_profile_injuries'), _limitationsController),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildFormTextField(isFa ? 'یادداشت‌های اضافی برای مربی' : 'Coach Notes / Preferences', _notesController),
+                const SizedBox(height: AppTheme.spacingMd),
+              ],
             ),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
-          _buildTextField(context.tr('profile_name_label'), _nameController),
-          const SizedBox(height: AppTheme.spacingMd),
-          
-          Row(
-            children: [
-              Expanded(child: _buildTextField(context.tr('profile_height_label'), _heightController, type: TextInputType.number, suffix: 'cm')),
-              const SizedBox(width: AppTheme.spacingMd),
-              Expanded(child: _buildTextField(context.tr('profile_weight_label'), _weightController, type: TextInputType.number, suffix: 'kg')),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isFa ? 'سن' : 'Age', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceHigh,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: _selectedAge,
-                          isExpanded: true,
-                          dropdownColor: AppTheme.surfaceHigh,
-                          items: List.generate(80, (i) => i + 10)
-                              .map((a) => DropdownMenuItem(value: a, child: Text(a.toString(), style: AppTheme.bodyLg)))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedAge = val);
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isFa ? 'جنسیت' : 'Gender', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceHigh,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedGender,
-                          isExpanded: true,
-                          dropdownColor: AppTheme.surfaceHigh,
-                          items: ['gender_male', 'gender_female', 'gender_prefer_not_to_say']
-                              .map((g) => DropdownMenuItem(value: g, child: Text(context.tr(g), style: AppTheme.bodyLg)))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedGender = val);
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isFa ? 'هدف اصلی' : 'Primary Goal', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceHigh,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedGoal,
-                          isExpanded: true,
-                          dropdownColor: AppTheme.surfaceHigh,
-                          items: ['goal_muscle', 'goal_fat_loss', 'goal_strength', 'goal_maintenance']
-                              .map((g) => DropdownMenuItem(value: g, child: Text(context.tr(g), style: AppTheme.bodyLg)))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedGoal = val);
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isFa ? 'تجهیزات در دسترس' : 'Equipment Access', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceHigh,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedEquip,
-                          isExpanded: true,
-                          dropdownColor: AppTheme.surfaceHigh,
-                          items: ['equip_full_gym', 'equip_home', 'equip_none']
-                              .map((e) => DropdownMenuItem(value: e, child: Text(context.tr(e), style: AppTheme.bodyLg)))
-                              .toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedEquip = val);
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-          _buildFormTextField(context.tr('onboarding_profile_injuries'), _limitationsController),
-          const SizedBox(height: AppTheme.spacingMd),
-          _buildFormTextField(isFa ? 'یادداشت‌های اضافی برای مربی' : 'Coach Notes / Preferences', _notesController),
-          const SizedBox(height: 30),
-
-          ElevatedButton(
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
             onPressed: _saveOnboarding,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
             ),
-            child: Text(context.tr('action_save_changes'), style: const TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+            child: Text(
+              context.tr('action_save_changes'),
+              style: const TextStyle(color: AppTheme.onPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnitButton(String label, String value) {
+    final isSelected = _selectedUnitSystem == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedUnitSystem = value;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : AppTheme.surfaceHigh,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          border: Border.all(
+            color: isSelected ? AppTheme.primary : AppTheme.outline,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: AppTheme.bodyMd.copyWith(
+              color: isSelected ? AppTheme.onPrimary : AppTheme.textPrimary,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
       ),
     );
   }
