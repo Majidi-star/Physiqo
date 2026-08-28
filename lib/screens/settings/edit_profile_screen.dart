@@ -218,28 +218,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       const SizedBox(height: AppTheme.spacingMd),
                       _buildTextField(context.tr('profile_weight_label'), _weightController, type: TextInputType.number, suffix: isMetric ? 'kg' : 'lb'),
-                      const SizedBox(height: 40),
-                      // ─── Save Button ───────────────────────────────
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _saveProfile,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
-                          ),
-                          child: Text(
-                            context.tr('action_save_changes'),
-                            style: const TextStyle(
-                              color: AppTheme.onPrimary,
-                              fontFamily: 'Vazirmatn',
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppTheme.gutter),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+                    ),
+                    child: Text(
+                      context.tr('action_save_changes'),
+                      style: const TextStyle(
+                        color: AppTheme.onPrimary,
+                        fontFamily: 'Vazirmatn',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),

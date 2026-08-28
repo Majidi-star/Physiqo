@@ -234,25 +234,29 @@ class _ExerciseFormScreenState extends State<ExerciseFormScreen> {
                           const SizedBox(height: AppTheme.spacingXl),
                         ],
 
-                        // --- Save Button ---
-                        ElevatedButton(
-                          onPressed: _submitForm,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: AppTheme.onPrimary,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            isEditing ? context.tr('action_save_changes') : context.tr('action_save_new'),
-                            style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
                       ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppTheme.gutter),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: AppTheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      isEditing ? context.tr('action_save_changes') : context.tr('action_save_new'),
+                      style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

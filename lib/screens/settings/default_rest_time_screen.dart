@@ -91,7 +91,7 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
               Expanded(
                 child: _isLoading 
                   ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
-                  : Padding(
+                  : SingleChildScrollView(
                       padding: const EdgeInsets.all(AppTheme.gutter),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.start,
@@ -177,30 +177,32 @@ class _DefaultRestTimeScreenState extends State<DefaultRestTimeScreen> {
                                 ],
                               ),
                             ),
-                          const Spacer(),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _saveRestTime,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primary,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
-                              ),
-                              child: Text(context.tr('action_save'),
-                                style: TextStyle(
-                                  color: AppTheme.onPrimary,
-                                  fontFamily: 'Vazirmatn',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacingLg),
                         ],
                       ),
                     ),
               ),
+              if (!_isLoading)
+                Padding(
+                  padding: const EdgeInsets.all(AppTheme.gutter),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveRestTime,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+                      ),
+                      child: Text(context.tr('action_save'),
+                        style: const TextStyle(
+                          color: AppTheme.onPrimary,
+                          fontFamily: 'Vazirmatn',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

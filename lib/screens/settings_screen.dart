@@ -261,7 +261,11 @@ class _SettingsItem extends StatelessWidget {
               child: Text(label, style: AppTheme.bodyMd.copyWith(color: color)),
             ),
             if (!isDestructive)
-              const Icon(Icons.chevron_left, color: AppTheme.textSecondary, size: 20),
+              Icon(
+                Directionality.of(context) == TextDirection.rtl ? Icons.chevron_left : Icons.chevron_right, 
+                color: AppTheme.textSecondary, 
+                size: 20
+              ),
           ],
         ),
       ),

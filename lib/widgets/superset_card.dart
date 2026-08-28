@@ -24,9 +24,9 @@ class SupersetCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.surfaceHigh.withOpacity(0.5),
+        color: AppTheme.surfaceHigh.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.5)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
       ),
       padding: const EdgeInsets.all(AppTheme.spacingSm),
       child: Column(

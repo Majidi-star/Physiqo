@@ -106,7 +106,7 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: AppTheme.primary.withOpacity(0.1),
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                   ),
                   icon: const Icon(Icons.replay, size: 14, color: AppTheme.primary),
@@ -133,12 +133,12 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
                     color: AppTheme.primary,
                     activeIndex: 2,
                     hasPlans: hasPlans,
-                    isRtl: false,
+                    isRtl: Directionality.of(context) == TextDirection.rtl,
                   ),
                 ),
               ),
               Directionality(
-                textDirection: TextDirection.ltr,
+                textDirection: Directionality.of(context),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -25,7 +25,7 @@ class PhysiqoBackButton extends StatelessWidget {
       },
       behavior: HitTestBehavior.opaque,
       child: Icon(
-        Icons.chevron_right,
+        Directionality.of(context) == TextDirection.rtl ? Icons.chevron_right : Icons.chevron_left,
         color: color,
         size: size,
       ),
