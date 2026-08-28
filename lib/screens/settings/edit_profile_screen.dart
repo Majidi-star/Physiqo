@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import '../../models/user_profile.dart';
 import '../../utils/unit_utils.dart';
+import '../../utils/farsi_formatter.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -78,15 +79,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     String weightToSave = _profile.weight;
     
     if (isMetric) {
-      heightToSave = _heightController.text;
-      weightToSave = _weightController.text;
+      heightToSave = FarsiFormatter.normalizeToEnglish(_heightController.text);
+      weightToSave = FarsiFormatter.normalizeToEnglish(_weightController.text);
     } else {
-      final feet = double.tryParse(_feetController.text) ?? 5.0;
-      final inches = double.tryParse(_inchesController.text) ?? 10.0;
+      final feet = double.tryParse(FarsiFormatter.normalizeToEnglish(_feetController.text)) ?? 5.0;
+      final inches = double.tryParse(FarsiFormatter.normalizeToEnglish(_inchesController.text)) ?? 10.0;
       final totalInches = (feet * 12) + inches;
       heightToSave = UnitUtils.inchesToCm(totalInches).toStringAsFixed(1);
       
-      final lb = double.tryParse(_weightController.text) ?? 175.0;
+      final lb = double.tryParse(FarsiFormatter.normalizeToEnglish(_weightController.text)) ?? 175.0;
       weightToSave = UnitUtils.lbToKg(lb).toStringAsFixed(1);
     }
     

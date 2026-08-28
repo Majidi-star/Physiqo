@@ -54,4 +54,17 @@ class FarsiFormatter {
     }
     return result;
   }
+
+  /// Normalizes Farsi/Arabic digits to English digits so they can be parsed by double.tryParse.
+  static String normalizeToEnglish(String text) {
+    if (text.isEmpty) return text;
+    const farsi = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    const arabic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    var result = text;
+    for (int i = 0; i < 10; i++) {
+      result = result.replaceAll(farsi[i], english[i]).replaceAll(arabic[i], english[i]);
+    }
+    return result;
+  }
 }

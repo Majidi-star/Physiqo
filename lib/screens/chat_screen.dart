@@ -19,6 +19,7 @@ import '../services/ai_orchestrator.dart';
 import '../services/ai_logger.dart';
 import '../widgets/ai_debug_dialog.dart';
 import '../utils/farsi_formatter.dart';
+import '../models/user_profile.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -70,6 +71,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     });
 
     _initRepository();
+    UserProfile.current().addListener(_onProfileChanged);
   }
 
   Future<void> _initRepository() async {
@@ -96,10 +98,21 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    UserProfile.current().removeListener(_onProfileChanged);
     _controller.dispose();
     _animationController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onProfileChanged() {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _activeSession = null;
+      });
+      _initRepository();
+    }
   }
 
   void _scrollToBottom() {

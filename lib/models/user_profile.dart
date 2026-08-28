@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/account_manager.dart';
+import '../utils/farsi_formatter.dart';
+import '../repositories/exercise_repository.dart';
 
 class UserProfile extends ChangeNotifier {
   String name;
@@ -49,8 +51,8 @@ class UserProfile extends ChangeNotifier {
   Future<void> loadFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     name = prefs.getString(AccountManager.getPrefKey('user_name')) ?? 'Charlie';
-    height = prefs.getString(AccountManager.getPrefKey('user_height')) ?? '۱۷۵';
-    weight = prefs.getString(AccountManager.getPrefKey('user_weight')) ?? '۸۰';
+    height = FarsiFormatter.normalizeToEnglish(prefs.getString(AccountManager.getPrefKey('user_height')) ?? '175');
+    weight = FarsiFormatter.normalizeToEnglish(prefs.getString(AccountManager.getPrefKey('user_weight')) ?? '80');
     photoPath = prefs.getString(AccountManager.getPrefKey('user_photoPath'));
     age = prefs.getInt(AccountManager.getPrefKey('user_age'));
     gender = prefs.getString(AccountManager.getPrefKey('user_gender'));
@@ -61,6 +63,9 @@ class UserProfile extends ChangeNotifier {
     additionalNotes = prefs.getString(AccountManager.getPrefKey('user_additionalNotes'));
     unitSystem = prefs.getString(AccountManager.getPrefKey('unit_system')) ?? 'metric';
     notifyListeners();
+    try {
+      ExerciseRepository.instance.notifyListeners();
+    } catch (_) {}
   }
 
   Future<void> saveToPrefs() async {
@@ -99,8 +104,8 @@ class UserProfile extends ChangeNotifier {
     bool clearPhoto = false,
   }) {
     if (name != null) this.name = name;
-    if (height != null) this.height = height;
-    if (weight != null) this.weight = weight;
+    if (height != null) this.height = FarsiFormatter.normalizeToEnglish(height);
+    if (weight != null) this.weight = FarsiFormatter.normalizeToEnglish(weight);
     
     if (clearPhoto) {
       this.photoPath = null;

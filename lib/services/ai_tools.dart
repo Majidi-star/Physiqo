@@ -8,6 +8,7 @@ import '../models/account.dart';
 import '../models/workout_day.dart';
 import '../models/exercise.dart';
 import '../utils/account_manager.dart';
+import '../utils/farsi_formatter.dart';
 import '../repositories/exercise_repository.dart';
 
 class AiTools {
@@ -183,10 +184,10 @@ class AiTools {
           }
           
           String? weight = args.containsKey('weight') 
-              ? args['weight'].toString().replaceAll(RegExp(r'[^0-9.]'), '') 
+              ? FarsiFormatter.normalizeToEnglish(args['weight'].toString()).replaceAll(RegExp(r'[^0-9.]'), '') 
               : null;
           String? height = args.containsKey('height') 
-              ? args['height'].toString().replaceAll(RegExp(r'[^0-9.]'), '') 
+              ? FarsiFormatter.normalizeToEnglish(args['height'].toString()).replaceAll(RegExp(r'[^0-9.]'), '') 
               : null;
           String? goal = args.containsKey('primaryGoal') ? args['primaryGoal']?.toString() : null;
           String? gender = args.containsKey('gender') ? args['gender']?.toString() : null;
