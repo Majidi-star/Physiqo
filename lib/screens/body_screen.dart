@@ -77,6 +77,20 @@ class _BodyScreenState extends State<BodyScreen> {
     }
   }
 
+  static const Map<String, String> _viewMovesTexts = {
+    'en': 'View Moves',
+    'fa': 'نمایش حرکات',
+    'zh': '查看动作',
+    'hi': 'मूव्स देखें',
+    'es': 'Ver ejercicios',
+    'ar': 'عرض الحركات',
+    'fr': 'Voir les exercices',
+    'bn': 'মুভস দেখুন',
+    'pt': 'Ver exercícios',
+    'ru': 'Смотреть упражнения',
+    'ur': 'حرکات دیکھیں',
+  };
+
   void _selectCategory(int index) {
     setState(() {
       _selectedMuscle = index;
@@ -91,6 +105,7 @@ class _BodyScreenState extends State<BodyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Localizations.localeOf(context).languageCode;
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
@@ -269,7 +284,7 @@ class _BodyScreenState extends State<BodyScreen> {
                                             children: [
                                               Flexible(
                                                 child: Text(
-                                                  context.tr('body_view_moves'),
+                                                  _viewMovesTexts[lang] ?? _viewMovesTexts['en']!,
                                                   style: AppTheme.labelMd.copyWith(
                                                     color: AppTheme.primary,
                                                     fontSize: 10,
