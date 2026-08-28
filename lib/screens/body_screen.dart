@@ -150,37 +150,35 @@ class _BodyScreenState extends State<BodyScreen> {
                           // ── Interactive body map ──────────────────────────
                           Expanded(
                             flex: 3,
-                            child: Stack(
-                              alignment: Alignment.center,
+                            child: Column(
                               children: [
-                                GestureDetector(
-                                  onHorizontalDragEnd: (details) {
-                                    if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 100) {
-                                      setState(() => _showFront = !_showFront);
-                                    }
-                                  },
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 300),
-                                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-                                    child: PhysiqoInteractiveBodySvg(
-                                      key: ValueKey(_showFront),
-                                      isFront: _showFront,
-                                      selectedMuscles: _categoryToMuscles[_selectedMuscle] ?? {},
-                                      onMuscleTap: _onMuscleTapped,
-                                      highlightColor: AppTheme.primary,
-                                      unselectedStrokeWidth: 1.0,
-                                      selectedStrokeWidth: 1.5,
-                                      fit: BoxFit.contain,
-                                      // Known limitation: package is male-only, using default male silhouette.
+                                Expanded(
+                                  child: GestureDetector(
+                                    onHorizontalDragEnd: (details) {
+                                      if (details.primaryVelocity != null && details.primaryVelocity!.abs() > 100) {
+                                        setState(() => _showFront = !_showFront);
+                                      }
+                                    },
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(milliseconds: 300),
+                                      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                                      child: PhysiqoInteractiveBodySvg(
+                                        key: ValueKey(_showFront),
+                                        isFront: _showFront,
+                                        selectedMuscles: _categoryToMuscles[_selectedMuscle] ?? {},
+                                        onMuscleTap: _onMuscleTapped,
+                                        highlightColor: AppTheme.primary,
+                                        unselectedStrokeWidth: 1.0,
+                                        selectedStrokeWidth: 1.5,
+                                        fit: BoxFit.contain,
+                                      ),
                                     ),
                                   ),
                                 ),
-                                Positioned(
-                                  bottom: 8,
-                                  child: _ViewToggle(
-                                    showFront: _showFront,
-                                    onToggle: () => setState(() => _showFront = !_showFront),
-                                  ),
+                                const SizedBox(height: AppTheme.spacingSm),
+                                _ViewToggle(
+                                  showFront: _showFront,
+                                  onToggle: () => setState(() => _showFront = !_showFront),
                                 ),
                               ],
                             ),
