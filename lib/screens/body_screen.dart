@@ -227,59 +227,70 @@ class _BodyScreenState extends State<BodyScreen> {
                                             : AppTheme.outline,
                                       ),
                                     ),
-                                    child: Directionality(
-                                      textDirection: TextDirection.rtl,
-                                      child: Row(
-                                        children: [
-                                          SvgPicture.asset(
-                                            m['svg'] as String,
-                                            width: 18,
-                                            height: 18,
-                                            colorFilter: ColorFilter.mode(
-                                              isActive
-                                                  ? AppTheme.primary
-                                                  : AppTheme.textPrimary,
-                                              BlendMode.srcIn,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              context.tr(m['label'] as String),
-                                              style: AppTheme.bodyMd.copyWith(
-                                                color: isActive
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            SvgPicture.asset(
+                                              m['svg'] as String,
+                                              width: 18,
+                                              height: 18,
+                                              colorFilter: ColorFilter.mode(
+                                                isActive
                                                     ? AppTheme.primary
                                                     : AppTheme.textPrimary,
-                                                fontWeight: isActive
-                                                    ? FontWeight.w600
-                                                    : FontWeight.w400,
+                                                BlendMode.srcIn,
                                               ),
                                             ),
-                                          ),
-                                          if (isActive) ...[
-                                            const SizedBox(width: 4),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                context.tr(m['label'] as String),
+                                                style: AppTheme.bodyMd.copyWith(
+                                                  color: isActive
+                                                      ? AppTheme.primary
+                                                      : AppTheme.textPrimary,
+                                                  fontWeight: isActive
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w400,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (isActive) ...[
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
                                                   context.tr('body_view_moves'),
                                                   style: AppTheme.labelMd.copyWith(
                                                     color: AppTheme.primary,
-                                                    fontSize: 9,
+                                                    fontSize: 10,
                                                     fontWeight: FontWeight.bold,
                                                   ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
-                                                const SizedBox(width: 2),
-                                                const Icon(
-                                                  Icons.chevron_left,
-                                                  color: AppTheme.primary,
-                                                  size: 14,
-                                                ),
-                                              ],
-                                            ),
-                                          ],
+                                              ),
+                                              const SizedBox(width: 2),
+                                              Icon(
+                                                Directionality.of(context) == TextDirection.rtl 
+                                                    ? Icons.chevron_left 
+                                                    : Icons.chevron_right,
+                                                color: AppTheme.primary,
+                                                size: 14,
+                                              ),
+                                            ],
+                                          ),
                                         ],
-                                      ),
+                                      ],
                                     ),
                                   ),
                                 );
