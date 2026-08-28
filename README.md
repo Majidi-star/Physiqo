@@ -4,25 +4,15 @@
   <b>100% Serverless. Offline-First. Cinematic Dark UI. Full RTL & Multilingual Support.</b>
 </p>
 
-<p align="center">
-  <a href="#english">English</a> | 
-  <a href="#farsi">فارسی</a> | 
-  <a href="#chinese">中文</a> | 
-  <a href="#hindi">हिन्दी</a> | 
-  <a href="#spanish">Español</a> | 
-  <a href="#arabic">العربية</a> | 
-  <a href="#french">Français</a> | 
-  <a href="#bengali">বাংলা</a> | 
-  <a href="#portuguese">Português</a> | 
-  <a href="#russian">Русский</a> | 
-  <a href="#urdu">اردو</a>
-</p>
-
 ---
 
-<div id="english" dir="ltr">
+> **🌐 Select your language / انتخاب زبان / 选择语言 / अपनी भाषा चुनें / Elige tu idioma / اختر لغتك / Choisissez votre langue / আপনার ভাষা নির্বাচন করুন / Escolha seu idioma / Выберите ваш язык / اپنی زبان منتخب کریں**
+> 
+> *Click on a language tab below to expand its content.*
 
-## 🇺🇸 English
+<details open>
+<summary><h2>🇺🇸 English</h2></summary>
+<div dir="ltr">
 
 ### 📸 Media & Demos
 <p align="center">
@@ -47,12 +37,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="farsi" dir="rtl">
-
-## 🇮🇷 فارسی
+<details>
+<summary><h2>🇮🇷 فارسی (Persian)</h2></summary>
+<div dir="rtl">
 
 ### 📸 رسانه‌ها و دموها
 <p align="center">
@@ -70,19 +59,18 @@ flutter run
 ۴. **تحلیل اسکن قامت بدن:** ثبت تصاویر برای ارزیابی وضعیت ستون فقرات و نقاط ضعف عضلانی توسط مربی هوش مصنوعی.
 ۵. **فیلتر هوشمند آسیب‌دیدگی‌ها:** حذف خودکار حرکات پرخطر و جایگزینی آن‌ها با تمرینات امن متناسب با محدودیت‌های بدنی شما.
 
-### 🚀 راه اندازی سریع
+### 🚀 راه‌اندازی سریع
 ```bash
 flutter pub get
 flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="chinese" dir="ltr">
-
-## 🇨🇳 中文 (Chinese)
+<details>
+<summary><h2>🇨🇳 中文 (Chinese)</h2></summary>
+<div dir="ltr">
 
 ### 📸 演示与视频
 <p align="center">
@@ -96,7 +84,7 @@ flutter run
 ### ⚡ 核心功能
 1. **电影级暗黑设计:** 采用极简高端色彩方案（背景 `#1C1C1E`, 主色 `#FF6B2C`），无过度发光，凸显专业质感。
 2. **100% 无服务器与隐私安全:** AI API 密钥均通过 `FlutterSecureStorage` 进行本地加密存储。
-3. **多语言与 RTL 镜像:** 一键切换11种语言，排版及阅读方向（左右反转）完美适配。
+3. **多语言与 RTL 镜像:** 一键切换11种语言，排版及阅读方向完美适配。
 4. **身体姿态视觉分析:** 录入体态图像，让智能教练评估肩颈脊椎对齐度并指出薄弱肌群。
 5. **动态伤病避险:** 自动识别您的关节损伤或痛点，从训练计划中剔除危险动作，替换为更安全的保护性动作。
 
@@ -107,12 +95,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="hindi" dir="ltr">
-
-## 🇮🇳 हिन्दी (Hindi)
+<details>
+<summary><h2>🇮🇳 हिन्दी (Hindi)</h2></summary>
+<div dir="ltr">
 
 ### 📸 मीडिया और डेमो
 <p align="center">
@@ -137,12 +124,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="spanish" dir="ltr">
-
-## 🇪🇸 Español (Spanish)
+<details>
+<summary><h2>🇪🇸 Español (Spanish)</h2></summary>
+<div dir="ltr">
 
 ### 📸 Demos y Medios
 <p align="center">
@@ -167,12 +153,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="arabic" dir="rtl">
-
-## 🇸🇦 العربية (Arabic)
+<details>
+<summary><h2>🇸🇦 العربية (Arabic)</h2></summary>
+<div dir="rtl">
 
 ### 📸 الوسائط والعروض
 <p align="center">
@@ -197,12 +182,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="french" dir="ltr">
-
-## 🇫🇷 Français (French)
+<details>
+<summary><h2>🇫🇷 Français (French)</h2></summary>
+<div dir="ltr">
 
 ### 📸 Médias & Démos
 <p align="center">
@@ -227,12 +211,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="bengali" dir="ltr">
-
-## 🇧🇩 বাংলা (Bengali)
+<details>
+<summary><h2>🇧🇩 বাংলা (Bengali)</h2></summary>
+<div dir="ltr">
 
 ### 📸 মিডিয়া এবং ডেমো
 <p align="center">
@@ -257,12 +240,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="portuguese" dir="ltr">
-
-## 🇧🇷 Português (Portuguese)
+<details>
+<summary><h2>🇧🇷 Português (Portuguese)</h2></summary>
+<div dir="ltr">
 
 ### 📸 Mídia & Demonstrações
 <p align="center">
@@ -287,12 +269,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="russian" dir="ltr">
-
-## 🇷🇺 Русский (Russian)
+<details>
+<summary><h2>🇷🇺 Русский (Russian)</h2></summary>
+<div dir="ltr">
 
 ### 📸 Демонстрация работы
 <p align="center">
@@ -317,12 +298,11 @@ flutter run
 ```
 
 </div>
+</details>
 
----
-
-<div id="urdu" dir="rtl">
-
-## 🇵🇰 اردو (Urdu)
+<details>
+<summary><h2>🇵🇰 اردو (Urdu)</h2></summary>
+<div dir="rtl">
 
 ### 📸 میڈیا اور ڈیمو
 <p align="center">
@@ -347,3 +327,4 @@ flutter run
 ```
 
 </div>
+</details>
