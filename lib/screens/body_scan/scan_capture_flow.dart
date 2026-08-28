@@ -535,8 +535,24 @@ Return your response strictly in the following JSON format. Do not write any tex
         return _buildAnalyzingView();
     }
   }
+  static const Map<String, String> _permissionTitles = {
+    'en': 'Camera Access Not Granted',
+    'fa': 'دسترسی به دوربین داده نشده است',
+    'zh': '未授予相机访问权限',
+    'hi': 'कैमरा एक्सेस नहीं दिया गया',
+    'es': 'Acceso a la cámara no concedido',
+    'ar': 'لم يتم منح إذن الوصول للكاميرا',
+    'fr': 'Accès à la caméra non autorisé',
+    'bn': 'ক্যামেরা অ্যাক্সেস দেওয়া হয়নি',
+    'pt': 'Acesso à câmera não concedido',
+    'ru': 'Нет доступа к камере',
+    'ur': 'کیمرہ تک رسائی نہیں دی گئی',
+  };
 
   Widget _buildPermissionDenialView() {
+    final lang = Localizations.localeOf(context).languageCode;
+    final title = _permissionTitles[lang] ?? _permissionTitles['en']!;
+
     return Padding(
       padding: const EdgeInsets.all(AppTheme.gutter),
       child: Column(
@@ -550,7 +566,7 @@ Return your response strictly in the following JSON format. Do not write any tex
           ),
           const SizedBox(height: AppTheme.spacingLg),
           Text(
-            'دسترسی به دوربین داده نشده است',
+            title,
             style: AppTheme.headlineMd,
             textAlign: TextAlign.center,
           ),
@@ -694,11 +710,28 @@ Return your response strictly in the following JSON format. Do not write any tex
     );
   }
 
+  static const Map<String, String> _noCameraFoundTexts = {
+    'en': 'No camera found.\nTap the capture button to simulate.',
+    'fa': 'دوربینی یافت نشد.\nبرای شبیه‌سازی روی دکمه عکس ضربه بزنید.',
+    'zh': '未找到相机。\n点击拍照按钮进行模拟。',
+    'hi': 'कोई कैमरा नहीं मिला।\nअनुकरण करने के लिए कैप्चर बटन टैप करें।',
+    'es': 'No se encontró cámara.\nToca el botón de captura para simular.',
+    'ar': 'لم يتم العثور على كاميرا.\nانقر على زر الالتقاط للمحاكاة.',
+    'fr': 'Aucune caméra trouvée.\nAppuyez sur le bouton de capture pour simuler.',
+    'bn': 'কোনো ক্যামেরা পাওয়া যায়নি।\nসিমুলেট করতে ক্যাপচার বোতামে ট্যাপ করুন।',
+    'pt': 'Nenhuma câmera encontrada.\nToque no botão de captura para simular.',
+    'ru': 'Камера не найдена.\nНажмите кнопку съемки для симуляции.',
+    'ur': 'کوئی کیمرہ نہیں ملا۔\nنقل کرنے کے لیے کیپچر بٹن کو تھپتھپائیں۔',
+  };
+
   Widget _buildCameraPreviewWidget() {
     if (_cameras != null && _cameras!.isEmpty) {
+      final lang = Localizations.localeOf(context).languageCode;
+      final text = _noCameraFoundTexts[lang] ?? _noCameraFoundTexts['en']!;
+      
       return Center(
         child: Text(
-          'دوربینی یافت نشد.\nبرای شبیه‌سازی روی دکمه عکس ضربه بزنید.',
+          text,
           style: AppTheme.bodyLg.copyWith(color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
         ),

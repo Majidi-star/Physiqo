@@ -291,7 +291,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('تاریخ برنامه:'),
+                          Text(isFa ? 'تاریخ برنامه:' : 'Schedule Date:'),
                           TextButton.icon(
                             icon: const Icon(Icons.calendar_today, size: 16),
                             label: Text(displayDateStr),
@@ -351,7 +351,7 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('ایجاد', style: TextStyle(color: AppTheme.primary)),
+                  child: Text(isFa ? 'ایجاد' : 'Create', style: const TextStyle(color: AppTheme.primary)),
                 ),
               ],
             );
@@ -625,9 +625,10 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
   }
 
   void _shareAllPlans(BuildContext context) async {
+    final isFa = AppDateUtils.isFa(context);
     if (_allPlans.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('برنامه‌ای برای اشتراک‌گذاری وجود ندارد.', style: TextStyle(fontFamily: 'Vazirmatn'))),
+        SnackBar(content: Text(isFa ? 'برنامه‌ای برای اشتراک‌گذاری وجود ندارد.' : 'No plans to share.', style: const TextStyle(fontFamily: 'Vazirmatn'))),
       );
       return;
     }
@@ -636,42 +637,48 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
       context: context,
       builder: (context) => SimpleDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text(
-          'اشتراک‌گذاری کل برنامه تمرینی',
-          style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold),
-          textAlign: TextAlign.right,
+        title: Text(
+          isFa ? 'اشتراک‌گذاری کل برنامه تمرینی' : 'Share Entire Workout Plan',
+          style: const TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold),
+          textAlign: isFa ? TextAlign.right : TextAlign.left,
         ),
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'text'),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Row(
+              mainAxisAlignment: isFa ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
-                Text('ارسال به صورت متن', style: TextStyle(fontFamily: 'Vazirmatn')),
-                SizedBox(width: 12),
-                Icon(Icons.text_fields, color: AppTheme.primary),
+                if (!isFa) const Icon(Icons.text_fields, color: AppTheme.primary),
+                if (!isFa) const SizedBox(width: 12),
+                Text(isFa ? 'ارسال به صورت متن' : 'Share as Text', style: const TextStyle(fontFamily: 'Vazirmatn')),
+                if (isFa) const SizedBox(width: 12),
+                if (isFa) const Icon(Icons.text_fields, color: AppTheme.primary),
               ],
             ),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'image'),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Row(
+              mainAxisAlignment: isFa ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
-                Text('ارسال به صورت تک تصویر (کلاژ)', style: TextStyle(fontFamily: 'Vazirmatn')),
-                SizedBox(width: 12),
-                Icon(Icons.image, color: AppTheme.primary),
+                if (!isFa) const Icon(Icons.image, color: AppTheme.primary),
+                if (!isFa) const SizedBox(width: 12),
+                Text(isFa ? 'ارسال به صورت تک تصویر (کلاژ)' : 'Share as single Image Collage', style: const TextStyle(fontFamily: 'Vazirmatn')),
+                if (isFa) const SizedBox(width: 12),
+                if (isFa) const Icon(Icons.image, color: AppTheme.primary),
               ],
             ),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.pop(context, 'images_separated'),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Row(
+              mainAxisAlignment: isFa ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
-                Text('ارسال به صورت تصاویر جداگانه هر روز', style: TextStyle(fontFamily: 'Vazirmatn')),
-                SizedBox(width: 12),
-                Icon(Icons.photo_library, color: AppTheme.primary),
+                if (!isFa) const Icon(Icons.photo_library, color: AppTheme.primary),
+                if (!isFa) const SizedBox(width: 12),
+                Text(isFa ? 'ارسال به صورت تصاویر جداگانه هر روز' : 'Share as separate Images', style: const TextStyle(fontFamily: 'Vazirmatn')),
+                if (isFa) const SizedBox(width: 12),
+                if (isFa) const Icon(Icons.photo_library, color: AppTheme.primary),
               ],
             ),
           ),
