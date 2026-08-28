@@ -15,7 +15,14 @@ import '../l10n/translations.dart';
 import '../utils/app_date_utils.dart';
 
 class MovesScreen extends StatefulWidget {
-  const MovesScreen({super.key});
+  final int? initialCategory;
+  final int initialTab;
+
+  const MovesScreen({
+    super.key,
+    this.initialCategory,
+    this.initialTab = 0,
+  });
 
   @override
   State<MovesScreen> createState() => _MovesScreenState();
@@ -29,6 +36,7 @@ class _MovesScreenState extends State<MovesScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedCategory = widget.initialCategory ?? 0;
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,6 +88,7 @@ class _MovesScreenState extends State<MovesScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTab,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         floatingActionButton: FloatingActionButton.extended(
@@ -104,7 +113,12 @@ class _MovesScreenState extends State<MovesScreen> {
           child: SafeArea(
             child: Column(
               children: [
-                PhysiqoHeader.profile(),
+                widget.initialCategory != null
+                    ? PhysiqoHeader.back(
+                        title: context.tr('nav_moves'),
+                        onBackTap: () => Navigator.pop(context),
+                      )
+                    : PhysiqoHeader.profile(),
                 const Divider(color: AppTheme.outline, height: 1),
                 TabBar(
                   indicatorColor: AppTheme.primary,

@@ -58,6 +58,7 @@ final Map<String, String> langEn = {
       'body_scan_analysis': 'Scan Analysis',
       'body_front': 'Front',
       'body_back': 'Back',
+      'body_view_moves': 'View Moves',
       
       // Moves Screen
       'moves_add_exercise': 'Add Exercise',

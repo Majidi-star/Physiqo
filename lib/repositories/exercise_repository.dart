@@ -19,12 +19,20 @@ class ExerciseRepository extends ChangeNotifier {
     instance = ExerciseRepository._internal(prefs);
   }
 
+  List<Exercise>? _cachedExercises;
+  String? _cachedExercisesKey;
+
   List<Exercise> _loadExercises() {
+    if (_cachedExercises != null && _cachedExercisesKey == _storageKey) {
+      return _cachedExercises!;
+    }
+    _cachedExercisesKey = _storageKey;
     final raw = _prefs.getString(_storageKey);
     if (raw == null) {
       // First time launch: seed database
       final seedList = defaultExercisesSeed.map((json) => Exercise.fromJson(json)).toList();
       _saveExercises(seedList);
+      _cachedExercises = seedList;
       return seedList;
     }
     try {
@@ -45,13 +53,17 @@ class ExerciseRepository extends ChangeNotifier {
       if (updated) {
         _saveExercises(cachedList);
       }
+      _cachedExercises = cachedList;
       return cachedList;
     } catch (_) {
+      _cachedExercises = [];
       return [];
     }
   }
 
   Future<void> _saveExercises(List<Exercise> exercises) async {
+    _cachedExercises = exercises;
+    _cachedExercisesKey = _storageKey;
     final raw = jsonEncode(exercises.map((e) => e.toJson()).toList());
     await _prefs.setString(_storageKey, raw);
     notifyListeners();
@@ -97,66 +109,72 @@ class ExerciseRepository extends ChangeNotifier {
 
   // ─── Workout Plan Management (Absolute Dates) ──────────────────────
 
-  Future<void> saveWorkoutDay(WorkoutDay day) async {
-    final raw = _prefs.getString(_programStorageKey);
-    Map<String, dynamic> planMap = {};
-    if (raw != null) {
-      try {
-        planMap = jsonDecode(raw);
-      } catch (_) {}
+  Map<String, dynamic>? _cachedProgramMap;
+  String? _cachedProgramKey;
+
+  Map<String, dynamic> _getProgramMap() {
+    if (_cachedProgramMap != null && _cachedProgramKey == _programStorageKey) {
+      return _cachedProgramMap!;
     }
-    
-    planMap[day.date] = day.toJson();
+    _cachedProgramKey = _programStorageKey;
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw == null) {
+      _cachedProgramMap = {};
+      return {};
+    }
+    try {
+      _cachedProgramMap = jsonDecode(raw) as Map<String, dynamic>;
+      return _cachedProgramMap!;
+    } catch (_) {
+      _cachedProgramMap = {};
+      return {};
+    }
+  }
+
+  Future<void> _saveProgramMap(Map<String, dynamic> planMap) async {
+    _cachedProgramMap = planMap;
+    _cachedProgramKey = _programStorageKey;
     await _prefs.setString(_programStorageKey, jsonEncode(planMap));
+  }
+
+  Future<void> saveWorkoutDay(WorkoutDay day) async {
+    final planMap = _getProgramMap();
+    planMap[day.date] = day.toJson();
+    await _saveProgramMap(planMap);
     notifyListeners();
   }
 
   Future<void> deleteWorkoutDay(DateTime date) async {
     final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    final raw = _prefs.getString(_programStorageKey);
-    if (raw != null) {
-      try {
-        Map<String, dynamic> planMap = jsonDecode(raw);
-        if (planMap.containsKey(dateStr)) {
-          planMap.remove(dateStr);
-          await _prefs.setString(_programStorageKey, jsonEncode(planMap));
-          notifyListeners();
-        }
-      } catch (_) {}
+    final planMap = _getProgramMap();
+    if (planMap.containsKey(dateStr)) {
+      planMap.remove(dateStr);
+      await _saveProgramMap(planMap);
+      notifyListeners();
     }
   }
 
   Future<void> deleteWorkoutDayByKey(String key) async {
-    final raw = _prefs.getString(_programStorageKey);
-    if (raw != null) {
-      try {
-        Map<String, dynamic> planMap = jsonDecode(raw);
-        if (planMap.containsKey(key)) {
-          planMap.remove(key);
-          await _prefs.setString(_programStorageKey, jsonEncode(planMap));
-          notifyListeners();
-        }
-      } catch (_) {}
+    final planMap = _getProgramMap();
+    if (planMap.containsKey(key)) {
+      planMap.remove(key);
+      await _saveProgramMap(planMap);
+      notifyListeners();
     }
   }
 
   Future<void> clearAllWorkoutPlans() async {
+    _cachedProgramMap = null;
+    _cachedProgramKey = null;
     await _prefs.remove(_programStorageKey);
     notifyListeners();
   }
 
   List<String> getAllScheduledWorkoutDates() {
-    final raw = _prefs.getString(_programStorageKey);
-    if (raw == null) return [];
-
-    try {
-      final Map<String, dynamic> planMap = jsonDecode(raw);
-      final List<String> dates = planMap.keys.toList();
-      dates.sort();
-      return dates;
-    } catch (_) {
-      return [];
-    }
+    final planMap = _getProgramMap();
+    final List<String> dates = planMap.keys.toList();
+    dates.sort();
+    return dates;
   }
 
   WorkoutDay? getWorkoutDay(DateTime date) {
@@ -166,66 +184,49 @@ class ExerciseRepository extends ChangeNotifier {
 
   List<WorkoutDay> getWorkoutDays(DateTime date) {
     final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    final raw = _prefs.getString(_programStorageKey);
-    if (raw == null) return [];
-
-    try {
-      final Map<String, dynamic> planMap = jsonDecode(raw);
-      final List<WorkoutDay> list = [];
-      planMap.forEach((key, value) {
-        if (key == dateStr || key.startsWith('${dateStr}_')) {
-          list.add(WorkoutDay.fromJson(value));
-        }
-      });
-      // Sort to keep them ordered consistently (e.g., YYYY-MM-DD first, then YYYY-MM-DD_1, etc.)
-      list.sort((a, b) => a.date.compareTo(b.date));
-      return list;
-    } catch (_) {}
-    return [];
+    final planMap = _getProgramMap();
+    final List<WorkoutDay> list = [];
+    planMap.forEach((key, value) {
+      if (key == dateStr || key.startsWith('${dateStr}_')) {
+        list.add(WorkoutDay.fromJson(value));
+      }
+    });
+    list.sort((a, b) => a.date.compareTo(b.date));
+    return list;
   }
 
   WorkoutDay? getWorkoutDayByKey(String key) {
-    final raw = _prefs.getString(_programStorageKey);
-    if (raw == null) return null;
-
-    try {
-      final Map<String, dynamic> planMap = jsonDecode(raw);
-      if (planMap.containsKey(key)) {
-        return WorkoutDay.fromJson(planMap[key]);
-      }
-    } catch (_) {}
+    final planMap = _getProgramMap();
+    if (planMap.containsKey(key)) {
+      return WorkoutDay.fromJson(planMap[key]);
+    }
     return null;
   }
 
   List<Map<String, dynamic>> getWorkoutScheduleSummary(DateTime start, DateTime end) {
-    final raw = _prefs.getString(_programStorageKey);
-    if (raw == null) return [];
-
-    try {
-      final Map<String, dynamic> planMap = jsonDecode(raw);
-      final List<Map<String, dynamic>> summary = [];
-      
-      planMap.forEach((dateStr, data) {
-        final parts = dateStr.split('-');
-        if (parts.length == 3) {
-          final y = int.parse(parts[0]);
-          final m = int.parse(parts[1]);
-          // Handle unique suffix: split day part by '_'
-          final dayParts = parts[2].split('_');
-          final d = int.parse(dayParts[0]);
-          final date = DateTime(y, m, d);
-          
-          if (date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)))) {
-            final day = WorkoutDay.fromJson(data);
-            summary.add({
-              'date': day.date,
-              'title': day.title,
-              'focus': day.focus,
-              'itemsCount': day.items.length,
-            });
-          }
+    final planMap = _getProgramMap();
+    final List<Map<String, dynamic>> summary = [];
+    
+    planMap.forEach((dateStr, data) {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        final y = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        final dayParts = parts[2].split('_');
+        final d = int.parse(dayParts[0]);
+        final date = DateTime(y, m, d);
+        
+        if (date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)))) {
+          final day = WorkoutDay.fromJson(data);
+          summary.add({
+            'date': day.date,
+            'title': day.title,
+            'focus': day.focus,
+            'itemsCount': day.items.length,
+          });
         }
-      });
+      }
+    });
       
       summary.sort((a, b) => a['date'].toString().compareTo(b['date'].toString()));
       return summary;

@@ -5,6 +5,7 @@ import '../widgets/physiqo_header.dart';
 import 'package:flutter_body_part_selector/flutter_body_part_selector.dart' as fbps;
 import '../widgets/physiqo_interactive_body_svg.dart';
 import 'body_scan/scan_capture_flow.dart';
+import 'moves_screen.dart';
 import '../l10n/translations.dart';
 
 class BodyScreen extends StatefulWidget {
@@ -197,7 +198,21 @@ class _BodyScreenState extends State<BodyScreen> {
                                 final m = AppTheme.muscleCategories[index];
                                 final isActive = _selectedMuscle == index;
                                 return GestureDetector(
-                                  onTap: () => _selectCategory(index),
+                                  onTap: () {
+                                    if (isActive) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => MovesScreen(
+                                            initialCategory: index,
+                                            initialTab: 1,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      _selectCategory(index);
+                                    }
+                                  },
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 150),
                                     curve: Curves.easeOut,
@@ -243,15 +258,28 @@ class _BodyScreenState extends State<BodyScreen> {
                                               ),
                                             ),
                                           ),
-                                          if (isActive)
-                                            Container(
-                                              width: 6,
-                                              height: 6,
-                                              decoration: const BoxDecoration(
-                                                color: AppTheme.primary,
-                                                shape: BoxShape.circle,
-                                              ),
+                                          if (isActive) ...[
+                                            const SizedBox(width: 4),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  context.tr('body_view_moves'),
+                                                  style: AppTheme.labelMd.copyWith(
+                                                    color: AppTheme.primary,
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 2),
+                                                const Icon(
+                                                  Icons.chevron_left,
+                                                  color: AppTheme.primary,
+                                                  size: 14,
+                                                ),
+                                              ],
                                             ),
+                                          ],
                                         ],
                                       ),
                                     ),

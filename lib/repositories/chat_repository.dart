@@ -10,18 +10,32 @@ class ChatRepository {
 
   ChatRepository(this._prefs);
 
+  List<ChatSession>? _cachedSessions;
+  String? _cachedKey;
+
   List<ChatSession> _loadSessions() {
+    if (_cachedSessions != null && _cachedKey == _storageKey) {
+      return _cachedSessions!;
+    }
+    _cachedKey = _storageKey;
     final raw = _prefs.getString(_storageKey);
-    if (raw == null) return [];
+    if (raw == null) {
+      _cachedSessions = [];
+      return [];
+    }
     try {
       final list = jsonDecode(raw) as List<dynamic>;
-      return list.map((item) => ChatSession.fromJson(item as Map<String, dynamic>)).toList();
+      _cachedSessions = list.map((item) => ChatSession.fromJson(item as Map<String, dynamic>)).toList();
+      return _cachedSessions!;
     } catch (_) {
+      _cachedSessions = [];
       return [];
     }
   }
 
   Future<void> _saveSessions(List<ChatSession> sessions) async {
+    _cachedSessions = sessions;
+    _cachedKey = _storageKey;
     final raw = jsonEncode(sessions.map((s) => s.toJson()).toList());
     await _prefs.setString(_storageKey, raw);
   }

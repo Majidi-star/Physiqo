@@ -44,6 +44,7 @@ final Map<String, String> langFa = {
       'body_scan_analysis': 'تحلیل اسکن',
       'body_front': 'جلو',
       'body_back': 'پشت',
+      'body_view_moves': 'نمایش حرکات',
       
       // Moves Screen
       'moves_add_exercise': 'افزودن حرکت',
