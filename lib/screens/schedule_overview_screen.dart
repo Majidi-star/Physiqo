@@ -658,9 +658,20 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text('ارسال به صورت تصویر', style: TextStyle(fontFamily: 'Vazirmatn')),
+                Text('ارسال به صورت تک تصویر (کلاژ)', style: TextStyle(fontFamily: 'Vazirmatn')),
                 SizedBox(width: 12),
                 Icon(Icons.image, color: AppTheme.primary),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'images_separated'),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text('ارسال به صورت تصاویر جداگانه هر روز', style: TextStyle(fontFamily: 'Vazirmatn')),
+                SizedBox(width: 12),
+                Icon(Icons.photo_library, color: AppTheme.primary),
               ],
             ),
           ),
@@ -711,6 +722,60 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
       await Share.share(buffer.toString());
     } else if (selection == 'image') {
       await _captureAndShareCollageImage();
+    } else if (selection == 'images_separated') {
+      await _captureAndShareMultipleImages();
+    }
+  }
+
+  Future<void> _captureAndShareMultipleImages() async {
+    final List<XFile> filesToShare = [];
+    final tempDir = await getTemporaryDirectory();
+
+    for (var plan in _allPlans) {
+      setState(() {
+        _sharePosterPlan = plan;
+      });
+
+      // Wait for widget compilation and painting
+      await Future.delayed(const Duration(milliseconds: 250));
+
+      try {
+        final boundary = _posterBoundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary == null) {
+          throw Exception("RepaintBoundary findRenderObject returned null");
+        }
+
+        final image = await boundary.toImage(pixelRatio: 3.0);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData == null) {
+          throw Exception("toByteData returned null");
+        }
+
+        final pngBytes = byteData.buffer.asUint8List();
+        final file = await File('${tempDir.path}/physiqo_workout_${plan.date}.png').create();
+        await file.writeAsBytes(pngBytes);
+        filesToShare.add(XFile(file.path));
+      } catch (e) {
+        debugPrint("Error exporting page for ${plan.date}: $e");
+      }
+    }
+
+    // Reset poster plan
+    setState(() {
+      _sharePosterPlan = null;
+    });
+
+    if (filesToShare.isNotEmpty) {
+      final isFa = AppDateUtils.isFa(context);
+      final shareText = isFa ? 'برنامه‌های تمرینی روزانه من در فیزیقو' : 'My daily workout plans on Physiqo';
+      await Share.shareXFiles(
+        filesToShare,
+        text: shareText,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('خطا در تولید تصاویر برنامه‌ها', style: TextStyle(fontFamily: 'Vazirmatn'))),
+      );
     }
   }
 
