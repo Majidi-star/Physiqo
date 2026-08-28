@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListenableBuilder(
                 listenable: ExerciseRepository.instance,
                 builder: (context, _) {
-                  final _todayPlan = ExerciseRepository.instance.getWorkoutDay(_selectedDate);
+                  final _todayPlans = ExerciseRepository.instance.getWorkoutDays(_selectedDate);
                   
                   return SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter),
@@ -67,24 +67,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: AppTheme.spacingLg),
                         
-                        // ─── Section Header (Hide if Empty) ────────────
-                        if (_todayPlan != null && _todayPlan.items.isNotEmpty) ...[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(_todayPlan.title.isNotEmpty ? _todayPlan.title : context.tr('home_today_plan'), style: AppTheme.headlineMd),
-                              ),
-                              Text('${_todayPlan.items.length} ${context.tr('moves_exercises_suffix').trim()}', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                        // ─── Section Header & Cards for all plans ──────
+                        for (var plan in _todayPlans) ...[
+                          if (plan.items.isNotEmpty) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(plan.title.isNotEmpty ? plan.title : context.tr('home_today_plan'), style: AppTheme.headlineMd),
+                                ),
+                                Text('${plan.items.length} ${context.tr('moves_exercises_suffix').trim()}', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                              ],
+                            ),
+                            if (plan.focus.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(plan.focus, style: AppTheme.bodyMd.copyWith(color: AppTheme.primary)),
                             ],
-                          ),
-                          if (_todayPlan.focus.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(_todayPlan.focus, style: AppTheme.bodyMd.copyWith(color: AppTheme.primary)),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            // ─── Exercise Cards ────────────────────────────
+                            ...plan.items.map((item) => _buildWorkoutItem(item, context, () => setState(() {}))),
+                            const SizedBox(height: AppTheme.spacingLg),
                           ],
-                          const SizedBox(height: AppTheme.spacingMd),
-                          // ─── Exercise Cards ────────────────────────────
-                          ..._todayPlan.items.map((item) => _buildWorkoutItem(item, context, () => setState(() {}))),
                         ],
                         const SizedBox(height: 100), // nav bar clearance
                       ],

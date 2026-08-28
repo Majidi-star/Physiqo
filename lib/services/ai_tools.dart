@@ -326,16 +326,22 @@ class AiTools {
               }
               break;
             case 'get_details':
-              final date = DateTime.tryParse(args['date']?.toString() ?? '');
-              if (date != null) {
-                final day = ExerciseRepository.instance.getWorkoutDay(date);
-                if (day != null) {
-                  result = day.toJson().toString();
-                } else {
-                  result = "No workout found for ${args['date']}.";
-                }
+              final dateStr = args['date']?.toString() ?? '';
+              var day = ExerciseRepository.instance.getWorkoutDayByKey(dateStr);
+              if (day != null) {
+                result = day.toJson().toString();
               } else {
-                result = "Invalid date format. Use YYYY-MM-DD.";
+                final date = DateTime.tryParse(dateStr);
+                if (date != null) {
+                  final days = ExerciseRepository.instance.getWorkoutDays(date);
+                  if (days.isNotEmpty) {
+                    result = days.map((d) => d.toJson()).toList().toString();
+                  } else {
+                    result = "No workout found for $dateStr.";
+                  }
+                } else {
+                  result = "Invalid date/key format. Use YYYY-MM-DD.";
+                }
               }
               break;
             case 'delete_day':

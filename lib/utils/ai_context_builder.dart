@@ -1,6 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shamsi_date/shamsi_date.dart';
 import '../models/user_profile.dart';
+import '../models/workout_day.dart';
+import '../repositories/exercise_repository.dart';
 import '../utils/account_manager.dart';
 import '../utils/app_date_utils.dart';
 
@@ -100,6 +102,46 @@ class AIContextBuilder {
           })
           .join(', ');
       buffer.writeln('  - Upcoming Schedule Dates: $scheduleStr');
+    }
+
+    // Load and format all current workout plans (including user edits) into context
+    final datesStr = ExerciseRepository.instance.getAllScheduledWorkoutDates();
+    if (datesStr.isNotEmpty) {
+      buffer.writeln('- Current Scheduled Workout Plans (User edited/generated):');
+      for (String dateKey in datesStr) {
+        final plan = ExerciseRepository.instance.getWorkoutDayByKey(dateKey);
+        if (plan != null && plan.items.isNotEmpty) {
+          final cleanDate = dateKey.split('_')[0];
+          final parsedDate = DateTime.tryParse(cleanDate);
+          String dateDisplay = cleanDate;
+          if (parsedDate != null) {
+            final jalali = Jalali.fromDateTime(parsedDate);
+            final shamsi = "${jalali.day} ${AppDateUtils.faMonths[jalali.month - 1]}";
+            dateDisplay = "$cleanDate ($shamsi)";
+          }
+          buffer.writeln('  - Plan Date: $dateDisplay (Database Key: $dateKey)');
+          buffer.writeln('    - Title: ${plan.title}');
+          buffer.writeln('    - Focus: ${plan.focus}');
+          buffer.writeln('    - Exercises:');
+          for (var item in plan.items) {
+            if (item is SingleMoveItem) {
+              final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(item.exerciseId);
+              if (ex != null) {
+                buffer.writeln('      - ${ex.nameEn} (${ex.nameFa}): Sets: ${ex.defaultSets}, Reps: ${ex.defaultReps}, Rest: ${ex.defaultRestSeconds}s');
+              }
+            } else if (item is SupersetItem) {
+              final List<String> names = [];
+              for (var id in item.exerciseIds) {
+                final ex = ExerciseRepository.instance.getExerciseByIdOrFallback(id);
+                if (ex != null) {
+                  names.add('${ex.nameEn} (${ex.nameFa}, ${ex.defaultSets}x${ex.defaultReps})');
+                }
+              }
+              buffer.writeln('      - Superset [${names.join(' + ')}]');
+            }
+          }
+        }
+      }
     }
 
     final restStr = restMode == 'auto' ? 'AI decides rest time' : 'Rest time between sets: $restMin-$restMax seconds';

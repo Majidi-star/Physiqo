@@ -38,10 +38,8 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
     final List<WorkoutDay> plans = [];
     for (String dateStr in datesStr) {
       try {
-        final dateParts = dateStr.split('-');
-        final date = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
-        final plan = ExerciseRepository.instance.getWorkoutDay(date);
-        if (plan != null && plan.items.isNotEmpty) {
+        final plan = ExerciseRepository.instance.getWorkoutDayByKey(dateStr);
+        if (plan != null) {
           plans.add(plan);
         }
       } catch (_) {}
@@ -84,88 +82,390 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
     );
 
     if (confirmed == true) {
-      final dateParts = plan.date.split('-');
-      final dt = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
-      await ExerciseRepository.instance.deleteWorkoutDay(dt);
+      await ExerciseRepository.instance.deleteWorkoutDayByKey(plan.date);
       _loadPlans();
     }
   }
 
+  Future<DateTime?> showShamsiDatePicker(BuildContext context, DateTime initialDate) async {
+    final initialJalali = Jalali.fromDateTime(initialDate);
+    int selectedYear = initialJalali.year;
+    int selectedMonth = initialJalali.month;
+    int selectedDay = initialJalali.day;
+
+    final currentJalali = Jalali.now();
+    final List<int> years = List.generate(5, (index) => currentJalali.year - 2 + index);
+    final List<String> months = AppDateUtils.faMonths;
+
+    return showDialog<DateTime>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final maxDays = Jalali(selectedYear, selectedMonth).monthLength;
+            if (selectedDay > maxDays) {
+              selectedDay = maxDays;
+            }
+
+            return AlertDialog(
+              backgroundColor: AppTheme.surface,
+              title: const Text(
+                'تغییر تاریخ (شمسی)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn'),
+                textAlign: TextAlign.right,
+              ),
+              content: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        dropdownColor: AppTheme.surface,
+                        value: selectedYear,
+                        decoration: const InputDecoration(labelText: 'سال', labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        items: years.map((y) => DropdownMenuItem(
+                          value: y,
+                          child: Text(y.toString(), style: const TextStyle(color: AppTheme.textPrimary)),
+                        )).toList(),
+                        onChanged: (y) {
+                          if (y != null) {
+                            setDialogState(() => selectedYear = y);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        dropdownColor: AppTheme.surface,
+                        value: selectedMonth,
+                        decoration: const InputDecoration(labelText: 'ماه', labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        items: List.generate(12, (index) => index + 1).map((m) => DropdownMenuItem(
+                          value: m,
+                          child: Text(months[m - 1], style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13)),
+                        )).toList(),
+                        onChanged: (m) {
+                          if (m != null) {
+                            setDialogState(() => selectedMonth = m);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        dropdownColor: AppTheme.surface,
+                        value: selectedDay,
+                        decoration: const InputDecoration(labelText: 'روز', labelStyle: TextStyle(fontFamily: 'Vazirmatn')),
+                        items: List.generate(maxDays, (index) => index + 1).map((d) => DropdownMenuItem(
+                          value: d,
+                          child: Text(d.toString(), style: const TextStyle(color: AppTheme.textPrimary)),
+                        )).toList(),
+                        onChanged: (d) {
+                          if (d != null) {
+                            setDialogState(() => selectedDay = d);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.tr('cancel'), style: const TextStyle(color: AppTheme.textSecondary, fontFamily: 'Vazirmatn')),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final j = Jalali(selectedYear, selectedMonth, selectedDay);
+                    Navigator.pop(context, j.toDateTime());
+                  },
+                  child: Text(context.tr('save'), style: const TextStyle(color: AppTheme.primary, fontFamily: 'Vazirmatn')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _changePlanDate(BuildContext context, WorkoutDay plan) async {
     final dateParts = plan.date.split('-');
-    final currentDt = DateTime(int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]));
+    final year = int.parse(dateParts[0]);
+    final month = int.parse(dateParts[1]);
+    final day = int.parse(dateParts[2].split('_')[0]);
+    final currentDt = DateTime(year, month, day);
 
-    final DateTime? picked = await showDatePicker(
+    final isFa = AppDateUtils.isFa(context);
+    DateTime? picked;
+
+    if (isFa) {
+      picked = await showShamsiDatePicker(context, currentDt);
+    } else {
+      picked = await showDatePicker(
+        context: context,
+        initialDate: currentDt,
+        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: AppTheme.primary,
+                onPrimary: AppTheme.onPrimary,
+                surface: AppTheme.surface,
+                onSurface: AppTheme.textPrimary,
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+              ),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: child!,
+            ),
+          );
+        },
+      );
+    }
+
+    if (picked != null) {
+      final baseDateStr = "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      if (baseDateStr == plan.date) return;
+
+      // Check if other plans already exist at target date
+      final existingPlans = ExerciseRepository.instance.getWorkoutDays(picked);
+      
+      // Determine new key suffix if plans already exist on target date
+      String finalDateKey = baseDateStr;
+      if (existingPlans.isNotEmpty) {
+        int index = 1;
+        while (existingPlans.any((p) => p.date == "${baseDateStr}_$index")) {
+          index++;
+        }
+        finalDateKey = "${baseDateStr}_$index";
+      }
+
+      // Delete old plan key
+      await ExerciseRepository.instance.deleteWorkoutDayByKey(plan.date);
+      // Create plan on new day key
+      final updatedPlan = plan.copyWith(date: finalDateKey);
+      await ExerciseRepository.instance.saveWorkoutDay(updatedPlan);
+      _loadPlans();
+    }
+  }
+
+  void _addPlanManually(BuildContext context) async {
+    final titleController = TextEditingController();
+    final focusController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+
+    final isFa = AppDateUtils.isFa(context);
+
+    final created = await showDialog<bool>(
       context: context,
-      initialDate: currentDt,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      locale: const Locale('fa', 'IR'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppTheme.primary,
-              onPrimary: AppTheme.onPrimary,
-              surface: AppTheme.surface,
-              onSurface: AppTheme.textPrimary,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
-            ),
-          ),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: child!,
-          ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final displayDateStr = AppDateUtils.formatFullDate(selectedDate, isFa);
+
+            return AlertDialog(
+              backgroundColor: AppTheme.surface,
+              title: const Text(
+                'ایجاد برنامه تمرینی جدید',
+                style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Vazirmatn'),
+                textAlign: TextAlign.right,
+              ),
+              content: SingleChildScrollView(
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('تاریخ برنامه:'),
+                          TextButton.icon(
+                            icon: const Icon(Icons.calendar_today, size: 16),
+                            label: Text(displayDateStr),
+                            onPressed: () async {
+                              DateTime? picked;
+                              if (isFa) {
+                                picked = await showShamsiDatePicker(context, selectedDate);
+                              } else {
+                                picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDate,
+                                  firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                                );
+                              }
+                              if (picked != null) {
+                                setDialogState(() {
+                                  selectedDate = picked!;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: titleController,
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          labelText: context.tr('plan_title_label'),
+                          labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                          enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
+                          focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
+                        ),
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: focusController,
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          labelText: context.tr('plan_focus_label'),
+                          labelStyle: const TextStyle(color: AppTheme.textSecondary),
+                          enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.outline)),
+                          focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primary)),
+                        ),
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(context.tr('cancel'), style: const TextStyle(color: AppTheme.textSecondary)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('ایجاد', style: TextStyle(color: AppTheme.primary)),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
-    if (picked != null) {
-      final newDateStr = "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-      if (newDateStr == plan.date) return;
+    if (created == true) {
+      final baseDateStr = "${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+      
+      String finalDateKey = baseDateStr;
+      final existingPlans = ExerciseRepository.instance.getWorkoutDays(selectedDate);
+      if (existingPlans.isNotEmpty) {
+        int index = 1;
+        while (existingPlans.any((p) => p.date == "${baseDateStr}_$index")) {
+          index++;
+        }
+        finalDateKey = "${baseDateStr}_$index";
+      }
 
-      // Check if another plan already exists at target date
-      final existingPlan = ExerciseRepository.instance.getWorkoutDay(picked);
-      bool overwrite = true;
-      if (existingPlan != null && existingPlan.items.isNotEmpty) {
-        overwrite = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                backgroundColor: AppTheme.surface,
-                title: const Text(
-                  'برنامه موجود',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.right,
-                ),
-                content: const Text(
-                  'یک برنامه تمرینی دیگر در این تاریخ وجود دارد. آیا مایل به بازنویسی آن هستید؟',
-                  textAlign: TextAlign.right,
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(context.tr('cancel'), style: const TextStyle(color: AppTheme.textSecondary)),
+      final newPlan = WorkoutDay(
+        date: finalDateKey,
+        title: titleController.text.trim().isNotEmpty ? titleController.text.trim() : 'تمرین روز',
+        focus: focusController.text.trim(),
+        items: [],
+      );
+
+      await ExerciseRepository.instance.saveWorkoutDay(newPlan);
+      _loadPlans();
+      
+      _showDayWorkoutBottomSheet(context, newPlan);
+    }
+  }
+
+  void _addMoveToPlan(BuildContext context, WorkoutDay plan, Function(WorkoutDay) onUpdate) async {
+    final allExercises = ExerciseRepository.instance.getAllExercises();
+    allExercises.sort((a, b) => a.primaryMuscleGroup.toString().compareTo(b.primaryMuscleGroup.toString()));
+
+    final Exercise? selected = await showModalBottomSheet<Exercise>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.outline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('بازنویسی', style: TextStyle(color: AppTheme.primary)),
+                  const Text(
+                    'انتخاب حرکت تمرینی',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, fontFamily: 'Vazirmatn'),
+                    textAlign: TextAlign.right,
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(color: AppTheme.outline),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: allExercises.length,
+                      itemBuilder: (context, index) {
+                        final ex = allExercises[index];
+                        final muscleGroupLabel = ex.primaryMuscleGroup.toString().split('.').last;
+                        
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          leading: const CircleAvatar(
+                            backgroundColor: AppTheme.surfaceHigh,
+                            child: Icon(Icons.fitness_center, color: AppTheme.primary, size: 18),
+                          ),
+                          title: Text(
+                            ex.getLocalizedName(context),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.right,
+                          ),
+                          subtitle: Text(
+                            muscleGroupLabel,
+                            style: const TextStyle(color: AppTheme.textSecondary),
+                            textAlign: TextAlign.right,
+                          ),
+                          onTap: () => Navigator.pop(context, ex),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
-            ) ??
-            false;
-      }
+            );
+          },
+        );
+      },
+    );
 
-      if (overwrite) {
-        // Delete old day
-        await ExerciseRepository.instance.deleteWorkoutDay(currentDt);
-        // Create plan on new day
-        final updatedPlan = plan.copyWith(date: newDateStr);
-        await ExerciseRepository.instance.saveWorkoutDay(updatedPlan);
-        _loadPlans();
-      }
+    if (selected != null) {
+      final updatedItems = List<WorkoutItem>.from(plan.items)..add(SingleMoveItem(selected.id));
+      onUpdate(plan.copyWith(items: updatedItems));
     }
   }
 
@@ -789,6 +1089,24 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
                           },
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => _addMoveToPlan(context, plan, _updatePlan),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.surfaceHigh,
+                          foregroundColor: AppTheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            side: const BorderSide(color: AppTheme.outline),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.add, size: 20, color: AppTheme.primary),
+                        label: const Text(
+                          'افزودن حرکت به برنامه',
+                          style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -812,6 +1130,35 @@ class _ScheduleOverviewScreenState extends State<ScheduleOverviewScreen> {
               child: Column(
                 children: [
                   PhysiqoHeader.back(title: context.tr('moves_full_schedule')),
+                  const Divider(color: AppTheme.outline, height: 1),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppTheme.gutter, vertical: AppTheme.spacingSm),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => _addPlanManually(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: AppTheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                          icon: const Icon(Icons.add, size: 18, color: AppTheme.onPrimary),
+                          label: const Text(
+                            'برنامه جدید',
+                            style: TextStyle(fontFamily: 'Vazirmatn', fontWeight: FontWeight.bold, color: AppTheme.onPrimary),
+                          ),
+                        ),
+                        Text(
+                          'برنامه‌های تمرینی شما',
+                          style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
                   const Divider(color: AppTheme.outline, height: 1),
                   Expanded(
                     child: _allPlans.isEmpty

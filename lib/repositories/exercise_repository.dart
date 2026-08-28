@@ -125,6 +125,20 @@ class ExerciseRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteWorkoutDayByKey(String key) async {
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw != null) {
+      try {
+        Map<String, dynamic> planMap = jsonDecode(raw);
+        if (planMap.containsKey(key)) {
+          planMap.remove(key);
+          await _prefs.setString(_programStorageKey, jsonEncode(planMap));
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
+  }
+
   Future<void> clearAllWorkoutPlans() async {
     await _prefs.remove(_programStorageKey);
     notifyListeners();
@@ -145,14 +159,38 @@ class ExerciseRepository extends ChangeNotifier {
   }
 
   WorkoutDay? getWorkoutDay(DateTime date) {
+    final list = getWorkoutDays(date);
+    return list.isNotEmpty ? list.first : null;
+  }
+
+  List<WorkoutDay> getWorkoutDays(DateTime date) {
     final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final raw = _prefs.getString(_programStorageKey);
+    if (raw == null) return [];
+
+    try {
+      final Map<String, dynamic> planMap = jsonDecode(raw);
+      final List<WorkoutDay> list = [];
+      planMap.forEach((key, value) {
+        if (key == dateStr || key.startsWith('${dateStr}_')) {
+          list.add(WorkoutDay.fromJson(value));
+        }
+      });
+      // Sort to keep them ordered consistently (e.g., YYYY-MM-DD first, then YYYY-MM-DD_1, etc.)
+      list.sort((a, b) => a.date.compareTo(b.date));
+      return list;
+    } catch (_) {}
+    return [];
+  }
+
+  WorkoutDay? getWorkoutDayByKey(String key) {
     final raw = _prefs.getString(_programStorageKey);
     if (raw == null) return null;
 
     try {
       final Map<String, dynamic> planMap = jsonDecode(raw);
-      if (planMap.containsKey(dateStr)) {
-        return WorkoutDay.fromJson(planMap[dateStr]);
+      if (planMap.containsKey(key)) {
+        return WorkoutDay.fromJson(planMap[key]);
       }
     } catch (_) {}
     return null;
@@ -171,7 +209,9 @@ class ExerciseRepository extends ChangeNotifier {
         if (parts.length == 3) {
           final y = int.parse(parts[0]);
           final m = int.parse(parts[1]);
-          final d = int.parse(parts[2]);
+          // Handle unique suffix: split day part by '_'
+          final dayParts = parts[2].split('_');
+          final d = int.parse(dayParts[0]);
           final date = DateTime(y, m, d);
           
           if (date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)))) {
