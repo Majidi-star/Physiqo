@@ -207,26 +207,27 @@ class ExerciseRepository extends ChangeNotifier {
     final planMap = _getProgramMap();
     final List<Map<String, dynamic>> summary = [];
     
-    planMap.forEach((dateStr, data) {
-      final parts = dateStr.split('-');
-      if (parts.length == 3) {
-        final y = int.parse(parts[0]);
-        final m = int.parse(parts[1]);
-        final dayParts = parts[2].split('_');
-        final d = int.parse(dayParts[0]);
-        final date = DateTime(y, m, d);
-        
-        if (date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)))) {
-          final day = WorkoutDay.fromJson(data);
-          summary.add({
-            'date': day.date,
-            'title': day.title,
-            'focus': day.focus,
-            'itemsCount': day.items.length,
-          });
+    try {
+      planMap.forEach((dateStr, data) {
+        final parts = dateStr.split('-');
+        if (parts.length == 3) {
+          final y = int.parse(parts[0]);
+          final m = int.parse(parts[1]);
+          final dayParts = parts[2].split('_');
+          final d = int.parse(dayParts[0]);
+          final date = DateTime(y, m, d);
+          
+          if (date.isAfter(start.subtract(const Duration(days: 1))) && date.isBefore(end.add(const Duration(days: 1)))) {
+            final day = WorkoutDay.fromJson(data);
+            summary.add({
+              'date': day.date,
+              'title': day.title,
+              'focus': day.focus,
+              'itemsCount': day.items.length,
+            });
+          }
         }
-      }
-    });
+      });
       
       summary.sort((a, b) => a['date'].toString().compareTo(b['date'].toString()));
       return summary;

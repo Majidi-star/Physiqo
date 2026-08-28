@@ -195,7 +195,7 @@ class _DaySelectorWidgetState extends State<DaySelectorWidget> {
               textDirection: TextDirection.rtl,
               child: AlertDialog(
                 backgroundColor: AppTheme.surface,
-                title: const Text('انتخاب تاریخ', style: AppTheme.headlineMd),
+                title: Text('انتخاب تاریخ', style: AppTheme.headlineMd),
                 content: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [

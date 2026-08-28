@@ -285,8 +285,10 @@ IMPORTANT RULES:
         'Content-Type': 'application/json; charset=utf-8',
         'Authorization': 'Bearer ${candidate.apiKey}',
       };
-      if (candidate.baseUrl.contains('generativelanguage.googleapis.com') || candidate.provider.toLowerCase() == 'gemini') {
-        headers['x-goog-api-key'] = candidate.apiKey;
+      if ((candidate.baseUrl?.contains('generativelanguage.googleapis.com') ?? false) || (candidate.provider?.toLowerCase() == 'gemini')) {
+        if (candidate.apiKey != null) {
+          headers['x-goog-api-key'] = candidate.apiKey!;
+        }
       }
 
       try {
@@ -531,8 +533,10 @@ IMPORTANT RULES:
           'Content-Type': 'application/json; charset=utf-8',
           'Authorization': 'Bearer ${candidate.apiKey}',
         };
-        if (candidate.baseUrl.contains('generativelanguage.googleapis.com') || candidate.provider.toLowerCase() == 'gemini') {
-          headers['x-goog-api-key'] = candidate.apiKey;
+        if ((candidate.baseUrl?.contains('generativelanguage.googleapis.com') ?? false) || (candidate.provider?.toLowerCase() == 'gemini')) {
+          if (candidate.apiKey != null) {
+            headers['x-goog-api-key'] = candidate.apiKey!;
+          }
         }
 
         final request = http.Request('POST', url)
