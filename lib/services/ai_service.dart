@@ -475,11 +475,12 @@ IMPORTANT RULES:
             throw Exception('API Error: ${response.statusCode} - ${response.body}');
           }
         } catch (e) {
-          final isLastAttempt = (attempt > maxRetries);
+          final isLastAttempt = (attempt >= maxRetries);
           final isLastCandidate = (i == candidates.length - 1);
           
           if (isLastAttempt) {
             if (isLastCandidate) {
+              stopwatch.stop();
               AiLogger.instance.addLog(
                 requestPayload: requestPayload,
                 responseRaw: '',
@@ -487,13 +488,7 @@ IMPORTANT RULES:
                 error: e.toString(),
                 chatId: chatId,
               );
-              if (e is SocketException) {
-                throw Exception('SocketException: $e');
-              } else if (e is TimeoutException) {
-                throw Exception('TimeoutException: $e');
-              } else {
-                throw Exception('Failed with API error: ${e.toString()}');
-              }
+              rethrow;
             } else {
               debugPrint('Provider ${candidate.provider} failed after $attempt attempts. Error: $e. Falling back...');
               break; // Break the retry loop to continue to next candidate
@@ -611,7 +606,14 @@ IMPORTANT RULES:
             'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
             'content': msg.content,
           });
-           for (var i = 0; i < candidates.length; i++) {
+        }
+      }
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
+
+    for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
       bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider.toLowerCase() == 'gemini'));
@@ -776,9 +778,12 @@ IMPORTANT RULES:
                             if (startIndex != -1) {
                                rawToolCallsJsonBuffer = fullText.substring(startIndex);
                             }
-                          } else {
-                            yield AiStreamEvent(deltaText: contentPiece, isDone: false, providerServed: candidate.provider);
-                          }
+                           } else {
+                             final cleanText = fullText.contains('<TOOLCALL>')
+                                 ? fullText.substring(0, fullText.indexOf('<TOOLCALL>'))
+                                 : fullText;
+                             yield AiStreamEvent(deltaText: cleanText, isDone: false, providerServed: candidate.provider);
+                           }
                         }
                         if (part['functionCall'] != null) {
                           final func = part['functionCall'];
@@ -951,7 +956,7 @@ IMPORTANT RULES:
           return;
 
         } catch (e) {
-          final isLastAttempt = (attempt > maxRetries);
+          final isLastAttempt = (attempt >= maxRetries);
           final isLastCandidate = (i == candidates.length - 1);
           
           if (isLastAttempt) {
@@ -964,13 +969,7 @@ IMPORTANT RULES:
                 error: e.toString(),
                 chatId: chatId,
               );
-              if (e is SocketException) {
-                throw Exception('SocketException: $e');
-              } else if (e is TimeoutException) {
-                throw Exception('TimeoutException: $e');
-              } else {
-                throw Exception(e.toString());
-              }
+              rethrow;
             } else {
               debugPrint('Provider ${candidate.provider} failed after $attempt attempts. Error: $e. Falling back...');
               break; // Break retry loop to go to next candidate

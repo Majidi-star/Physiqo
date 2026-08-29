@@ -98,6 +98,12 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _generationCancelled = true;
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    if (_streamCompleter != null && !_streamCompleter!.isCompleted) {
+      _streamCompleter!.complete();
+    }
     UserProfile.current().removeListener(_onProfileChanged);
     _controller.dispose();
     _animationController.dispose();
@@ -152,17 +158,16 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
   Future<void> _retryMessage(ChatMessage systemErrorMsg) async {
     if (_activeSession == null || _isGenerating) return;
     
-    // Delete the system error message from session
-    await _repository.deleteMessage(_activeSession!.id, systemErrorMsg.id);
-    _refreshActiveSession();
-    
-    // Find the last user message
+    // Find the last user message first
     final lastUserMsg = _activeSession!.messages.lastWhere(
       (m) => m.role == ChatMessageRole.user,
       orElse: () => ChatMessage(id: '', role: ChatMessageRole.user, content: '', timestamp: DateTime.now()),
     );
     
-    if (lastUserMsg.content.isNotEmpty) {
+    final hasContent = lastUserMsg.content.isNotEmpty || (lastUserMsg.images != null && lastUserMsg.images!.isNotEmpty);
+    if (hasContent) {
+      await _repository.deleteMessage(_activeSession!.id, systemErrorMsg.id);
+      if (!mounted) return;
       setState(() {
         _isGenerating = true;
         _generationCancelled = false;
@@ -180,14 +185,14 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       return isFa 
           ? 'خطای امنیتی یا بارگذاری شبکه (TLS/SSL/413).\nاین خطا معمولاً به دلیل محدودیت‌های شدید اینترنتی یا قطع اتصال فیلترشکن (VPN) رخ می‌دهد. لطفاً وضعیت فیلترشکن خود را بررسی کرده یا آن را تغییر دهید و مجدداً تلاش کنید.'
           : 'Network Security/Payload Error (TLS/SSL Handshake or 413 failed).\nThis is typically caused by local internet restrictions or an unstable VPN connection. Please check or switch your VPN and try again.';
-    } else if (errStr.contains('SocketException') || errStr.contains('Failed host lookup') || errStr.contains('Connection refused') || errStr.contains('ClientException')) {
-      return isFa
-          ? 'خطا در ارتباط با سرور.\nامکان برقراری ارتباط با سرور هوش مصنوعی وجود ندارد. لطفاً مطمئن شوید که اتصال اینترنت شما برقرار است و فیلترشکن (VPN) متصل و فعال است.'
-          : 'Server Connection Failed.\nUnable to reach the AI server. Please ensure your internet connection is active and your VPN is turned on.';
     } else if (errStr.contains('TimeoutException') || errStr.contains('timed out')) {
       return isFa
           ? 'پایان زمان پاسخ‌گویی سرور.\nارتباط با سرور به دلیل سرعت پایین اینترنت برقرار نشد. لطفاً مجدداً تلاش کنید.'
           : 'Request Timed Out.\nThe connection to the server timed out. Please try again.';
+    } else if (errStr.contains('SocketException') || errStr.contains('Failed host lookup') || errStr.contains('Connection refused') || errStr.contains('ClientException')) {
+      return isFa
+          ? 'خطا در ارتباط با سرور.\nامکان برقراری ارتباط با سرور هوش مصنوعی وجود ندارد. لطفاً مطمئن شوید که اتصال اینترنت شما برقرار است و فیلترشکن (VPN) متصل و فعال است.'
+          : 'Server Connection Failed.\nUnable to reach the AI server. Please ensure your internet connection is active and your VPN is turned on.';
     }
     
     return isFa 
@@ -327,8 +332,8 @@ ${contextData['userContext']}
             if (!mounted || _activeSession == null || _generationCancelled) return;
             
             if (event.deltaText.isNotEmpty) {
-              // Once we receive actual content delta, transition trace step
-              if (AiLogger.instance.getActiveTimeline().last.name == 'LLM Stream Request') {
+              final timeline = AiLogger.instance.getActiveTimeline();
+              if (timeline.isNotEmpty && timeline.last.name == 'LLM Stream Request') {
                 AiLogger.instance.completeTraceStep(details: 'First token received');
                 AiLogger.instance.startTraceStep('Receiving Content Stream');
               }
@@ -522,6 +527,7 @@ ${contextData['userContext']}
   }
 
   void _refreshActiveSession() {
+    if (!mounted) return;
     final sessions = _repository.getAllSessions();
     final updated = sessions.firstWhere((s) => s.id == _activeSession?.id, orElse: () => _activeSession!);
     setState(() {

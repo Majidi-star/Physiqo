@@ -197,29 +197,34 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
   }
 
   Future<void> _startAnalysis() async {
-    if (_frontPhoto == null || _backPhoto == null) return;
+    if (_frontPhoto == null || _backPhoto == null) {
+      setState(() {
+        _step = CaptureStep.backPreview;
+      });
+      return;
+    }
 
     final aiService = AiService();
     final isConfigured = await aiService.isProviderConfigured(hasImages: true);
+    
+    if (!mounted) return;
     final isFa = Localizations.localeOf(context).languageCode == 'fa';
 
     if (!isConfigured) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isFa
-                  ? 'لطفاً ابتدا کلید API هوش مصنوعی را در تنظیمات پیکربندی کنید.'
-                  : 'Please configure the AI API Key in settings first.',
-              style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
-            ),
-            backgroundColor: AppTheme.error,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isFa
+                ? 'لطفاً ابتدا کلید API هوش مصنوعی را در تنظیمات پیکربندی کنید.'
+                : 'Please configure the AI API Key in settings first.',
+            style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
           ),
-        );
-        setState(() {
-          _step = CaptureStep.backPreview;
-        });
-      }
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      setState(() {
+        _step = CaptureStep.backPreview;
+      });
       return;
     }
 
@@ -353,6 +358,10 @@ Return your response strictly in the following JSON format. Do not write any tex
       final frontJson = _parseVisionResponse(frontResponse.text);
       final backJson = _parseVisionResponse(backResponse.text);
 
+      if (frontJson.isEmpty || backJson.isEmpty) {
+        throw const FormatException('Failed to parse AI vision response.');
+      }
+
       double getVal(Map<String, dynamic> json, String key, double defaultVal) {
         final val = json[key];
         if (val is num) return val.toDouble();
@@ -430,27 +439,36 @@ Return your response strictly in the following JSON format. Do not write any tex
       if (mounted) {
         final errMessage = e.toString();
         final isTimeout = errMessage.contains('TimeoutException') || errMessage.contains('timed out');
-        
+        final isFormat = errMessage.contains('FormatException') || errMessage.contains('parse');
+        final isNetwork = errMessage.contains('SocketException') || errMessage.contains('HandshakeException') || errMessage.contains('network') || errMessage.contains('Failed host lookup');
+
+        String userMsgFa = 'خطایی در تحلیل تصاویر رخ داد. لطفاً مجدداً تلاش کنید.';
+        String userMsgEn = 'An error occurred during image analysis. Please try again.';
+
+        if (isTimeout) {
+          userMsgFa = 'زمان پاسخ‌گویی سرور به پایان رسید. لطفاً زمان تایم‌اوت را در تنظیمات هوش مصنوعی افزایش دهید یا فیلترشکن خود را بررسی کنید.';
+          userMsgEn = 'API request timed out. Please try increasing the timeout in AI settings or checking your connection.';
+        } else if (isNetwork) {
+          userMsgFa = 'خطا در ارتباط با سرور. لطفاً از اتصال اینترنت خود مطمئن شده و وضعیت فیلترشکن (VPN) خود را بررسی کنید.';
+          userMsgEn = 'Server connection failed. Please check your internet connection or VPN status.';
+        } else if (isFormat) {
+          userMsgFa = 'قالب پاسخ هوش مصنوعی نامعتبر بود. این ممکن است به دلیل بازگشت خطای نامشخص از ارائه‌دهنده باشد. لطفاً مجدداً تلاش کنید.';
+          userMsgEn = 'AI response format was invalid. This could be due to a provider-side error. Please try again.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isFa
-                  ? (isTimeout 
-                      ? 'زمان پاسخ‌گویی سرور به پایان رسید. لطفاً زمان تایم‌اوت را در تنظیمات هوش مصنوعی افزایش دهید.\nجزئیات: $e' 
-                      : 'خطایی در ارتباط با سرور رخ داد: $e\nلطفا مجدداً تلاش کنید.')
-                  : (isTimeout 
-                      ? 'API request timed out. Try increasing the timeout in AI settings.\nDetails: $e'
-                      : 'API request failed: $e\nPlease try again.'),
+              isFa ? userMsgFa : userMsgEn,
               style: AppTheme.bodyMd.copyWith(color: AppTheme.onPrimary),
             ),
             backgroundColor: AppTheme.error,
             duration: const Duration(seconds: 8),
           ),
         );
-        // Fallback navigation with mock/null values
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
+        setState(() {
+          _step = CaptureStep.backPreview;
+        });
       }
     }
   }

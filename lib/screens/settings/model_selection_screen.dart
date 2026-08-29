@@ -39,6 +39,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
   String? _errorMessage;
   String _searchQuery = '';
   bool _enableAutoFailover = true;
+  int _currentFetchId = 0;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     
     final prefs = await SharedPreferences.getInstance();
     
+    if (!mounted) return;
     setState(() {
       _providers = providers;
       if (_providers.isNotEmpty) {
@@ -83,9 +85,11 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
       if (_manageProvider != null) {
         await _fetchModelsForProvider(_manageProvider!);
       } else {
+        if (!mounted) return;
         setState(() => _isLoading = false);
       }
     } else {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = context.tr('model_no_provider');
@@ -131,6 +135,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     _activeChatModel ??= chatOptions.isNotEmpty ? chatOptions.first : null;
     _activeVisionModel ??= visionOptions.isNotEmpty ? visionOptions.first : null;
     
+    if (!mounted) return;
     setState(() {
       _chatModelOptions = chatOptions;
       _visionModelOptions = visionOptions;
@@ -144,16 +149,27 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     }
   }
 
-  Future<void> _fetchModelsForProvider(String providerName, {int attempt = 1}) async {
+  Future<void> _fetchModelsForProvider(String providerName) async {
+    final fetchId = ++_currentFetchId;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final p = _providers[providerName]!;
+      final p = _providers[providerName];
+      if (p == null || p['url'] == null || p['key'] == null) {
+        if (!mounted || fetchId != _currentFetchId) return;
+        setState(() {
+          _isLoading = false;
+          _errorMessage = context.tr('model_error_network');
+        });
+        return;
+      }
       
-      bool isGemini = providerName.toLowerCase() == 'gemini' || p['url']!.contains('generativelanguage.googleapis.com');
+      final url = p['url']!;
+      final key = p['key']!;
+      bool isGemini = providerName.toLowerCase() == 'gemini' || url.contains('generativelanguage.googleapis.com');
       
       final prefs = await SharedPreferences.getInstance();
       final timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
@@ -167,16 +183,16 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         reqAttempt++;
         try {
           if (isGemini) {
-            String baseUrl = p['url']!;
+            String baseUrl = url;
             if (baseUrl.endsWith('/openai')) {
               baseUrl = baseUrl.replaceAll('/openai', '');
             }
-            final uri = Uri.parse('$baseUrl/models?key=${p['key']}');
+            final uri = Uri.parse('$baseUrl/models?key=$key');
             response = await http.get(uri).timeout(timeoutDuration);
           } else {
-            final uri = Uri.parse('${p['url']}/models');
+            final uri = Uri.parse('$url/models');
             response = await http.get(uri, headers: {
-              'Authorization': 'Bearer ${p['key']}',
+              'Authorization': 'Bearer $key',
             }).timeout(timeoutDuration);
           }
           
@@ -185,13 +201,15 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
           }
           break;
         } catch (e) {
-          if (reqAttempt > maxRetries) {
+          if (reqAttempt >= maxRetries) {
             rethrow;
           }
           debugPrint('Fetch models attempt $reqAttempt failed: $e. Retrying in 1s...');
           await Future.delayed(const Duration(seconds: 1));
         }
       }
+
+      if (!mounted || fetchId != _currentFetchId) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -226,6 +244,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         });
       }
     } catch (e) {
+      if (!mounted || fetchId != _currentFetchId) return;
       setState(() {
         _isLoading = false;
         _errorMessage = context.tr('model_error_network');
@@ -234,8 +253,8 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
   }
   
   Future<void> _toggleTag(String model, bool isChatTag, bool val) async {
-    final prefs = await SharedPreferences.getInstance();
-    final provider = _manageProvider!;
+    final provider = _manageProvider;
+    if (provider == null) return;
     
     setState(() {
       if (isChatTag) {
@@ -245,13 +264,13 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
       }
     });
     
+    final prefs = await SharedPreferences.getInstance();
     if (isChatTag) {
       await prefs.setBool('model_is_chat_${provider}_$model', val);
     } else {
       await prefs.setBool('model_is_vision_${provider}_$model', val);
     }
     
-    // Reload dropdown options if the managed provider matches active
     await _loadOptionsFromPrefs();
   }
 
@@ -276,26 +295,30 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
   Future<void> _updateActiveChatModel(String? val) async {
     setState(() => _activeChatModel = val);
     final prefs = await SharedPreferences.getInstance();
+    final provider = _activeChatProvider;
+    if (provider == null) return;
     if (val != null) {
-      await prefs.setString('active_chat_provider', _activeChatProvider!);
-      await prefs.setString('active_chat_model_${_activeChatProvider!}', val);
+      await prefs.setString('active_chat_provider', provider);
+      await prefs.setString('active_chat_model_$provider', val);
     } else {
-      await prefs.remove('active_chat_model_${_activeChatProvider!}');
+      await prefs.remove('active_chat_model_$provider');
     }
   }
 
   Future<void> _updateActiveVisionModel(String? val) async {
     setState(() => _activeVisionModel = val);
     final prefs = await SharedPreferences.getInstance();
+    final provider = _activeVisionProvider;
+    if (provider == null) return;
     if (val != null) {
-      await prefs.setString('active_vision_provider', _activeVisionProvider!);
-      await prefs.setString('active_vision_model_${_activeVisionProvider!}', val);
+      await prefs.setString('active_vision_provider', provider);
+      await prefs.setString('active_vision_model_$provider', val);
     } else {
-      await prefs.remove('active_vision_model_${_activeVisionProvider!}');
+      await prefs.remove('active_vision_model_$provider');
     }
   }
 
-    Future<void> _toggleAutoFailover(bool val) async {
+  Future<void> _toggleAutoFailover(bool val) async {
     setState(() => _enableAutoFailover = val);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('enable_auto_failover', val);

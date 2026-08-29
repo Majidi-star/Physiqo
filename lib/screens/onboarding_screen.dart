@@ -110,6 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _updateLang(String lang) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_language', lang);
+    if (!mounted) return;
     setState(() {
       _selectedLang = lang;
     });
@@ -185,12 +186,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           }
           break;
         } catch (e) {
-          if (attempt > maxRetries) {
+          if (attempt >= maxRetries) {
             rethrow;
           }
           debugPrint('Connection test attempt $attempt failed: $e. Retrying in 1s...');
           await Future.delayed(const Duration(seconds: 1));
         }
+      }
+
+      if (!mounted) return;
+      if (response == null) {
+        setState(() {
+          _testResultStatus = context.tr('onboarding_ai_setup_failed');
+          _testResultColor = AppTheme.error;
+          _testingConnection = false;
+        });
+        return;
       }
 
       if (response.statusCode == 200 || ((nameLower == 'anthropic' || url.contains('anthropic.com')) && response.statusCode == 400)) {
@@ -221,6 +232,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           }
         } catch (_) {}
 
+        if (!mounted) return;
         setState(() {
           _testResultStatus = context.tr('onboarding_ai_setup_success');
           _testResultColor = Colors.green;
@@ -238,6 +250,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           }
         });
       } else {
+        if (!mounted) return;
         setState(() {
           _testResultStatus = '${context.tr('onboarding_ai_setup_failed')} (HTTP ${response.statusCode})';
           _testResultColor = AppTheme.error;
@@ -246,6 +259,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _testResultStatus = '${context.tr('onboarding_ai_setup_failed')}: $e';
         _testResultColor = AppTheme.error;

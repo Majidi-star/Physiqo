@@ -54,16 +54,14 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
     String? errorMessage;
     int fetchId = 0;
 
-    Future<void> fetchModels(String provider, StateSetter setModalState, {int attempt = 1}) async {
+    Future<void> fetchModels(String provider, StateSetter setModalState) async {
       final currentFetch = ++fetchId;
       setModalState(() {
         isFetchingModels = true;
         errorMessage = null;
-        if (attempt == 1) {
-          allFetchedModels = [];
-          filteredModels = [];
-          selectedModel = null;
-        }
+        allFetchedModels = [];
+        filteredModels = [];
+        selectedModel = null;
       });
 
       try {
@@ -78,10 +76,10 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
         final timeoutDuration = Duration(seconds: timeoutSeconds);
         
         late http.Response response;
-        int attempt = 0;
+        int reqAttempt = 0;
         
         while (true) {
-          attempt++;
+          reqAttempt++;
           try {
             if (isGemini) {
               String baseUrl = url;
@@ -102,10 +100,10 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
             }
             break;
           } catch (e) {
-            if (attempt > maxRetries) {
+            if (reqAttempt >= maxRetries) {
               rethrow;
             }
-            debugPrint('Fallback fetch attempt $attempt failed: $e. Retrying in 1s...');
+            debugPrint('Fallback fetch attempt $reqAttempt failed: $e. Retrying in 1s...');
             await Future.delayed(const Duration(seconds: 1));
           }
         }
@@ -139,11 +137,6 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
             isFetchingModels = false;
           });
         } else {
-          if (attempt == 1) {
-            await Future.delayed(const Duration(milliseconds: 200));
-            if (currentFetch != fetchId) return;
-            return await fetchModels(provider, setModalState, attempt: 2);
-          }
           if (currentFetch != fetchId) return;
           setModalState(() {
             errorMessage = "Error fetching models: ${response.statusCode}";
@@ -152,11 +145,6 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
         }
       } catch (e) {
         if (currentFetch != fetchId) return;
-        if (attempt == 1) {
-          await Future.delayed(const Duration(milliseconds: 200));
-          if (currentFetch != fetchId) return;
-          return await fetchModels(provider, setModalState, attempt: 2);
-        }
         setModalState(() {
           errorMessage = "Network error fetching models";
           isFetchingModels = false;

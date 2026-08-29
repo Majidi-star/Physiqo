@@ -129,7 +129,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
             }
             break;
           } catch (e) {
-            if (attempt > maxRetries) {
+            if (attempt >= maxRetries) {
               rethrow;
             }
             debugPrint('Provider connection test attempt $attempt failed: $e. Retrying in 1s...');
