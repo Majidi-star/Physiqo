@@ -155,6 +155,21 @@ class AiService {
         model ??= prefs.getString('active_chat_model_$providerName');
       }
 
+      if (model == null) {
+        if (hasImages) {
+          final defaults = defaultVisionModels[providerName];
+          if (defaults != null && defaults.isNotEmpty) {
+            model = defaults.first;
+          }
+        }
+        if (model == null) {
+          final defaults = defaultChatModels[providerName];
+          if (defaults != null && defaults.isNotEmpty) {
+            model = defaults.first;
+          }
+        }
+      }
+
       if (model == null) return;
       if (providerName.toLowerCase() == 'gemini' && (model == 'gemini-3.5-flash' || model == 'models/gemini-3.5-flash')) {
         model = 'gemini-1.5-flash';
@@ -258,21 +273,32 @@ IMPORTANT RULES:
           }
           for (var path in msg.images!) {
             try {
-              final file = File(path);
-              if (file.existsSync()) {
-                final bytes = file.readAsBytesSync();
-                final base64Image = base64Encode(bytes);
-                String mimeType = 'image/jpeg';
-                if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-                if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
-                if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
-                
+              if (path.startsWith('mock_')) {
+                const base64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+                const mimeType = 'image/png';
                 contentList.add({
                   'type': 'image_url',
                   'image_url': {
                     'url': 'data:$mimeType;base64,$base64Image',
                   }
                 });
+              } else {
+                final file = File(path);
+                if (file.existsSync()) {
+                  final bytes = await file.readAsBytes();
+                  final base64Image = base64Encode(bytes);
+                  String mimeType = 'image/jpeg';
+                  if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+                  if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+                  if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+                  
+                  contentList.add({
+                    'type': 'image_url',
+                    'image_url': {
+                      'url': 'data:$mimeType;base64,$base64Image',
+                    }
+                  });
+                }
               }
             } catch (e) {
               debugPrint('Error reading image for AI: $e');
@@ -564,21 +590,32 @@ IMPORTANT RULES:
             }
             for (var path in msg.images!) {
               try {
-                final file = File(path);
-                if (file.existsSync()) {
-                  final bytes = file.readAsBytesSync();
-                  final base64Image = base64Encode(bytes);
-                  String mimeType = 'image/jpeg';
-                  if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-                  if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
-                  if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
-                  
+                if (path.startsWith('mock_')) {
+                  const base64Image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+                  const mimeType = 'image/png';
                   contentList.add({
                     'type': 'image_url',
                     'image_url': {
                       'url': 'data:$mimeType;base64,$base64Image',
                     }
                   });
+                } else {
+                  final file = File(path);
+                  if (file.existsSync()) {
+                    final bytes = await file.readAsBytes();
+                    final base64Image = base64Encode(bytes);
+                    String mimeType = 'image/jpeg';
+                    if (path.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+                    if (path.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+                    if (path.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+                    
+                    contentList.add({
+                      'type': 'image_url',
+                      'image_url': {
+                        'url': 'data:$mimeType;base64,$base64Image',
+                      }
+                    });
+                  }
                 }
               } catch (e) {
                 debugPrint('Error reading image for AI: $e');
