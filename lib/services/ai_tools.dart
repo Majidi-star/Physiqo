@@ -93,7 +93,17 @@ class AiTools {
                     "type": "array",
                     "description": "List of workout items. Each item MUST be an object with a 'type' property set to either 'single' (with an 'exerciseId' string) or 'superset' (with an 'exerciseIds' array of strings).",
                     "items": {
-                      "type": "object"
+                      "type": "object",
+                      "properties": {
+                        "type": {"type": "string", "enum": ["single", "superset"]},
+                        "exerciseId": {"type": "string", "description": "Required if type is 'single'"},
+                        "exerciseIds": {
+                          "type": "array",
+                          "items": {"type": "string"},
+                          "description": "Required if type is 'superset'"
+                        }
+                      },
+                      "required": ["type"]
                     }
                   }
                 },
