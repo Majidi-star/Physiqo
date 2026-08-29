@@ -252,7 +252,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       } else {
         if (!mounted) return;
         setState(() {
-          _testResultStatus = '${context.tr('onboarding_ai_setup_failed')} (HTTP ${response.statusCode})';
+          _testResultStatus = '${context.tr('onboarding_ai_setup_failed')} (HTTP ${response!.statusCode})';
           _testResultColor = AppTheme.error;
           _testingConnection = false;
           _fetchedModels = [];
