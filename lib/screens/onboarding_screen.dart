@@ -32,6 +32,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _testingConnection = false;
   String? _testResultStatus;
   Color _testResultColor = AppTheme.textSecondary;
+  List<String> _fetchedModels = [];
+  String? _selectedChatModel;
+  String? _selectedVisionModel;
 
   // Profile Controllers
   final _nameController = TextEditingController();
@@ -167,16 +170,55 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       }
 
       if (response.statusCode == 200 || ((nameLower == 'anthropic' || url.contains('anthropic.com')) && response.statusCode == 400)) {
+        List<String> fetchedModelsList = [];
+        try {
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (nameLower == 'gemini' || url.contains('generativelanguage.googleapis.com')) {
+              final list = data['models'] as List?;
+              if (list != null) {
+                for (var m in list) {
+                  final name = m['name']?.toString() ?? '';
+                  if (name.startsWith('models/')) {
+                    fetchedModelsList.add(name.replaceFirst('models/', ''));
+                  } else {
+                    fetchedModelsList.add(name);
+                  }
+                }
+              }
+            } else {
+              final list = data['data'] as List?;
+              if (list != null) {
+                for (var m in list) {
+                  fetchedModelsList.add(m['id']?.toString() ?? '');
+                }
+              }
+            }
+          }
+        } catch (_) {}
+
         setState(() {
           _testResultStatus = context.tr('onboarding_ai_setup_success');
           _testResultColor = Colors.green;
           _testingConnection = false;
+          _fetchedModels = fetchedModelsList;
+          if (_fetchedModels.isNotEmpty) {
+            _selectedChatModel = _fetchedModels.firstWhere(
+              (m) => m.toLowerCase().contains('flash') || m.toLowerCase().contains('gpt-3.5') || m.toLowerCase().contains('llama'),
+              orElse: () => _fetchedModels.first,
+            );
+            _selectedVisionModel = _fetchedModels.firstWhere(
+              (m) => m.toLowerCase().contains('vision') || m.toLowerCase().contains('flash') || m.toLowerCase().contains('gpt-4'),
+              orElse: () => _fetchedModels.first,
+            );
+          }
         });
       } else {
         setState(() {
           _testResultStatus = '${context.tr('onboarding_ai_setup_failed')} (HTTP ${response.statusCode})';
           _testResultColor = AppTheme.error;
           _testingConnection = false;
+          _fetchedModels = [];
         });
       }
     } catch (_) {
@@ -225,12 +267,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       // Pre-select default models to ensure it works out of the box
       String defaultModel = 'google/gemini-2.5-flash';
-      if (provider == 'Gemini') defaultModel = 'gemini-1.5-flash';
+      if (provider == 'Gemini') defaultModel = 'gemini-3.5-flash';
       if (provider == 'Nvidia NIM') defaultModel = 'meta/llama3-70b-instruct';
       if (provider == 'Reka') defaultModel = 'reka-flash';
 
-      await prefs.setString('active_chat_model_$provider', defaultModel);
-      await prefs.setString('active_vision_model_$provider', defaultModel);
+      final chatModel = _selectedChatModel ?? defaultModel;
+      final visionModel = _selectedVisionModel ?? defaultModel;
+
+      await prefs.setString('active_chat_model_$provider', chatModel);
+      await prefs.setString('active_vision_model_$provider', visionModel);
+
+      // Auto-tag all fetched models so they are configured and tagged
+      for (var model in _fetchedModels) {
+        await prefs.setBool('model_is_chat_${provider}_$model', true);
+        
+        bool isVision = false;
+        final mL = model.toLowerCase();
+        if (provider.toLowerCase() == 'gemini') {
+          isVision = !mL.contains('embedding') && !mL.contains('translation');
+        } else {
+          isVision = mL.contains('vision') || mL.contains('gpt-4') || mL.contains('claude-3') || mL.contains('pixtral') || mL.contains('reka');
+        }
+        await prefs.setBool('model_is_vision_${provider}_$model', isVision);
+      }
     }
 
     // 3. Save Profile Setup details
@@ -431,6 +490,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                   ],
                 ),
+                if (_fetchedModels.isNotEmpty) ...[
+                  const SizedBox(height: AppTheme.spacingMd),
+                  Text(isFa ? 'مدل چت فعال' : 'Active Chat Model', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceHigh,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedChatModel,
+                        isExpanded: true,
+                        dropdownColor: AppTheme.surfaceHigh,
+                        items: _fetchedModels
+                            .map((m) => DropdownMenuItem(value: m, child: Text(m, style: AppTheme.bodyLg)))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() => _selectedChatModel = val);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  Text(isFa ? 'مدل پردازش تصویر' : 'Active Vision Model', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceHigh,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedVisionModel,
+                        isExpanded: true,
+                        dropdownColor: AppTheme.surfaceHigh,
+                        items: _fetchedModels
+                            .map((m) => DropdownMenuItem(value: m, child: Text(m, style: AppTheme.bodyLg)))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() => _selectedVisionModel = val);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppTheme.spacingMd),
               ],
             ),

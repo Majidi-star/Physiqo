@@ -284,7 +284,7 @@ IMPORTANT RULES:
         if (baseUrl.endsWith('/openai')) {
           baseUrl = baseUrl.replaceAll('/openai', '');
         }
-        url = Uri.parse('$baseUrl/models/${candidate.modelId}:generateContent');
+        url = Uri.parse('$baseUrl/models/${candidate.modelId}:generateContent?key=${candidate.apiKey}');
         requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, candidate.modelId, toolsOverride);
       } else {
         url = Uri.parse('$baseUrl/chat/completions');
@@ -446,9 +446,9 @@ IMPORTANT RULES:
           throw Exception('API Error: ${response.statusCode} - ${response.body}');
         }
       } on SocketException catch (e) {
-        if (i < candidates.length - 1) continue;
+        if (i < candidates.length - 1) continue; else throw Exception('SocketException: $e');
       } on TimeoutException catch (e) {
-        if (i < candidates.length - 1) continue;
+        if (i < candidates.length - 1) continue; else throw Exception('TimeoutException: $e');
       } catch (e) {
         if (i == candidates.length - 1) {
           AiLogger.instance.addLog(
@@ -586,7 +586,7 @@ IMPORTANT RULES:
         if (baseUrl.endsWith('/openai')) {
           baseUrl = baseUrl.replaceAll('/openai', '');
         }
-        url = Uri.parse('$baseUrl/models/${candidate.modelId}:streamGenerateContent?alt=sse');
+        url = Uri.parse('$baseUrl/models/${candidate.modelId}:streamGenerateContent?alt=sse&key=${candidate.apiKey}');
         requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, candidate.modelId, toolsOverride);
       } else {
         url = Uri.parse('$baseUrl/chat/completions');
