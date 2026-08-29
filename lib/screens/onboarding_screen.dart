@@ -143,31 +143,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final key = _apiKeyController.text.trim();
     final nameLower = _selectedProvider.toLowerCase();
 
+    final prefs = await SharedPreferences.getInstance();
+    final timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
+    final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
+    final timeoutDuration = Duration(seconds: timeoutSeconds);
+
     try {
-      http.Response response;
-      if (nameLower == 'gemini' || url.contains('generativelanguage.googleapis.com')) {
-        final uri = Uri.parse('$url/models?key=$key');
-        response = await http.get(uri).timeout(const Duration(seconds: 5));
-      } else if (nameLower == 'anthropic' || url.contains('anthropic.com')) {
-        final uri = Uri.parse('$url/messages');
-        response = await http.post(
-          uri,
-          headers: {
-            'content-type': 'application/json',
-            'x-api-key': key,
-            'anthropic-version': '2023-06-01',
-          },
-          body: jsonEncode({
-            'model': 'claude-3-haiku-20240307',
-            'messages': [{'role': 'user', 'content': 'Hi'}],
-            'max_tokens': 1,
-          }),
-        ).timeout(const Duration(seconds: 5));
-      } else {
-        final uri = Uri.parse('$url/models');
-        response = await http.get(uri, headers: {
-          'Authorization': 'Bearer $key',
-        }).timeout(const Duration(seconds: 5));
+      http.Response? response;
+      int attempt = 0;
+
+      while (true) {
+        attempt++;
+        try {
+          if (nameLower == 'gemini' || url.contains('generativelanguage.googleapis.com')) {
+            final uri = Uri.parse('$url/models?key=$key');
+            response = await http.get(uri).timeout(timeoutDuration);
+          } else if (nameLower == 'anthropic' || url.contains('anthropic.com')) {
+            final uri = Uri.parse('$url/messages');
+            response = await http.post(
+              uri,
+              headers: {
+                'content-type': 'application/json',
+                'x-api-key': key,
+                'anthropic-version': '2023-06-01',
+              },
+              body: jsonEncode({
+                'model': 'claude-3-haiku-20240307',
+                'messages': [{'role': 'user', 'content': 'Hi'}],
+                'max_tokens': 1,
+              }),
+            ).timeout(timeoutDuration);
+          } else {
+            final uri = Uri.parse('$url/models');
+            response = await http.get(uri, headers: {
+              'Authorization': 'Bearer $key',
+            }).timeout(timeoutDuration);
+          }
+
+          if (response.statusCode >= 500 || response.statusCode == 429 || response.statusCode == 408) {
+            throw Exception('Server error: ${response.statusCode}');
+          }
+          break;
+        } catch (e) {
+          if (attempt > maxRetries) {
+            rethrow;
+          }
+          debugPrint('Connection test attempt $attempt failed: $e. Retrying in 1s...');
+          await Future.delayed(const Duration(seconds: 1));
+        }
       }
 
       if (response.statusCode == 200 || ((nameLower == 'anthropic' || url.contains('anthropic.com')) && response.statusCode == 400)) {

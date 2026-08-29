@@ -155,19 +155,42 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
       
       bool isGemini = providerName.toLowerCase() == 'gemini' || p['url']!.contains('generativelanguage.googleapis.com');
       
-      http.Response response;
-      if (isGemini) {
-        String baseUrl = p['url']!;
-        if (baseUrl.endsWith('/openai')) {
-          baseUrl = baseUrl.replaceAll('/openai', '');
+      final prefs = await SharedPreferences.getInstance();
+      final timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
+      final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
+      final timeoutDuration = Duration(seconds: timeoutSeconds);
+      
+      late http.Response response;
+      int reqAttempt = 0;
+      
+      while (true) {
+        reqAttempt++;
+        try {
+          if (isGemini) {
+            String baseUrl = p['url']!;
+            if (baseUrl.endsWith('/openai')) {
+              baseUrl = baseUrl.replaceAll('/openai', '');
+            }
+            final uri = Uri.parse('$baseUrl/models?key=${p['key']}');
+            response = await http.get(uri).timeout(timeoutDuration);
+          } else {
+            final uri = Uri.parse('${p['url']}/models');
+            response = await http.get(uri, headers: {
+              'Authorization': 'Bearer ${p['key']}',
+            }).timeout(timeoutDuration);
+          }
+          
+          if (response.statusCode >= 500 || response.statusCode == 429 || response.statusCode == 408) {
+            throw Exception('Server error: ${response.statusCode}');
+          }
+          break;
+        } catch (e) {
+          if (reqAttempt > maxRetries) {
+            rethrow;
+          }
+          debugPrint('Fetch models attempt $reqAttempt failed: $e. Retrying in 1s...');
+          await Future.delayed(const Duration(seconds: 1));
         }
-        final uri = Uri.parse('$baseUrl/models?key=${p['key']}');
-        response = await http.get(uri).timeout(const Duration(seconds: 5));
-      } else {
-        final uri = Uri.parse('${p['url']}/models');
-        response = await http.get(uri, headers: {
-          'Authorization': 'Bearer ${p['key']}',
-        }).timeout(const Duration(seconds: 5));
       }
 
       if (response.statusCode == 200) {
@@ -181,8 +204,6 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
           final List<dynamic> dataList = data['data'] ?? [];
           models = dataList.map((m) => m['id'].toString()).toList();
         }
-        
-        final prefs = await SharedPreferences.getInstance();
         
         final chatTags = <String, bool>{};
         final visionTags = <String, bool>{};
@@ -199,20 +220,12 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
           _isLoading = false;
         });
       } else {
-        if (attempt == 1) {
-          await Future.delayed(const Duration(milliseconds: 200));
-          return await _fetchModelsForProvider(providerName, attempt: 2);
-        }
         setState(() {
           _isLoading = false;
           _errorMessage = context.tr('model_error_list').replaceAll('{code}', response.statusCode.toString());
         });
       }
     } catch (e) {
-      if (attempt == 1) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        return await _fetchModelsForProvider(providerName, attempt: 2);
-      }
       setState(() {
         _isLoading = false;
         _errorMessage = context.tr('model_error_network');

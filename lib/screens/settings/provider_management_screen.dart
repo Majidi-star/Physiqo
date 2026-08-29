@@ -103,16 +103,38 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
         final key = keyCtrl.text.trim();
         final name = nameCtrl.text.trim().toLowerCase();
         
-        http.Response response;
+        final prefs = await SharedPreferences.getInstance();
+        final timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
+        final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
+        final timeoutDuration = Duration(seconds: timeoutSeconds);
         
-        if (name == 'gemini' || url.contains('generativelanguage.googleapis.com')) {
-          final uri = Uri.parse('$url/models?key=$key');
-          response = await http.get(uri).timeout(const Duration(seconds: 5));
-        } else {
-          final uri = Uri.parse('$url/models');
-          response = await http.get(uri, headers: {
-            'Authorization': 'Bearer $key',
-          }).timeout(const Duration(seconds: 5));
+        late http.Response response;
+        int attempt = 0;
+        
+        while (true) {
+          attempt++;
+          try {
+            if (name == 'gemini' || url.contains('generativelanguage.googleapis.com')) {
+              final uri = Uri.parse('$url/models?key=$key');
+              response = await http.get(uri).timeout(timeoutDuration);
+            } else {
+              final uri = Uri.parse('$url/models');
+              response = await http.get(uri, headers: {
+                'Authorization': 'Bearer $key',
+              }).timeout(timeoutDuration);
+            }
+
+            if (response.statusCode >= 500 || response.statusCode == 429 || response.statusCode == 408) {
+              throw Exception('Server error: ${response.statusCode}');
+            }
+            break;
+          } catch (e) {
+            if (attempt > maxRetries) {
+              rethrow;
+            }
+            debugPrint('Provider connection test attempt $attempt failed: $e. Retrying in 1s...');
+            await Future.delayed(const Duration(seconds: 1));
+          }
         }
 
         if (response.statusCode == 200) {

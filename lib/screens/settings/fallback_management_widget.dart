@@ -72,19 +72,42 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
         final key = p['key']!;
         final isGemini = provider.toLowerCase() == 'gemini' || url.contains('generativelanguage.googleapis.com');
         
-        http.Response response;
-        if (isGemini) {
-          String baseUrl = url;
-          if (baseUrl.endsWith('/openai')) {
-            baseUrl = baseUrl.replaceAll('/openai', '');
+        final prefs = await SharedPreferences.getInstance();
+        final timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
+        final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
+        final timeoutDuration = Duration(seconds: timeoutSeconds);
+        
+        late http.Response response;
+        int attempt = 0;
+        
+        while (true) {
+          attempt++;
+          try {
+            if (isGemini) {
+              String baseUrl = url;
+              if (baseUrl.endsWith('/openai')) {
+                baseUrl = baseUrl.replaceAll('/openai', '');
+              }
+              final uri = Uri.parse('$baseUrl/models?key=$key');
+              response = await http.get(uri).timeout(timeoutDuration);
+            } else {
+              final uri = Uri.parse('$url/models');
+              response = await http.get(uri, headers: {
+                'Authorization': 'Bearer $key',
+              }).timeout(timeoutDuration);
+            }
+
+            if (response.statusCode >= 500 || response.statusCode == 429 || response.statusCode == 408) {
+              throw Exception('Server error: ${response.statusCode}');
+            }
+            break;
+          } catch (e) {
+            if (attempt > maxRetries) {
+              rethrow;
+            }
+            debugPrint('Fallback fetch attempt $attempt failed: $e. Retrying in 1s...');
+            await Future.delayed(const Duration(seconds: 1));
           }
-          final uri = Uri.parse('$baseUrl/models?key=$key');
-          response = await http.get(uri).timeout(const Duration(seconds: 5));
-        } else {
-          final uri = Uri.parse('$url/models');
-          response = await http.get(uri, headers: {
-            'Authorization': 'Bearer $key',
-          }).timeout(const Duration(seconds: 5));
         }
         
         if (currentFetch != fetchId) return;

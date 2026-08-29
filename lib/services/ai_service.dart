@@ -136,6 +136,7 @@ class AiService {
   Future<List<AiExecutionCandidate>> _getAllProviderCandidates({bool hasImages = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final autoFailover = prefs.getBool('enable_auto_failover') ?? true;
+    final timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
     
     final activeProvider = hasImages 
         ? (prefs.getString('active_vision_provider') ?? prefs.getString('active_chat_provider') ?? prefs.getString('active_ai_provider'))
@@ -169,7 +170,7 @@ class AiService {
             modelId: model,
             apiKey: apiKey,
             baseUrl: baseUrl,
-            timeoutDuration: Duration(seconds: hasImages ? 30 : 15),
+            timeoutDuration: Duration(seconds: timeoutSeconds),
             isVisionCapable: hasImages,
           ));
         }
@@ -296,6 +297,9 @@ IMPORTANT RULES:
       }
     }
 
+    final prefs = await SharedPreferences.getInstance();
+    final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
+
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
@@ -332,161 +336,172 @@ IMPORTANT RULES:
         headers['x-goog-api-key'] = candidate.apiKey!;
       }
 
-      try {
-        final response = await _client.post(
-          url,
-          headers: headers,
-          body: jsonEncode(requestPayload),
-        ).timeout(candidate.timeoutDuration);
+      int attempt = 0;
+      while (true) {
+        attempt++;
+        try {
+          final response = await _client.post(
+            url,
+            headers: headers,
+            body: jsonEncode(requestPayload),
+          ).timeout(candidate.timeoutDuration);
 
-        if (response.statusCode == 200) {
-          stopwatch.stop();
-          final responseBodyString = utf8.decode(response.bodyBytes);
-          
-          int? inputTokens;
-          int? outputTokens;
-          try {
+          if (response.statusCode == 200) {
+            stopwatch.stop();
+            final responseBodyString = utf8.decode(response.bodyBytes);
+            
+            int? inputTokens;
+            int? outputTokens;
+            try {
+              final data = jsonDecode(responseBodyString);
+              if (data['usage'] != null) {
+                inputTokens = data['usage']['prompt_tokens'] as int?;
+                outputTokens = data['usage']['completion_tokens'] as int?;
+              }
+            } catch (_) {}
+
+            AiLogger.instance.addLog(
+              requestPayload: requestPayload,
+              responseRaw: responseBodyString,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              inputTokens: inputTokens,
+              outputTokens: outputTokens,
+            );
+            
             final data = jsonDecode(responseBodyString);
-            if (data['usage'] != null) {
-              inputTokens = data['usage']['prompt_tokens'] as int?;
-              outputTokens = data['usage']['completion_tokens'] as int?;
-            }
-          } catch (_) {}
-
-          AiLogger.instance.addLog(
-            requestPayload: requestPayload,
-            responseRaw: responseBodyString,
-            latencyMs: stopwatch.elapsedMilliseconds,
-            inputTokens: inputTokens,
-            outputTokens: outputTokens,
-          );
-          
-          final data = jsonDecode(responseBodyString);
-          if (isGeminiNative) {
-            final candidatesData = data['candidates'] as List?;
-            if (candidatesData != null && candidatesData.isNotEmpty) {
-              final content = candidatesData[0]['content'];
-              if (content != null && content['parts'] != null) {
-                String textResponse = '';
-                List<AiToolCall> calls = [];
-                final parts = content['parts'] as List;
-                for (var part in parts) {
-                  if (part['text'] != null) {
-                    textResponse += part['text'];
+            if (isGeminiNative) {
+              final candidatesData = data['candidates'] as List?;
+              if (candidatesData != null && candidatesData.isNotEmpty) {
+                final content = candidatesData[0]['content'];
+                if (content != null && content['parts'] != null) {
+                  String textResponse = '';
+                  List<AiToolCall> calls = [];
+                  final parts = content['parts'] as List;
+                  for (var part in parts) {
+                    if (part['text'] != null) {
+                      textResponse += part['text'];
+                    }
+                    if (part['functionCall'] != null) {
+                      final func = part['functionCall'];
+                      final args = func['args'];
+                      calls.add(AiToolCall(
+                        id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+                        name: func['name'],
+                        arguments: args is Map ? args.cast<String, dynamic>() : {},
+                      ));
+                    }
                   }
-                  if (part['functionCall'] != null) {
-                    final func = part['functionCall'];
-                    final args = func['args'];
-                    calls.add(AiToolCall(
-                      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
-                      name: func['name'],
-                      arguments: args is Map ? args.cast<String, dynamic>() : {},
-                    ));
-                  }
-                }
-                
-                if (textResponse.contains('<TOOLCALL>')) {
-                   try {
-                     final startIndex = textResponse.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
-                     final endIndex = textResponse.indexOf('</TOOLCALL>');
-                     if (endIndex != -1) {
-                       final jsonString = textResponse.substring(startIndex, endIndex).trim();
-                       final beforeText = textResponse.substring(0, textResponse.indexOf('<TOOLCALL>')).trim();
-                       final afterText = textResponse.substring(endIndex + '</TOOLCALL>'.length).trim();
-                       String finalSurroundingText = '$beforeText\n\n$afterText'.trim();
-                       final fallbackCalls = parseFallbackToolCalls(jsonString);
-                       if (fallbackCalls.isNotEmpty) {
-                         calls.addAll(fallbackCalls);
-                         textResponse = finalSurroundingText;
+                  
+                  if (textResponse.contains('<TOOLCALL>')) {
+                     try {
+                       final startIndex = textResponse.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+                       final endIndex = textResponse.indexOf('</TOOLCALL>');
+                       if (endIndex != -1) {
+                         final jsonString = textResponse.substring(startIndex, endIndex).trim();
+                         final beforeText = textResponse.substring(0, textResponse.indexOf('<TOOLCALL>')).trim();
+                         final afterText = textResponse.substring(endIndex + '</TOOLCALL>'.length).trim();
+                         String finalSurroundingText = '$beforeText\n\n$afterText'.trim();
+                         final fallbackCalls = parseFallbackToolCalls(jsonString);
+                         if (fallbackCalls.isNotEmpty) {
+                           calls.addAll(fallbackCalls);
+                           textResponse = finalSurroundingText;
+                         }
                        }
-                     }
-                   } catch (_) {}
+                     } catch (_) {}
+                  }
+                  return AiResponse(text: textResponse.isEmpty ? null : textResponse, toolCalls: calls.isEmpty ? null : calls, providerServed: candidate.provider);
                 }
-                return AiResponse(text: textResponse.isEmpty ? null : textResponse, toolCalls: calls.isEmpty ? null : calls, providerServed: candidate.provider);
               }
             }
-          }
-          final choices = data['choices'] as List?;
-          if (choices != null && choices.isNotEmpty) {
-            final message = choices[0]['message'];
-            
-            if (message['tool_calls'] != null) {
-              final calls = (message['tool_calls'] as List).map((call) {
-                final args = call['function']['arguments'] as String?;
-                return AiToolCall(
-                  id: call['id'] as String,
-                  name: call['function']['name'] as String,
-                  arguments: args == null || args.trim().isEmpty
-                      ? <String, dynamic>{}
-                      : jsonDecode(args) as Map<String, dynamic>,
-                );
-              }).toList();
-              return AiResponse(text: message['content'], toolCalls: calls, providerServed: candidate.provider);
-            }
-            
-            final content = message['content'] as String?;
-            if (content != null && content.contains('<TOOLCALL>')) {
-              try {
-                final startIndex = content.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
-                final endIndex = content.indexOf('</TOOLCALL>');
-                if (endIndex != -1) {
-                  final jsonString = content.substring(startIndex, endIndex).trim();
-                  
-                  final beforeText = content.substring(0, content.indexOf('<TOOLCALL>')).trim();
-                  final afterText = content.substring(endIndex + '</TOOLCALL>'.length).trim();
-                  
-                  String? finalSurroundingText;
-                  if (beforeText.isNotEmpty && afterText.isNotEmpty) {
-                    finalSurroundingText = '$beforeText\n\n$afterText';
-                  } else if (beforeText.isNotEmpty) {
-                    finalSurroundingText = beforeText;
-                  } else if (afterText.isNotEmpty) {
-                    finalSurroundingText = afterText;
-                  }
-                  
-                  final fallbackCalls = parseFallbackToolCalls(jsonString);
-                  if (fallbackCalls.isNotEmpty) {
-                    return AiResponse(text: finalSurroundingText, toolCalls: fallbackCalls, providerServed: candidate.provider);
-                  }
-                }
-              } catch (e) {
-                debugPrint('Failed to parse TOOLCALL block: $e');
+            final choices = data['choices'] as List?;
+            if (choices != null && choices.isNotEmpty) {
+              final message = choices[0]['message'];
+              
+              if (message['tool_calls'] != null) {
+                final calls = (message['tool_calls'] as List).map((call) {
+                  final args = call['function']['arguments'] as String?;
+                  return AiToolCall(
+                    id: call['id'] as String,
+                    name: call['function']['name'] as String,
+                    arguments: args == null || args.trim().isEmpty
+                        ? <String, dynamic>{}
+                        : jsonDecode(args) as Map<String, dynamic>,
+                  );
+                }).toList();
+                return AiResponse(text: message['content'], toolCalls: calls, providerServed: candidate.provider);
               }
-            }
+              
+              final content = message['content'] as String?;
+              if (content != null && content.contains('<TOOLCALL>')) {
+                try {
+                  final startIndex = content.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+                  final endIndex = content.indexOf('</TOOLCALL>');
+                  if (endIndex != -1) {
+                    final jsonString = content.substring(startIndex, endIndex).trim();
+                    
+                    final beforeText = content.substring(0, content.indexOf('<TOOLCALL>')).trim();
+                    final afterText = content.substring(endIndex + '</TOOLCALL>'.length).trim();
+                    
+                    String? finalSurroundingText;
+                    if (beforeText.isNotEmpty && afterText.isNotEmpty) {
+                      finalSurroundingText = '$beforeText\n\n$afterText';
+                    } else if (beforeText.isNotEmpty) {
+                      finalSurroundingText = beforeText;
+                    } else if (afterText.isNotEmpty) {
+                      finalSurroundingText = afterText;
+                    }
+                    
+                    final fallbackCalls = parseFallbackToolCalls(jsonString);
+                    if (fallbackCalls.isNotEmpty) {
+                      return AiResponse(text: finalSurroundingText, toolCalls: fallbackCalls, providerServed: candidate.provider);
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Failed to parse TOOLCALL block: $e');
+                }
+              }
 
-            if (content != null && content.trim().startsWith('{')) {
-              final fallbackCalls = parseFallbackToolCalls(content);
-              if (fallbackCalls.isNotEmpty) {
-                return AiResponse(text: null, toolCalls: fallbackCalls, providerServed: candidate.provider);
+              if (content != null && content.trim().startsWith('{')) {
+                final fallbackCalls = parseFallbackToolCalls(content);
+                if (fallbackCalls.isNotEmpty) {
+                  return AiResponse(text: null, toolCalls: fallbackCalls, providerServed: candidate.provider);
+                }
               }
+              
+              return AiResponse(text: content, toolCalls: null, providerServed: candidate.provider);
             }
-            
-            return AiResponse(text: content, toolCalls: null, providerServed: candidate.provider);
+            return AiResponse(text: '', toolCalls: null, providerServed: candidate.provider);
+          } else {
+            throw Exception('API Error: ${response.statusCode} - ${response.body}');
           }
-          return AiResponse(text: '', toolCalls: null, providerServed: candidate.provider);
-        } else {
-          if (i < candidates.length - 1) {
-             debugPrint('Provider ${candidate.provider} failed with status ${response.statusCode}, falling back...');
-             continue;
+        } catch (e) {
+          final isLastAttempt = (attempt > maxRetries);
+          final isLastCandidate = (i == candidates.length - 1);
+          
+          if (isLastAttempt) {
+            if (isLastCandidate) {
+              AiLogger.instance.addLog(
+                requestPayload: requestPayload,
+                responseRaw: '',
+                latencyMs: stopwatch.elapsedMilliseconds,
+                error: e.toString(),
+                chatId: chatId,
+              );
+              if (e is SocketException) {
+                throw Exception('SocketException: $e');
+              } else if (e is TimeoutException) {
+                throw Exception('TimeoutException: $e');
+              } else {
+                throw Exception('Failed with API error: ${e.toString()}');
+              }
+            } else {
+              debugPrint('Provider ${candidate.provider} failed after $attempt attempts. Error: $e. Falling back...');
+              break; // Break the retry loop to continue to next candidate
+            }
+          } else {
+            debugPrint('Provider ${candidate.provider} failed (attempt $attempt/$maxRetries). Error: $e. Retrying in 1s...');
+            await Future.delayed(const Duration(seconds: 1));
           }
-          throw Exception('API Error: ${response.statusCode} - ${response.body}');
-        }
-      } on SocketException catch (e) {
-        if (i < candidates.length - 1) continue; else throw Exception('SocketException: $e');
-      } on TimeoutException catch (e) {
-        if (i < candidates.length - 1) continue; else throw Exception('TimeoutException: $e');
-      } catch (e) {
-        if (i == candidates.length - 1) {
-          AiLogger.instance.addLog(
-            requestPayload: requestPayload,
-            responseRaw: '',
-            latencyMs: stopwatch.elapsedMilliseconds,
-            error: e.toString(),
-            chatId: chatId,
-          );
-          throw Exception('Failed with API error: ${e.toString()}');
-        } else {
-          continue;
         }
       }
     }
@@ -596,11 +611,7 @@ IMPORTANT RULES:
             'role': msg.role == ChatMessageRole.user ? 'user' : 'assistant',
             'content': msg.content,
           });
-        }
-      }
-    }
-
-    for (var i = 0; i < candidates.length; i++) {
+           for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
       bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider.toLowerCase() == 'gemini'));
@@ -630,321 +641,345 @@ IMPORTANT RULES:
       
       final stopwatch = Stopwatch()..start();
 
-      try {
-        final headers = {
-          'Content-Type': 'application/json; charset=utf-8',
-          if (!isGeminiNative) 'Authorization': 'Bearer ${candidate.apiKey}',
-        };
-        if (isGeminiNative && candidate.apiKey != null) {
-          headers['x-goog-api-key'] = candidate.apiKey!;
-        }
+      final headers = {
+        'Content-Type': 'application/json; charset=utf-8',
+        if (!isGeminiNative) 'Authorization': 'Bearer ${candidate.apiKey}',
+      };
+      if (isGeminiNative && candidate.apiKey != null) {
+        headers['x-goog-api-key'] = candidate.apiKey!;
+      }
 
-        final request = http.Request('POST', url)
-          ..headers.addAll(headers)
-          ..body = jsonEncode(requestPayload);
+      int attempt = 0;
+      while (true) {
+        attempt++;
+        try {
+          final request = http.Request('POST', url)
+            ..headers.addAll(headers)
+            ..body = jsonEncode(requestPayload);
 
-        final response = await _client.send(request).timeout(candidate.timeoutDuration);
-        
-        if (response.statusCode != 200) {
-          if (i < candidates.length - 1) {
-             continue;
+          final response = await _client.send(request).timeout(candidate.timeoutDuration);
+          
+          if (response.statusCode != 200) {
+            throw Exception('API Error: ${response.statusCode} - ' + await response.stream.bytesToString());
           }
-          throw Exception('API Error: ${response.statusCode} - ' + await response.stream.bytesToString());
-        }
 
-        String fullText = '';
-        String rawToolCallsJsonBuffer = '';
-        bool inFallbackToolCall = false;
-        Map<int, Map<String, dynamic>> nativeToolCallsAccumulator = {};
-        List<AiToolCall> finalToolCalls = [];
+          String fullText = '';
+          String rawToolCallsJsonBuffer = '';
+          bool inFallbackToolCall = false;
+          Map<int, Map<String, dynamic>> nativeToolCallsAccumulator = {};
+          List<AiToolCall> finalToolCalls = [];
 
-        final contentType = response.headers['content-type'] ?? '';
-        
-        if (contentType.contains('application/json')) {
+          final contentType = response.headers['content-type'] ?? '';
+          
+          if (contentType.contains('application/json')) {
+            stopwatch.stop();
+            final responseBodyString = await response.stream.bytesToString();
+            
+            int? inputTokens;
+            int? outputTokens;
+            try {
+              final data = jsonDecode(responseBodyString);
+              if (data['usage'] != null) {
+                inputTokens = data['usage']['prompt_tokens'] as int?;
+                outputTokens = data['usage']['completion_tokens'] as int?;
+              }
+            } catch (_) {}
+
+            AiLogger.instance.addLog(
+              requestPayload: requestPayload,
+              responseRaw: responseBodyString,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              inputTokens: inputTokens,
+              outputTokens: outputTokens,
+            );
+            
+            final data = jsonDecode(responseBodyString);
+            final choices = data['choices'] as List;
+            if (choices.isNotEmpty) {
+              final message = choices[0]['message'];
+              if (message['tool_calls'] != null) {
+                finalToolCalls = (message['tool_calls'] as List).map((call) {
+                  return AiToolCall(
+                    id: call['id'] as String,
+                    name: call['function']['name'] as String,
+                    arguments: jsonDecode(call['function']['arguments'] as String),
+                  );
+                }).toList();
+              }
+              final content = message['content'] as String?;
+              if (content != null) {
+                 fullText = content;
+                 if (fullText.contains('<TOOLCALL>')) {
+                    try {
+                      final startIndex = fullText.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+                      final endIndex = fullText.indexOf('</TOOLCALL>');
+                      final jsonString = fullText.substring(startIndex, endIndex).trim();
+                      final fallbackCalls = parseFallbackToolCalls(jsonString);
+                      if (fallbackCalls.isNotEmpty) {
+                        finalToolCalls.addAll(fallbackCalls);
+                      }
+                      fullText = fullText.substring(0, fullText.indexOf('<TOOLCALL>')) + fullText.substring(endIndex + '</TOOLCALL>'.length);
+                    } catch (e) {
+                      debugPrint('Failed parsing flat fallback: $e');
+                    }
+                 } else if (fullText.trim().startsWith('{')) {
+                   final fallbackCalls = parseFallbackToolCalls(fullText);
+                   if (fallbackCalls.isNotEmpty) {
+                     finalToolCalls.addAll(fallbackCalls);
+                     fullText = ''; 
+                   }
+                 }
+              }
+            }
+            yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
+            return;
+          }
+
+          final lineStream = response.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())
+              .timeout(candidate.timeoutDuration);
+
+          StringBuffer rawStreamLog = StringBuffer();
+          await for (var line in lineStream) {
+            rawStreamLog.writeln(line);
+            if (line.startsWith('data: ')) {
+              final dataStr = line.substring(6);
+              if (dataStr == '[DONE]') break;
+              try {
+                final data = jsonDecode(dataStr);
+                if (isGeminiNative) {
+                  final candidatesData = data['candidates'] as List?;
+                  if (candidatesData != null && candidatesData.isNotEmpty) {
+                    final content = candidatesData[0]['content'];
+                    if (content != null && content['parts'] != null) {
+                      final parts = content['parts'] as List;
+                      for (var part in parts) {
+                        if (part['text'] != null) {
+                          final contentPiece = part['text'] as String;
+                          fullText += contentPiece;
+                          
+                          if (inFallbackToolCall) {
+                            if (fullText.contains('</TOOLCALL>')) {
+                              final startIndex = fullText.indexOf('<TOOLCALL>');
+                              if (startIndex != -1) {
+                                 final xmlString = fullText.substring(startIndex);
+                                 rawToolCallsJsonBuffer += xmlString;
+                              }
+                              inFallbackToolCall = false;
+                            } else {
+                              rawToolCallsJsonBuffer += contentPiece;
+                            }
+                          } else if (contentPiece.contains('<TOOLCALL>')) {
+                            inFallbackToolCall = true;
+                            final startIndex = fullText.indexOf('<TOOLCALL>');
+                            if (startIndex != -1) {
+                               rawToolCallsJsonBuffer = fullText.substring(startIndex);
+                            }
+                          } else {
+                            yield AiStreamEvent(deltaText: contentPiece, isDone: false, providerServed: candidate.provider);
+                          }
+                        }
+                        if (part['functionCall'] != null) {
+                          final func = part['functionCall'];
+                          final name = func['name'];
+                          final args = func['args'];
+                          final idx = nativeToolCallsAccumulator.length;
+                          nativeToolCallsAccumulator[idx] = {
+                             'id': 'call_${DateTime.now().millisecondsSinceEpoch}_$idx',
+                             'name': name,
+                             'arguments': jsonEncode(args),
+                          };
+                        }
+                      }
+                    }
+                  }
+                  continue;
+                }
+                
+                final choices = data['choices'] as List?;
+                if (choices != null && choices.isNotEmpty) {
+                  final delta = choices[0]['delta'];
+                  
+                  if (delta['tool_calls'] != null) {
+                    for (var tcChunk in delta['tool_calls']) {
+                      final idx = tcChunk['index'] as int;
+                      if (!nativeToolCallsAccumulator.containsKey(idx)) {
+                        nativeToolCallsAccumulator[idx] = {
+                           'id': tcChunk['id'] ?? '',
+                           'name': tcChunk['function']?['name'] ?? '',
+                           'arguments': tcChunk['function']?['arguments'] ?? '',
+                        };
+                      } else {
+                        nativeToolCallsAccumulator[idx]!['arguments'] += tcChunk['function']?['arguments'] ?? '';
+                      }
+                    }
+                  }
+                  
+                  if (delta['content'] != null) {
+                    final contentPiece = delta['content'] as String;
+                    fullText += contentPiece;
+                    
+                    if (inFallbackToolCall) {
+                      if (fullText.contains('</TOOLCALL>')) {
+                        final startIndex = fullText.indexOf('<TOOLCALL>');
+                        final endIndex = fullText.indexOf('</TOOLCALL>') + '</TOOLCALL>'.length;
+                        final block = fullText.substring(startIndex, endIndex);
+                        rawToolCallsJsonBuffer = block; 
+                        
+                        fullText = fullText.substring(0, startIndex) + fullText.substring(endIndex);
+                        inFallbackToolCall = false;
+                        
+                        int lastLeftAngle = fullText.lastIndexOf('<');
+                        if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
+                           yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
+                        } else {
+                           yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
+                        }
+                      }
+                    } else {
+                      if (fullText.contains('<TOOLCALL>')) {
+                        inFallbackToolCall = true;
+                        final cleanText = fullText.substring(0, fullText.indexOf('<TOOLCALL>'));
+                        yield AiStreamEvent(deltaText: cleanText, providerServed: candidate.provider);
+                      } else if (fullText.trim().startsWith('{')) {
+                        // Buffered JSON block
+                      } else {
+                        int lastLeftAngle = fullText.lastIndexOf('<');
+                        if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
+                           yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
+                        } else {
+                           yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                // Ignore
+              }
+            }
+          }
+          
+          if (nativeToolCallsAccumulator.isNotEmpty) {
+            for (var tc in nativeToolCallsAccumulator.values) {
+              try {
+                final argsStr = tc['arguments'] as String;
+                Map<String, dynamic> parsedArgs = {};
+                if (argsStr.trim().isNotEmpty) {
+                  final decoded = jsonDecode(argsStr);
+                  if (decoded is Map) {
+                    parsedArgs = decoded.cast<String, dynamic>();
+                  }
+                }
+                finalToolCalls.add(
+                  AiToolCall(
+                    id: tc['id'] as String,
+                    name: tc['name'] as String,
+                    arguments: parsedArgs,
+                  )
+                );
+              } catch (e) {
+                debugPrint('Failed to decode native tool arguments: $e');
+              }
+            }
+          }
+          
+          if (rawToolCallsJsonBuffer.isNotEmpty) {
+            try {
+               final startIndex = rawToolCallsJsonBuffer.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+               final endIndex = rawToolCallsJsonBuffer.indexOf('</TOOLCALL>');
+               String jsonString = rawToolCallsJsonBuffer.substring(startIndex, endIndex).trim();
+               
+               if (jsonString.startsWith('```')) {
+                  final firstNewline = jsonString.indexOf('\n');
+                  if (firstNewline != -1) {
+                     jsonString = jsonString.substring(firstNewline + 1);
+                  }
+                  if (jsonString.endsWith('```')) {
+                     jsonString = jsonString.substring(0, jsonString.length - 3).trim();
+                  }
+               }
+
+               final fallbackCalls = parseFallbackToolCalls(jsonString);
+               if (fallbackCalls.isNotEmpty) {
+                 finalToolCalls.addAll(fallbackCalls);
+               }
+            } catch(e) {
+               debugPrint('Failed parsing streaming fallback: $e');
+            }
+          } else if (fullText.trim().startsWith('{')) {
+            final fallbackCalls = parseFallbackToolCalls(fullText);
+            if (fallbackCalls.isNotEmpty) {
+              finalToolCalls.addAll(fallbackCalls);
+              fullText = '';
+            }
+          }
+
           stopwatch.stop();
-          final responseBodyString = await response.stream.bytesToString();
           
           int? inputTokens;
           int? outputTokens;
           try {
-            final data = jsonDecode(responseBodyString);
-            if (data['usage'] != null) {
-              inputTokens = data['usage']['prompt_tokens'] as int?;
-              outputTokens = data['usage']['completion_tokens'] as int?;
+            final rawLogText = rawStreamLog.toString();
+            final lines = rawLogText.split('\n');
+            for (var line in lines) {
+              if (line.startsWith('data: ')) {
+                final dataStr = line.substring(6).trim();
+                if (dataStr != '[DONE]' && dataStr.isNotEmpty) {
+                  final chunk = jsonDecode(dataStr);
+                  if (chunk['usage'] != null) {
+                    inputTokens = chunk['usage']['prompt_tokens'] as int?;
+                    outputTokens = chunk['usage']['completion_tokens'] as int?;
+                    break;
+                  }
+                }
+              }
             }
           } catch (_) {}
 
           AiLogger.instance.addLog(
+            chatId: chatId,
             requestPayload: requestPayload,
-            responseRaw: responseBodyString,
+            responseRaw: rawStreamLog.toString(),
             latencyMs: stopwatch.elapsedMilliseconds,
             inputTokens: inputTokens,
             outputTokens: outputTokens,
           );
-          
-          final data = jsonDecode(responseBodyString);
-          final choices = data['choices'] as List;
-          if (choices.isNotEmpty) {
-            final message = choices[0]['message'];
-            if (message['tool_calls'] != null) {
-              finalToolCalls = (message['tool_calls'] as List).map((call) {
-                return AiToolCall(
-                  id: call['id'] as String,
-                  name: call['function']['name'] as String,
-                  arguments: jsonDecode(call['function']['arguments'] as String),
-                );
-              }).toList();
-            }
-            final content = message['content'] as String?;
-            if (content != null) {
-               fullText = content;
-               if (fullText.contains('<TOOLCALL>')) {
-                  try {
-                    final startIndex = fullText.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
-                    final endIndex = fullText.indexOf('</TOOLCALL>');
-                    final jsonString = fullText.substring(startIndex, endIndex).trim();
-                    final fallbackCalls = parseFallbackToolCalls(jsonString);
-                    if (fallbackCalls.isNotEmpty) {
-                      finalToolCalls.addAll(fallbackCalls);
-                    }
-                    fullText = fullText.substring(0, fullText.indexOf('<TOOLCALL>')) + fullText.substring(endIndex + '</TOOLCALL>'.length);
-                  } catch (e) {
-                    debugPrint('Failed parsing flat fallback: $e');
-                  }
-               } else if (fullText.trim().startsWith('{')) {
-                 final fallbackCalls = parseFallbackToolCalls(fullText);
-                 if (fallbackCalls.isNotEmpty) {
-                   finalToolCalls.addAll(fallbackCalls);
-                   fullText = ''; 
-                 }
-               }
-            }
-          }
+
           yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
           return;
-        }
 
-        final lineStream = response.stream
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())
-            .timeout(candidate.timeoutDuration);
-
-        StringBuffer rawStreamLog = StringBuffer();
-        await for (var line in lineStream) {
-          rawStreamLog.writeln(line);
-          if (line.startsWith('data: ')) {
-            final dataStr = line.substring(6);
-            if (dataStr == '[DONE]') break;
-            try {
-              final data = jsonDecode(dataStr);
-              if (isGeminiNative) {
-                final candidatesData = data['candidates'] as List?;
-                if (candidatesData != null && candidatesData.isNotEmpty) {
-                  final content = candidatesData[0]['content'];
-                  if (content != null && content['parts'] != null) {
-                    final parts = content['parts'] as List;
-                    for (var part in parts) {
-                      if (part['text'] != null) {
-                        final contentPiece = part['text'] as String;
-                        fullText += contentPiece;
-                        
-                        if (inFallbackToolCall) {
-                          if (fullText.contains('</TOOLCALL>')) {
-                            final startIndex = fullText.indexOf('<TOOLCALL>');
-                            if (startIndex != -1) {
-                               final xmlString = fullText.substring(startIndex);
-                               rawToolCallsJsonBuffer += xmlString;
-                            }
-                            inFallbackToolCall = false;
-                          } else {
-                            rawToolCallsJsonBuffer += contentPiece;
-                          }
-                        } else if (contentPiece.contains('<TOOLCALL>')) {
-                          inFallbackToolCall = true;
-                          final startIndex = fullText.indexOf('<TOOLCALL>');
-                          if (startIndex != -1) {
-                             rawToolCallsJsonBuffer = fullText.substring(startIndex);
-                          }
-                        } else {
-                          yield AiStreamEvent(deltaText: contentPiece, isDone: false, providerServed: candidate.provider);
-                        }
-                      }
-                      if (part['functionCall'] != null) {
-                        final func = part['functionCall'];
-                        final name = func['name'];
-                        final args = func['args'];
-                        final idx = nativeToolCallsAccumulator.length;
-                        nativeToolCallsAccumulator[idx] = {
-                           'id': 'call_${DateTime.now().millisecondsSinceEpoch}_$idx',
-                           'name': name,
-                           'arguments': jsonEncode(args),
-                        };
-                      }
-                    }
-                  }
-                }
-                continue;
-              }
-              
-              final choices = data['choices'] as List?;
-              if (choices != null && choices.isNotEmpty) {
-                final delta = choices[0]['delta'];
-                
-                if (delta['tool_calls'] != null) {
-                  for (var tcChunk in delta['tool_calls']) {
-                    final idx = tcChunk['index'] as int;
-                    if (!nativeToolCallsAccumulator.containsKey(idx)) {
-                      nativeToolCallsAccumulator[idx] = {
-                         'id': tcChunk['id'] ?? '',
-                         'name': tcChunk['function']?['name'] ?? '',
-                         'arguments': tcChunk['function']?['arguments'] ?? '',
-                      };
-                    } else {
-                      nativeToolCallsAccumulator[idx]!['arguments'] += tcChunk['function']?['arguments'] ?? '';
-                    }
-                  }
-                }
-                
-                if (delta['content'] != null) {
-                  final contentPiece = delta['content'] as String;
-                  fullText += contentPiece;
-                  
-                  if (inFallbackToolCall) {
-                    if (fullText.contains('</TOOLCALL>')) {
-                      final startIndex = fullText.indexOf('<TOOLCALL>');
-                      final endIndex = fullText.indexOf('</TOOLCALL>') + '</TOOLCALL>'.length;
-                      final block = fullText.substring(startIndex, endIndex);
-                      rawToolCallsJsonBuffer = block; 
-                      
-                      fullText = fullText.substring(0, startIndex) + fullText.substring(endIndex);
-                      inFallbackToolCall = false;
-                      
-                      int lastLeftAngle = fullText.lastIndexOf('<');
-                      if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
-                         yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
-                      } else {
-                         yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
-                      }
-                    }
-                  } else {
-                    if (fullText.contains('<TOOLCALL>')) {
-                      inFallbackToolCall = true;
-                      final cleanText = fullText.substring(0, fullText.indexOf('<TOOLCALL>'));
-                      yield AiStreamEvent(deltaText: cleanText, providerServed: candidate.provider);
-                    } else if (fullText.trim().startsWith('{')) {
-                      // Buffered JSON block
-                    } else {
-                      int lastLeftAngle = fullText.lastIndexOf('<');
-                      if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
-                         yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
-                      } else {
-                         yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
-                      }
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-        }
-        
-        if (nativeToolCallsAccumulator.isNotEmpty) {
-          for (var tc in nativeToolCallsAccumulator.values) {
-            try {
-              final argsStr = tc['arguments'] as String;
-              Map<String, dynamic> parsedArgs = {};
-              if (argsStr.trim().isNotEmpty) {
-                final decoded = jsonDecode(argsStr);
-                if (decoded is Map) {
-                  parsedArgs = decoded.cast<String, dynamic>();
-                }
-              }
-              finalToolCalls.add(
-                AiToolCall(
-                  id: tc['id'] as String,
-                  name: tc['name'] as String,
-                  arguments: parsedArgs,
-                )
+        } catch (e) {
+          final isLastAttempt = (attempt > maxRetries);
+          final isLastCandidate = (i == candidates.length - 1);
+          
+          if (isLastAttempt) {
+            if (isLastCandidate) {
+              stopwatch.stop();
+              AiLogger.instance.addLog(
+                requestPayload: requestPayload,
+                responseRaw: '',
+                latencyMs: stopwatch.elapsedMilliseconds,
+                error: e.toString(),
+                chatId: chatId,
               );
-            } catch (e) {
-              debugPrint('Failed to decode native tool arguments: $e');
-            }
-          }
-        }
-        
-        if (rawToolCallsJsonBuffer.isNotEmpty) {
-          try {
-             final startIndex = rawToolCallsJsonBuffer.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
-             final endIndex = rawToolCallsJsonBuffer.indexOf('</TOOLCALL>');
-             String jsonString = rawToolCallsJsonBuffer.substring(startIndex, endIndex).trim();
-             
-             if (jsonString.startsWith('```')) {
-                final firstNewline = jsonString.indexOf('\\n');
-                if (firstNewline != -1) {
-                   jsonString = jsonString.substring(firstNewline + 1);
-                }
-                if (jsonString.endsWith('```')) {
-                   jsonString = jsonString.substring(0, jsonString.length - 3).trim();
-                }
-             }
-
-             final fallbackCalls = parseFallbackToolCalls(jsonString);
-             if (fallbackCalls.isNotEmpty) {
-               finalToolCalls.addAll(fallbackCalls);
-             }
-          } catch(e) {
-             debugPrint('Failed parsing streaming fallback: $e');
-          }
-        } else if (fullText.trim().startsWith('{')) {
-          final fallbackCalls = parseFallbackToolCalls(fullText);
-          if (fallbackCalls.isNotEmpty) {
-            finalToolCalls.addAll(fallbackCalls);
-            fullText = '';
-          }
-        }
-
-        stopwatch.stop();
-        
-        int? inputTokens;
-        int? outputTokens;
-        try {
-          final rawLogText = rawStreamLog.toString();
-          final lines = rawLogText.split('\\n');
-          for (var line in lines) {
-            if (line.startsWith('data: ')) {
-              final dataStr = line.substring(6).trim();
-              if (dataStr != '[DONE]' && dataStr.isNotEmpty) {
-                final chunk = jsonDecode(dataStr);
-                if (chunk['usage'] != null) {
-                  inputTokens = chunk['usage']['prompt_tokens'] as int?;
-                  outputTokens = chunk['usage']['completion_tokens'] as int?;
-                  break;
-                }
+              if (e is SocketException) {
+                throw Exception('SocketException: $e');
+              } else if (e is TimeoutException) {
+                throw Exception('TimeoutException: $e');
+              } else {
+                throw Exception(e.toString());
               }
+            } else {
+              debugPrint('Provider ${candidate.provider} failed after $attempt attempts. Error: $e. Falling back...');
+              break; // Break retry loop to go to next candidate
             }
+          } else {
+            debugPrint('Provider ${candidate.provider} failed (attempt $attempt/$maxRetries). Error: $e. Retrying in 1s...');
+            await Future.delayed(const Duration(seconds: 1));
           }
-        } catch (_) {}
-
-        AiLogger.instance.addLog(
-          chatId: chatId,
-          requestPayload: requestPayload,
-          responseRaw: rawStreamLog.toString(),
-          latencyMs: stopwatch.elapsedMilliseconds,
-          inputTokens: inputTokens,
-          outputTokens: outputTokens,
-        );
-
-        yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
-        return;
-
-      } on SocketException catch (e) {
-        if (i < candidates.length - 1) continue; else throw Exception(e.toString());
-      } on TimeoutException catch (e) {
-        if (i < candidates.length - 1) continue; else throw Exception(e.toString());
-      } catch (e) {
-        if (i < candidates.length - 1) continue; else throw Exception(e.toString());
+        }
       }
     }
     
