@@ -155,6 +155,9 @@ class AiService {
       }
 
       if (model == null) return;
+      if (providerName.toLowerCase() == 'gemini' && (model == 'gemini-3.5-flash' || model == 'models/gemini-3.5-flash')) {
+        model = 'gemini-1.5-flash';
+      }
       
       final apiKey = await _storage.read(key: 'provider_$providerName');
       final baseUrl = await _storage.read(key: 'baseUrl_$providerName');

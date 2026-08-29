@@ -266,9 +266,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await prefs.setString('active_chat_provider', provider);
       await prefs.setString('active_vision_provider', provider);
 
-      // Pre-select default models to ensure it works out of the box
       String defaultModel = 'google/gemini-2.5-flash';
-      if (provider == 'Gemini') defaultModel = 'gemini-3.5-flash';
+      if (provider == 'Gemini') defaultModel = 'gemini-1.5-flash';
       if (provider == 'Nvidia NIM') defaultModel = 'meta/llama3-70b-instruct';
       if (provider == 'Reka') defaultModel = 'reka-flash';
 
