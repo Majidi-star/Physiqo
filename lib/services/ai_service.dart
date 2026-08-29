@@ -272,7 +272,11 @@ IMPORTANT RULES:
 
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
-      final url = Uri.parse('${candidate.baseUrl}/chat/completions');
+      String baseUrl = candidate.baseUrl ?? '';
+      if ((baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini')) && !baseUrl.contains('/openai')) {
+        baseUrl = baseUrl.endsWith('/') ? '${baseUrl}openai' : '$baseUrl/openai';
+      }
+      final url = Uri.parse('$baseUrl/chat/completions');
       
       final requestPayload = {
         'model': candidate.modelId,
@@ -518,7 +522,11 @@ IMPORTANT RULES:
 
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
-      final url = Uri.parse('${candidate.baseUrl}/chat/completions');
+      String baseUrl = candidate.baseUrl ?? '';
+      if ((baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini')) && !baseUrl.contains('/openai')) {
+        baseUrl = baseUrl.endsWith('/') ? '${baseUrl}openai' : '$baseUrl/openai';
+      }
+      final url = Uri.parse('$baseUrl/chat/completions');
       final stopwatch = Stopwatch()..start();
       final requestPayload = {
         'model': candidate.modelId,
