@@ -455,7 +455,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       value: _selectedProvider,
                       isExpanded: true,
                       dropdownColor: AppTheme.surfaceHigh,
-                      items: ['OpenRouter', 'Nvidia NIM', 'Reka', 'Gemini', 'OpenAI', 'Anthropic', 'Custom']
+                      items: ['OpenRouter', 'Nvidia NIM', 'Reka', 'Gemini', 'OpenAI', 'Custom']
                           .map((p) => DropdownMenuItem(value: p, child: Text(p, style: AppTheme.bodyLg)))
                           .toList(),
                       onChanged: (val) {

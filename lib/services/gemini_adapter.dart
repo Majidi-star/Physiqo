@@ -73,10 +73,18 @@ class GeminiAdapter {
       geminiTools.add({'functionDeclarations': functionDeclarations});
     }
 
+    final isNewerGemini = !modelId.contains('1.5');
+
     return {
       'contents': contents,
       if (systemInstruction != null) 'systemInstruction': systemInstruction,
       if (geminiTools.isNotEmpty) 'tools': geminiTools,
+      if (isNewerGemini)
+        'generationConfig': {
+          'thinkingConfig': {
+            'thinkingBudget': 0
+          }
+        }
     };
   }
 }
