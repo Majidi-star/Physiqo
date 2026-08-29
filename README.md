@@ -43,7 +43,7 @@
 
 | 🏋️‍♂️ App in Action | ⚙️ AI Provider Setup |
 | :---: | :---: |
-| **[ PLACEHOLDER: GIF showing the app being used here ]**<br>*(e.g., `<img src="assets/images/app_demo.gif" width="250"/>`)* | **[ PLACEHOLDER: GIF showing AI connection/provider setup here ]**<br>*(e.g., `<img src="assets/images/ai_setup.gif" width="250"/>`)* |
+| <img src="assets/images/app_demo.gif" width="250"/> | <img src="assets/images/ai_setup.gif" width="250"/> |
 
 </div>
 
