@@ -5,6 +5,7 @@ import '../models/user_profile.dart';
 import 'physiqo_logo.dart';
 import 'physiqo_back_button.dart';
 import '../l10n/translations.dart';
+import '../utils/unit_utils.dart';
 
 /// A single unified header widget for all screens in the Physiqo app.
 /// Consolidates both the profile/logo header style and the back-title header style.
@@ -94,11 +95,27 @@ class PhysiqoHeader extends StatelessWidget implements PreferredSizeWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        '${context.tr('header_height')}: ${profile.height} / ${context.tr('header_weight')}: ${profile.weight}',
-                        style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Builder(
+                        builder: (context) {
+                          final isMetric = profile.unitSystem == 'metric';
+                          final hDouble = double.tryParse(profile.height) ?? 175.0;
+                          final wDouble = double.tryParse(profile.weight) ?? 80.0;
+                          
+                          final hStr = isMetric 
+                              ? '${profile.height} ${context.tr('settings_cm')}' 
+                              : UnitUtils.formatCmToFtIn(hDouble);
+                              
+                          final wStr = isMetric 
+                              ? '${profile.weight} ${context.tr('settings_kg')}' 
+                              : '${UnitUtils.formatKgToLb(wDouble)} ${context.tr('settings_lb')}';
+                              
+                          return Text(
+                            '${context.tr('header_height')}: $hStr / ${context.tr('header_weight')}: $wStr',
+                            style: AppTheme.labelMd.copyWith(color: AppTheme.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        },
                       ),
                     ],
                   ),
