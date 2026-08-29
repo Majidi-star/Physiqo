@@ -12,22 +12,29 @@ class GeminiAdapter {
         systemInstruction = {
           'parts': [{'text': msg['content']}]
         };
-      } else if (msg['role'] == 'user' || msg['role'] == 'assistant') {
-        final role = msg['role'] == 'assistant' ? 'model' : 'user';
-        final parts = <Map<String, dynamic>>[];
-        
+        continue;
+      }
+
+      final String geminiRole = (msg['role'] == 'assistant') ? 'model' : 'user';
+      final parts = <Map<String, dynamic>>[];
+
+      if (msg['role'] == 'user' || msg['role'] == 'assistant') {
         if (msg['content'] != null) {
           if (msg['content'] is String) {
-            parts.add({'text': msg['content']});
+            if (msg['content'].toString().isNotEmpty) {
+              parts.add({'text': msg['content']});
+            }
           } else if (msg['content'] is List) {
             for (var item in msg['content']) {
               if (item['type'] == 'text') {
-                parts.add({'text': item['text']});
+                if (item['text'] != null && item['text'].toString().isNotEmpty) {
+                  parts.add({'text': item['text']});
+                }
               } else if (item['type'] == 'image_url') {
                 final url = item['image_url']['url'] as String;
                 final commaIdx = url.indexOf(',');
-                final mimeType = url.substring(5, url.indexOf(';'));
-                final base64Data = url.substring(commaIdx + 1);
+                final mimeType = commaIdx != -1 ? url.substring(5, url.indexOf(';')) : 'image/jpeg';
+                final base64Data = commaIdx != -1 ? url.substring(commaIdx + 1) : url;
                 parts.add({
                   'inlineData': {
                     'mimeType': mimeType,
@@ -38,29 +45,64 @@ class GeminiAdapter {
             }
           }
         }
-        
+
         if (msg['tool_calls'] != null) {
           for (var tc in msg['tool_calls']) {
-             parts.add({
-               'functionCall': {
-                 'name': tc['function']['name'],
-                 'args': jsonDecode(tc['function']['arguments'])
-               }
-             });
+            final args = tc['function']['arguments'];
+            dynamic parsedArgs;
+            if (args is String) {
+              try {
+                parsedArgs = jsonDecode(args);
+              } catch (_) {
+                parsedArgs = {};
+              }
+            } else if (args is Map) {
+              parsedArgs = args;
+            } else {
+              parsedArgs = {};
+            }
+            parts.add({
+              'functionCall': {
+                'name': tc['function']['name'],
+                'args': parsedArgs
+              }
+            });
           }
         }
-        contents.add({'role': role, 'parts': parts});
       } else if (msg['role'] == 'tool') {
-         String name = msg['tool_call_id'] ?? 'unknown_tool';
-         contents.add({
-           'role': 'user',
-           'parts': [{
-             'functionResponse': {
-               'name': name,
-               'response': {'result': msg['content']}
-             }
-           }]
-         });
+        final name = msg['name'] ?? msg['tool_call_id'] ?? 'unknown_tool';
+        dynamic responseObj;
+        try {
+          if (msg['content'] is String) {
+            responseObj = jsonDecode(msg['content']);
+          } else {
+            responseObj = msg['content'];
+          }
+        } catch (_) {
+          responseObj = {'result': msg['content']};
+        }
+        if (responseObj is! Map) {
+          responseObj = {'result': responseObj};
+        }
+
+        parts.add({
+          'functionResponse': {
+            'name': name,
+            'response': responseObj
+          }
+        });
+      }
+
+      if (parts.isNotEmpty) {
+        if (contents.isNotEmpty && contents.last['role'] == geminiRole) {
+          final existingParts = contents.last['parts'] as List;
+          existingParts.addAll(parts);
+        } else {
+          contents.add({
+            'role': geminiRole,
+            'parts': parts
+          });
+        }
       }
     }
 

@@ -28,6 +28,27 @@ class AiResponse {
 }
 
 class AiService {
+  static const Map<String, List<String>> defaultChatModels = {
+    'Gemini': ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+    'OpenAI': ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
+    'OpenRouter': [
+      'google/gemini-2.5-flash',
+      'google/gemini-2.5-pro',
+      'meta-llama/llama-3.1-8b-instruct:free',
+      'qwen/qwen-2-7b-instruct:free'
+    ],
+    'Nvidia NIM': ['meta/llama3-70b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct'],
+    'Reka': ['reka-flash', 'reka-core'],
+  };
+
+  static const Map<String, List<String>> defaultVisionModels = {
+    'Gemini': ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+    'OpenAI': ['gpt-4o-mini', 'gpt-4o'],
+    'OpenRouter': ['google/gemini-2.5-flash', 'google/gemini-2.5-pro'],
+    'Nvidia NIM': [],
+    'Reka': ['reka-flash', 'reka-core'],
+  };
+
   final _storage = const FlutterSecureStorage();
   final http.Client _client = http.Client();
 
@@ -138,7 +159,7 @@ class AiService {
       final apiKey = await _storage.read(key: 'provider_$providerName');
       final baseUrl = await _storage.read(key: 'baseUrl_$providerName');
       
-      if (apiKey != null && baseUrl != null) {
+      if (apiKey != null && apiKey.trim().isNotEmpty && baseUrl != null && baseUrl.trim().isNotEmpty) {
         if (!candidates.any((c) => c.provider == providerName && c.modelId == model)) {
           candidates.add(AiExecutionCandidate(
             provider: providerName,
@@ -275,7 +296,7 @@ IMPORTANT RULES:
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
-      bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini'));
+      bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider.toLowerCase() == 'gemini'));
       
       Uri url;
       Map<String, dynamic> requestPayload;
@@ -284,8 +305,11 @@ IMPORTANT RULES:
         if (baseUrl.endsWith('/openai')) {
           baseUrl = baseUrl.replaceAll('/openai', '');
         }
-        url = Uri.parse('$baseUrl/models/${candidate.modelId}:generateContent?key=${candidate.apiKey}');
-        requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, candidate.modelId, toolsOverride);
+        final modelName = candidate.modelId.startsWith('models/')
+            ? candidate.modelId.replaceFirst('models/', '')
+            : candidate.modelId;
+        url = Uri.parse('$baseUrl/models/$modelName:generateContent?key=${candidate.apiKey}');
+        requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, modelName, toolsOverride);
       } else {
         url = Uri.parse('$baseUrl/chat/completions');
         requestPayload = {
@@ -299,7 +323,7 @@ IMPORTANT RULES:
       
       final headers = {
         'Content-Type': 'application/json; charset=utf-8',
-        if (!isGeminiNative) 'Authorization': 'Bearer ',
+        if (!isGeminiNative) 'Authorization': 'Bearer ${candidate.apiKey}',
       };
       if (isGeminiNative && candidate.apiKey != null) {
         headers['x-goog-api-key'] = candidate.apiKey!;
@@ -438,9 +462,8 @@ IMPORTANT RULES:
           }
           return AiResponse(text: '', toolCalls: null, providerServed: candidate.provider);
         } else {
-          final isFailover = (response.statusCode == 429 || response.statusCode == 401 || response.statusCode == 403 || response.statusCode >= 500);
-          if (isFailover && i < candidates.length - 1) {
-             debugPrint('Provider ${candidate.provider} failed with ${response.statusCode}, falling back...');
+          if (i < candidates.length - 1) {
+             debugPrint('Provider ${candidate.provider} failed with status ${response.statusCode}, falling back...');
              continue;
           }
           throw Exception('API Error: ${response.statusCode} - ${response.body}');
@@ -577,7 +600,7 @@ IMPORTANT RULES:
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
-      bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini'));
+      bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider.toLowerCase() == 'gemini'));
       
       Uri url;
       Map<String, dynamic> requestPayload;
@@ -586,8 +609,11 @@ IMPORTANT RULES:
         if (baseUrl.endsWith('/openai')) {
           baseUrl = baseUrl.replaceAll('/openai', '');
         }
-        url = Uri.parse('$baseUrl/models/${candidate.modelId}:streamGenerateContent?alt=sse&key=${candidate.apiKey}');
-        requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, candidate.modelId, toolsOverride);
+        final modelName = candidate.modelId.startsWith('models/')
+            ? candidate.modelId.replaceFirst('models/', '')
+            : candidate.modelId;
+        url = Uri.parse('$baseUrl/models/$modelName:streamGenerateContent?alt=sse&key=${candidate.apiKey}');
+        requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, modelName, toolsOverride);
       } else {
         url = Uri.parse('$baseUrl/chat/completions');
         requestPayload = {
@@ -604,7 +630,7 @@ IMPORTANT RULES:
       try {
         final headers = {
           'Content-Type': 'application/json; charset=utf-8',
-          if (!isGeminiNative) 'Authorization': 'Bearer ',
+          if (!isGeminiNative) 'Authorization': 'Bearer ${candidate.apiKey}',
         };
         if (isGeminiNative && candidate.apiKey != null) {
           headers['x-goog-api-key'] = candidate.apiKey!;
@@ -617,8 +643,7 @@ IMPORTANT RULES:
         final response = await _client.send(request).timeout(candidate.timeoutDuration);
         
         if (response.statusCode != 200) {
-          final isFailover = (response.statusCode == 429 || response.statusCode == 401 || response.statusCode == 403 || response.statusCode >= 500);
-          if (isFailover && i < candidates.length - 1) {
+          if (i < candidates.length - 1) {
              continue;
           }
           throw Exception('API Error: ${response.statusCode} - ' + await response.stream.bytesToString());
@@ -825,14 +850,19 @@ IMPORTANT RULES:
         if (nativeToolCallsAccumulator.isNotEmpty) {
           for (var tc in nativeToolCallsAccumulator.values) {
             try {
-              final args = tc['arguments'] as String;
+              final argsStr = tc['arguments'] as String;
+              Map<String, dynamic> parsedArgs = {};
+              if (argsStr.trim().isNotEmpty) {
+                final decoded = jsonDecode(argsStr);
+                if (decoded is Map) {
+                  parsedArgs = decoded.cast<String, dynamic>();
+                }
+              }
               finalToolCalls.add(
                 AiToolCall(
                   id: tc['id'] as String,
                   name: tc['name'] as String,
-                  arguments: args.trim().isEmpty
-                      ? <String, dynamic>{}
-                      : jsonDecode(args) as Map<String, dynamic>,
+                  arguments: parsedArgs,
                 )
               );
             } catch (e) {

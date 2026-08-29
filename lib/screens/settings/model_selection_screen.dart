@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import 'fallback_management_widget.dart';
+import '../../services/ai_service.dart';
 
 class ModelSelectionScreen extends StatefulWidget {
   const ModelSelectionScreen({super.key});
@@ -107,14 +108,40 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         visionOptions.add(key.replaceFirst('model_is_vision_${_activeVisionProvider}_', ''));
       }
     }
+
+    // Fallback to default lists if preferences are completely unpopulated
+    if (chatOptions.isEmpty && _activeChatProvider != null) {
+      final defaults = AiService.defaultChatModels[_activeChatProvider] ?? [];
+      chatOptions.addAll(defaults);
+    }
+    if (visionOptions.isEmpty && _activeVisionProvider != null) {
+      final defaults = AiService.defaultVisionModels[_activeVisionProvider] ?? [];
+      visionOptions.addAll(defaults);
+    }
+
+    // Make sure the active selections are preserved in options
+    if (_activeChatModel != null && !chatOptions.contains(_activeChatModel)) {
+      chatOptions.add(_activeChatModel!);
+    }
+    if (_activeVisionModel != null && !visionOptions.contains(_activeVisionModel)) {
+      visionOptions.add(_activeVisionModel!);
+    }
+
+    // Ensure model is set if options exist
+    _activeChatModel ??= chatOptions.isNotEmpty ? chatOptions.first : null;
+    _activeVisionModel ??= visionOptions.isNotEmpty ? visionOptions.first : null;
     
     setState(() {
       _chatModelOptions = chatOptions;
       _visionModelOptions = visionOptions;
-      
-      if (_activeChatModel != null && !_chatModelOptions.contains(_activeChatModel)) _activeChatModel = null;
-      if (_activeVisionModel != null && !_visionModelOptions.contains(_activeVisionModel)) _activeVisionModel = null;
     });
+
+    if (_activeChatModel != null && _activeChatProvider != null) {
+      await prefs.setString('active_chat_model_$_activeChatProvider', _activeChatModel!);
+    }
+    if (_activeVisionModel != null && _activeVisionProvider != null) {
+      await prefs.setString('active_vision_model_$_activeVisionProvider', _activeVisionModel!);
+    }
   }
 
   Future<void> _fetchModelsForProvider(String providerName, {int attempt = 1}) async {
@@ -174,7 +201,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
       } else {
         if (attempt == 1) {
           await Future.delayed(const Duration(milliseconds: 200));
-          return _fetchModelsForProvider(providerName, attempt: 2);
+          return await _fetchModelsForProvider(providerName, attempt: 2);
         }
         setState(() {
           _isLoading = false;
@@ -184,7 +211,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     } catch (e) {
       if (attempt == 1) {
         await Future.delayed(const Duration(milliseconds: 200));
-        return _fetchModelsForProvider(providerName, attempt: 2);
+        return await _fetchModelsForProvider(providerName, attempt: 2);
       }
       setState(() {
         _isLoading = false;
@@ -336,8 +363,8 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
                               child: Column(
                                 children: [
                                   SwitchListTile(
-                                    title: Text(context.tr('model_auto_failover_title') ?? 'Universal Auto-Failover', style: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary)),
-                                    subtitle: Text(context.tr('model_auto_failover_desc') ?? 'تغییر خودکار ارائه‌دهنده در صورت بروز خطا', style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                                    title: Text(context.tr('model_auto_failover_title'), style: AppTheme.bodyLg.copyWith(color: AppTheme.textPrimary)),
+                                    subtitle: Text(context.tr('model_auto_failover_desc'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                                     value: _enableAutoFailover,
                                     activeColor: AppTheme.primary,
                                     onChanged: _toggleAutoFailover,

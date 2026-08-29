@@ -68,17 +68,38 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
 
       try {
         final p = widget.providerDetails[provider]!;
-        final uri = Uri.parse('${p['url']}/models');
-        final response = await http.get(uri, headers: {
-          'Authorization': 'Bearer ${p['key']}',
-        }).timeout(const Duration(seconds: 5));
+        final url = p['url']!;
+        final key = p['key']!;
+        final isGemini = provider.toLowerCase() == 'gemini' || url.contains('generativelanguage.googleapis.com');
+        
+        http.Response response;
+        if (isGemini) {
+          String baseUrl = url;
+          if (baseUrl.endsWith('/openai')) {
+            baseUrl = baseUrl.replaceAll('/openai', '');
+          }
+          final uri = Uri.parse('$baseUrl/models?key=$key');
+          response = await http.get(uri).timeout(const Duration(seconds: 5));
+        } else {
+          final uri = Uri.parse('$url/models');
+          response = await http.get(uri, headers: {
+            'Authorization': 'Bearer $key',
+          }).timeout(const Duration(seconds: 5));
+        }
         
         if (currentFetch != fetchId) return;
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          final List<dynamic> dataList = data['data'] ?? [];
-          final models = dataList.map((m) => m['id'].toString()).toList();
+          List<String> models = [];
+          
+          if (isGemini) {
+            final List<dynamic> dataList = data['models'] ?? [];
+            models = dataList.map((m) => m['name'].toString().replaceFirst('models/', '')).toList();
+          } else {
+            final List<dynamic> dataList = data['data'] ?? [];
+            models = dataList.map((m) => m['id'].toString()).toList();
+          }
           
           if (currentFetch != fetchId) return;
           
@@ -98,7 +119,7 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
           if (attempt == 1) {
             await Future.delayed(const Duration(milliseconds: 200));
             if (currentFetch != fetchId) return;
-            return fetchModels(provider, setModalState, attempt: 2);
+            return await fetchModels(provider, setModalState, attempt: 2);
           }
           if (currentFetch != fetchId) return;
           setModalState(() {
@@ -111,7 +132,7 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
         if (attempt == 1) {
           await Future.delayed(const Duration(milliseconds: 200));
           if (currentFetch != fetchId) return;
-          return fetchModels(provider, setModalState, attempt: 2);
+          return await fetchModels(provider, setModalState, attempt: 2);
         }
         setModalState(() {
           errorMessage = "Network error fetching models";
@@ -181,7 +202,7 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
                     style: AppTheme.bodyLg,
                     onChanged: (val) => filterModels(val, setModalState),
                     decoration: InputDecoration(
-                      hintText: context.tr('model_search_hint') ?? "Search models...",
+                      hintText: context.tr('model_search_hint'),
                       prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
                       suffixIcon: searchController.text.isNotEmpty ? IconButton(
                         icon: const Icon(Icons.clear, color: AppTheme.textSecondary),
@@ -234,7 +255,7 @@ class _FallbackManagementWidgetState extends State<FallbackManagementWidget> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(context.tr('error_not_found') ?? "No matching models found", style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                              Text(context.tr('error_not_found'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
                               if (searchController.text.isNotEmpty) ...[
                                 const SizedBox(height: AppTheme.spacingMd),
                                 TextButton(

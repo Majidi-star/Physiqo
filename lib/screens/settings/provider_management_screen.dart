@@ -1,10 +1,11 @@
 import 'package:physiqo/l10n/translations.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
+import '../../services/ai_service.dart';
 
 class ProviderManagementScreen extends StatefulWidget {
   const ProviderManagementScreen({super.key});
@@ -48,6 +49,38 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
   Future<void> _saveProvider(String name, String baseUrl, String apiKey) async {
     await _storage.write(key: 'provider_$name', value: apiKey);
     await _storage.write(key: 'baseUrl_$name', value: baseUrl);
+    
+    // Normalize name to fetch correct defaults mapping
+    String normalizedName = name;
+    for (var key in AiService.defaultChatModels.keys) {
+      if (key.toLowerCase() == name.toLowerCase()) {
+        normalizedName = key;
+        break;
+      }
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    
+    final defaultChats = AiService.defaultChatModels[normalizedName] ?? [];
+    for (var model in defaultChats) {
+      await prefs.setBool('model_is_chat_${name}_$model', true);
+    }
+    
+    final defaultVisions = AiService.defaultVisionModels[normalizedName] ?? [];
+    for (var model in defaultVisions) {
+      await prefs.setBool('model_is_vision_${name}_$model', true);
+    }
+    
+    // Select active defaults if not already configured
+    final activeChat = prefs.getString('active_chat_model_$name');
+    if (activeChat == null && defaultChats.isNotEmpty) {
+      await prefs.setString('active_chat_model_$name', defaultChats.first);
+    }
+    final activeVision = prefs.getString('active_vision_model_$name');
+    if (activeVision == null && defaultVisions.isNotEmpty) {
+      await prefs.setString('active_vision_model_$name', defaultVisions.first);
+    }
+
     _loadProviders();
   }
 

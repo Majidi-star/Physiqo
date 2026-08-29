@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../services/ai_service.dart';
 import 'package:physiqo/l10n/translations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -276,6 +277,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       await prefs.setString('active_chat_model_$provider', chatModel);
       await prefs.setString('active_vision_model_$provider', visionModel);
+
+      // Ensure the selected models are tagged
+      await prefs.setBool('model_is_chat_${provider}_$chatModel', true);
+      await prefs.setBool('model_is_vision_${provider}_$visionModel', true);
+
+      // Pre-tag standard models for the provider so they populate dropdowns
+      final defaultChats = AiService.defaultChatModels[provider] ?? [];
+      for (var model in defaultChats) {
+        await prefs.setBool('model_is_chat_${provider}_$model', true);
+      }
+      final defaultVisions = AiService.defaultVisionModels[provider] ?? [];
+      for (var model in defaultVisions) {
+        await prefs.setBool('model_is_vision_${provider}_$model', true);
+      }
 
       // Auto-tag all fetched models so they are configured and tagged
       for (var model in _fetchedModels) {
