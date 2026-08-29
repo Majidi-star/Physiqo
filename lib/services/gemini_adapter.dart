@@ -29,8 +29,8 @@ class GeminiAdapter {
                 final mimeType = url.substring(5, url.indexOf(';'));
                 final base64Data = url.substring(commaIdx + 1);
                 parts.add({
-                  'inline_data': {
-                    'mime_type': mimeType,
+                  'inlineData': {
+                    'mimeType': mimeType,
                     'data': base64Data
                   }
                 });

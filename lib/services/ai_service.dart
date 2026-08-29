@@ -204,6 +204,7 @@ IMPORTANT RULES:
         formattedMessages.add({
           'role': 'tool',
           'tool_call_id': msg.toolCallId,
+          'name': msg.toolName,
           'content': msg.content,
         });
       } else if (msg.toolCallId != null && msg.role == ChatMessageRole.coach) {
@@ -497,6 +498,7 @@ IMPORTANT RULES:
         formattedMessages.add({
           'role': 'tool',
           'tool_call_id': msg.toolCallId,
+          'name': msg.toolName,
           'content': msg.content,
         });
       } else if (msg.toolCallId != null && msg.role == ChatMessageRole.coach) {
