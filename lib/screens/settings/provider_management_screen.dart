@@ -20,7 +20,6 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
 
   final List<Map<String, String>> _prefills = [
     {'name': 'OpenAI', 'url': 'https://api.openai.com/v1'},
-    {'name': 'Gemini', 'url': 'https://generativelanguage.googleapis.com/v1beta'},
     {'name': 'OpenRouter', 'url': 'https://openrouter.ai/api/v1'},
   ];
 
