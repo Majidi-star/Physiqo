@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../models/ai_stream_event.dart';
 import 'ai_tools.dart';
+import 'gemini_adapter.dart';
 import 'ai_logger.dart';
 import 'package:flutter/foundation.dart';
 
@@ -273,26 +274,34 @@ IMPORTANT RULES:
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
-      if ((baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini')) && !baseUrl.contains('/openai')) {
-        baseUrl = baseUrl.endsWith('/') ? '${baseUrl}openai' : '$baseUrl/openai';
-      }
-      final url = Uri.parse('$baseUrl/chat/completions');
+      bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini'));
       
-      final requestPayload = {
-        'model': candidate.modelId,
-        'messages': formattedMessages,
-        'tools': toolsOverride ?? AiTools.definitions,
-      };
+      Uri url;
+      Map<String, dynamic> requestPayload;
+      
+      if (isGeminiNative) {
+        if (baseUrl.endsWith('/openai')) {
+          baseUrl = baseUrl.replaceAll('/openai', '');
+        }
+        url = Uri.parse('$baseUrl/models/${candidate.modelId}:generateContent');
+        requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, candidate.modelId, toolsOverride);
+      } else {
+        url = Uri.parse('$baseUrl/chat/completions');
+        requestPayload = {
+          'model': candidate.modelId,
+          'messages': formattedMessages,
+          'tools': toolsOverride ?? AiTools.definitions,
+        };
+      }
+      
       final stopwatch = Stopwatch()..start();
       
       final headers = {
         'Content-Type': 'application/json; charset=utf-8',
-        'Authorization': 'Bearer ${candidate.apiKey}',
+        if (!isGeminiNative) 'Authorization': 'Bearer ',
       };
-      if ((candidate.baseUrl?.contains('generativelanguage.googleapis.com') ?? false) || (candidate.provider?.toLowerCase() == 'gemini')) {
-        if (candidate.apiKey != null) {
-          headers['x-goog-api-key'] = candidate.apiKey!;
-        }
+      if (isGeminiNative && candidate.apiKey != null) {
+        headers['x-goog-api-key'] = candidate.apiKey!;
       }
 
       try {
@@ -325,8 +334,52 @@ IMPORTANT RULES:
           );
           
           final data = jsonDecode(responseBodyString);
-          final choices = data['choices'] as List;
-          if (choices.isNotEmpty) {
+          if (isGeminiNative) {
+            final candidatesData = data['candidates'] as List?;
+            if (candidatesData != null && candidatesData.isNotEmpty) {
+              final content = candidatesData[0]['content'];
+              if (content != null && content['parts'] != null) {
+                String textResponse = '';
+                List<AiToolCall> calls = [];
+                final parts = content['parts'] as List;
+                for (var part in parts) {
+                  if (part['text'] != null) {
+                    textResponse += part['text'];
+                  }
+                  if (part['functionCall'] != null) {
+                    final func = part['functionCall'];
+                    final args = func['args'];
+                    calls.add(AiToolCall(
+                      id: 'call_${DateTime.now().millisecondsSinceEpoch}',
+                      name: func['name'],
+                      arguments: args is Map ? args.cast<String, dynamic>() : {},
+                    ));
+                  }
+                }
+                
+                if (textResponse.contains('<TOOLCALL>')) {
+                   try {
+                     final startIndex = textResponse.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+                     final endIndex = textResponse.indexOf('</TOOLCALL>');
+                     if (endIndex != -1) {
+                       final jsonString = textResponse.substring(startIndex, endIndex).trim();
+                       final beforeText = textResponse.substring(0, textResponse.indexOf('<TOOLCALL>')).trim();
+                       final afterText = textResponse.substring(endIndex + '</TOOLCALL>'.length).trim();
+                       String finalSurroundingText = '$beforeText\n\n$afterText'.trim();
+                       final fallbackCalls = parseFallbackToolCalls(jsonString);
+                       if (fallbackCalls.isNotEmpty) {
+                         calls.addAll(fallbackCalls);
+                         textResponse = finalSurroundingText;
+                       }
+                     }
+                   } catch (_) {}
+                }
+                return AiResponse(text: textResponse.isEmpty ? null : textResponse, toolCalls: calls.isEmpty ? null : calls, providerServed: candidate.provider);
+              }
+            }
+          }
+          final choices = data['choices'] as List?;
+          if (choices != null && choices.isNotEmpty) {
             final message = choices[0]['message'];
             
             if (message['tool_calls'] != null) {
@@ -522,28 +575,37 @@ IMPORTANT RULES:
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
-      if ((baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini')) && !baseUrl.contains('/openai')) {
-        baseUrl = baseUrl.endsWith('/') ? '${baseUrl}openai' : '$baseUrl/openai';
+      bool isGeminiNative = (baseUrl.contains('generativelanguage.googleapis.com') || (candidate.provider?.toLowerCase() == 'gemini'));
+      
+      Uri url;
+      Map<String, dynamic> requestPayload;
+      
+      if (isGeminiNative) {
+        if (baseUrl.endsWith('/openai')) {
+          baseUrl = baseUrl.replaceAll('/openai', '');
+        }
+        url = Uri.parse('$baseUrl/models/${candidate.modelId}:streamGenerateContent?alt=sse');
+        requestPayload = GeminiAdapter.buildNativePayload(formattedMessages, candidate.modelId, toolsOverride);
+      } else {
+        url = Uri.parse('$baseUrl/chat/completions');
+        requestPayload = {
+          'model': candidate.modelId,
+          'messages': formattedMessages,
+          'tools': toolsOverride ?? AiTools.definitions,
+          'stream': true,
+          'max_tokens': 8192,
+        };
       }
-      final url = Uri.parse('$baseUrl/chat/completions');
+      
       final stopwatch = Stopwatch()..start();
-      final requestPayload = {
-        'model': candidate.modelId,
-        'messages': formattedMessages,
-        'tools': toolsOverride ?? AiTools.definitions,
-        'stream': true,
-        'max_tokens': 8192,
-      };
 
       try {
         final headers = {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Bearer ${candidate.apiKey}',
+          if (!isGeminiNative) 'Authorization': 'Bearer ',
         };
-        if ((candidate.baseUrl?.contains('generativelanguage.googleapis.com') ?? false) || (candidate.provider?.toLowerCase() == 'gemini')) {
-          if (candidate.apiKey != null) {
-            headers['x-goog-api-key'] = candidate.apiKey!;
-          }
+        if (isGeminiNative && candidate.apiKey != null) {
+          headers['x-goog-api-key'] = candidate.apiKey!;
         }
 
         final request = http.Request('POST', url)
@@ -645,6 +707,55 @@ IMPORTANT RULES:
             if (dataStr == '[DONE]') break;
             try {
               final data = jsonDecode(dataStr);
+              if (isGeminiNative) {
+                final candidatesData = data['candidates'] as List?;
+                if (candidatesData != null && candidatesData.isNotEmpty) {
+                  final content = candidatesData[0]['content'];
+                  if (content != null && content['parts'] != null) {
+                    final parts = content['parts'] as List;
+                    for (var part in parts) {
+                      if (part['text'] != null) {
+                        final contentPiece = part['text'] as String;
+                        fullText += contentPiece;
+                        
+                        if (inFallbackToolCall) {
+                          if (fullText.contains('</TOOLCALL>')) {
+                            final startIndex = fullText.indexOf('<TOOLCALL>');
+                            if (startIndex != -1) {
+                               final xmlString = fullText.substring(startIndex);
+                               rawToolCallsJsonBuffer += xmlString;
+                            }
+                            inFallbackToolCall = false;
+                          } else {
+                            rawToolCallsJsonBuffer += contentPiece;
+                          }
+                        } else if (contentPiece.contains('<TOOLCALL>')) {
+                          inFallbackToolCall = true;
+                          final startIndex = fullText.indexOf('<TOOLCALL>');
+                          if (startIndex != -1) {
+                             rawToolCallsJsonBuffer = fullText.substring(startIndex);
+                          }
+                        } else {
+                          yield AiStreamEvent(deltaText: contentPiece, isDone: false, providerServed: candidate.provider);
+                        }
+                      }
+                      if (part['functionCall'] != null) {
+                        final func = part['functionCall'];
+                        final name = func['name'];
+                        final args = func['args'];
+                        final idx = nativeToolCallsAccumulator.length;
+                        nativeToolCallsAccumulator[idx] = {
+                           'id': 'call_${DateTime.now().millisecondsSinceEpoch}_$idx',
+                           'name': name,
+                           'arguments': jsonEncode(args),
+                        };
+                      }
+                    }
+                  }
+                }
+                continue;
+              }
+              
               final choices = data['choices'] as List?;
               if (choices != null && choices.isNotEmpty) {
                 final delta = choices[0]['delta'];
