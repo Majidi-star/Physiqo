@@ -125,15 +125,35 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
 
     try {
       final p = _providers[providerName]!;
-      final uri = Uri.parse('${p['url']}/models');
-      final response = await http.get(uri, headers: {
-        'Authorization': 'Bearer ${p['key']}',
-      }).timeout(const Duration(seconds: 5));
+      
+      bool isGemini = providerName.toLowerCase() == 'gemini' || p['url']!.contains('generativelanguage.googleapis.com');
+      
+      http.Response response;
+      if (isGemini) {
+        String baseUrl = p['url']!;
+        if (baseUrl.endsWith('/openai')) {
+          baseUrl = baseUrl.replaceAll('/openai', '');
+        }
+        final uri = Uri.parse('$baseUrl/models?key=${p['key']}');
+        response = await http.get(uri).timeout(const Duration(seconds: 5));
+      } else {
+        final uri = Uri.parse('${p['url']}/models');
+        response = await http.get(uri, headers: {
+          'Authorization': 'Bearer ${p['key']}',
+        }).timeout(const Duration(seconds: 5));
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List<dynamic> dataList = data['data'] ?? [];
-        List<String> models = dataList.map((m) => m['id'].toString()).toList();
+        List<String> models = [];
+        
+        if (isGemini) {
+          final List<dynamic> dataList = data['models'] ?? [];
+          models = dataList.map((m) => m['name'].toString().replaceFirst('models/', '')).toList();
+        } else {
+          final List<dynamic> dataList = data['data'] ?? [];
+          models = dataList.map((m) => m['id'].toString()).toList();
+        }
         
         final prefs = await SharedPreferences.getInstance();
         
