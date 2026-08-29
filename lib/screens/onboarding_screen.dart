@@ -221,9 +221,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           _fetchedModels = [];
         });
       }
-    } catch (_) {
+    } catch (e) {
       setState(() {
-        _testResultStatus = context.tr('onboarding_ai_setup_failed');
+        _testResultStatus = '${context.tr('onboarding_ai_setup_failed')}: $e';
         _testResultColor = AppTheme.error;
         _testingConnection = false;
       });
