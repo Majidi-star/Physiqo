@@ -19,7 +19,6 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
 
   final List<Map<String, String>> _prefills = [
     {'name': 'OpenAI', 'url': 'https://api.openai.com/v1'},
-    {'name': 'Anthropic', 'url': 'https://api.anthropic.com/v1'},
     {'name': 'Gemini', 'url': 'https://generativelanguage.googleapis.com/v1beta'},
     {'name': 'OpenRouter', 'url': 'https://openrouter.ai/api/v1'},
   ];
@@ -77,21 +76,6 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
         if (name == 'gemini' || url.contains('generativelanguage.googleapis.com')) {
           final uri = Uri.parse('$url/models?key=$key');
           response = await http.get(uri).timeout(const Duration(seconds: 5));
-        } else if (name == 'anthropic' || url.contains('anthropic.com')) {
-          final uri = Uri.parse('$url/messages');
-          response = await http.post(
-            uri,
-            headers: {
-              'content-type': 'application/json',
-              'x-api-key': key,
-              'anthropic-version': '2023-06-01',
-            },
-            body: jsonEncode({
-              'model': 'claude-3-haiku-20240307',
-              'messages': [{'role': 'user', 'content': 'Hi'}],
-              'max_tokens': 1,
-            }),
-          ).timeout(const Duration(seconds: 5));
         } else {
           final uri = Uri.parse('$url/models');
           response = await http.get(uri, headers: {
@@ -99,7 +83,7 @@ class _ProviderManagementScreenState extends State<ProviderManagementScreen> {
           }).timeout(const Duration(seconds: 5));
         }
 
-        if (response.statusCode == 200 || ((name == 'anthropic' || url.contains('anthropic.com')) && response.statusCode == 400)) {
+        if (response.statusCode == 200) {
           setDialogState(() { testStatus = context.tr('provider_success'); testColor = Colors.green; });
         } else {
           setDialogState(() { testStatus = context.tr('provider_error_code').replaceAll('{code}', response.statusCode.toString()); testColor = AppTheme.error; });
