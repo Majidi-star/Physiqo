@@ -404,13 +404,12 @@ IMPORTANT RULES:
             error: e.toString(),
             chatId: chatId,
           );
+          throw Exception('Failed with API error: ${e.toString()}');
         } else {
           continue;
         }
       }
     }
-    
-
     
     throw Exception('Failed to communicate with any AI provider (Offline or all providers failed).');
   }
@@ -558,7 +557,7 @@ IMPORTANT RULES:
           if (isFailover && i < candidates.length - 1) {
              continue;
           }
-          throw Exception('API Error: ${response.statusCode}');
+          throw Exception('API Error: ${response.statusCode} - ' + await response.stream.bytesToString());
         }
 
         String fullText = '';
@@ -795,11 +794,11 @@ IMPORTANT RULES:
         return;
 
       } on SocketException catch (e) {
-        if (i < candidates.length - 1) continue;
+        if (i < candidates.length - 1) continue; else throw Exception(e.toString());
       } on TimeoutException catch (e) {
-        if (i < candidates.length - 1) continue;
+        if (i < candidates.length - 1) continue; else throw Exception(e.toString());
       } catch (e) {
-        if (i < candidates.length - 1) continue;
+        if (i < candidates.length - 1) continue; else throw Exception(e.toString());
       }
     }
     
