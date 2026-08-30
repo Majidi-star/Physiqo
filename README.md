@@ -10,6 +10,9 @@
   <a href="https://flutter.dev">
     <img src="https://img.shields.io/badge/Flutter-v3.12.2+-02569B?logo=flutter&logoColor=white" alt="Flutter Version">
   </a>
+  <a href="https://github.com/yourusername/physiqo/releases">
+    <img src="https://img.shields.io/badge/Release-v1.0.0-blue?logo=github&logoColor=white" alt="Release Version">
+  </a>
   <a href="https://github.com/yourusername/physiqo/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
   </a>
