@@ -116,7 +116,8 @@ class GeminiAdapter {
     }
 
     final isNewerGemini = !modelId.contains('1.5');
-
+    // thinkingBudget: -1 = dynamic (model decides). 
+    // 0 would disable thinking entirely but is not supported on all 2.5+ models (e.g. 2.5-pro requires thinking).
     return {
       'contents': contents,
       if (systemInstruction != null) 'systemInstruction': systemInstruction,
@@ -124,7 +125,7 @@ class GeminiAdapter {
       if (isNewerGemini)
         'generationConfig': {
           'thinkingConfig': {
-            'thinkingBudget': 0
+            'thinkingBudget': -1
           }
         }
     };

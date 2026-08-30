@@ -279,7 +279,9 @@ class AiTools {
             }
           }
 
-          result = "User data updated successfully. Current profile: name: ${profile.name}, weight: ${profile.weight}kg, height: ${profile.height}cm, units: ${profile.unitSystem}";
+          final weightUnit = profile.unitSystem == 'imperial' ? 'lbs' : 'kg';
+          final heightUnit = profile.unitSystem == 'imperial' ? 'in' : 'cm';
+          result = "User data updated successfully. Current profile: name: ${profile.name}, weight: ${profile.weight}$weightUnit, height: ${profile.height}$heightUnit, units: ${profile.unitSystem}";
           break;
 
         case 'manage_accounts':
@@ -492,7 +494,9 @@ class AiTools {
                   final type = rawItem['type']?.toString();
 
                   void checkExercise(String exId) {
-                    final ex = allExercises.firstWhere((e) => e.id == exId);
+                    final exList = allExercises.where((e) => e.id == exId).toList();
+                    if (exList.isEmpty) return;
+                    final ex = exList.first;
                     final group = ex.primaryMuscleGroup.toString().split('.').last.toLowerCase();
                     if (mentionedGroups.isNotEmpty && !mentionedGroups.contains(group)) {
                       debugPrint("⚠️ Warning: Exercise $exId is for $group, but day focus is '${dayRaw['focus'] ?? dayRaw['title']}'");

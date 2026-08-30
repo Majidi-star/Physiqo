@@ -44,7 +44,7 @@ class ChatRepository {
     final now = DateTime.now();
     final newSession = ChatSession(
       id: now.microsecondsSinceEpoch.toString(),
-      title: 'گفتگوی جدید',
+      title: 'new_chat',
       createdAt: now,
       updatedAt: now,
       messages: [],
@@ -89,9 +89,9 @@ class ChatRepository {
     final index = sessions.indexWhere((s) => s.id == sessionId);
     if (index != -1) {
       final updatedMessages = List<ChatMessage>.from(sessions[index].messages)..add(message);
-      // Auto-naming logic (Task 6)
+      // Auto-naming logic: replace the internal sentinel with the first message preview
       String title = sessions[index].title;
-      if (title == 'گفتگوی جدید' && updatedMessages.isNotEmpty) {
+      if (title == 'new_chat' && updatedMessages.isNotEmpty) {
         final firstMsg = updatedMessages.first.content;
         title = firstMsg.length > 30 ? '${firstMsg.substring(0, 30)}...' : firstMsg;
       }

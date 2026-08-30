@@ -693,6 +693,18 @@ ${contextData['userContext']}
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check once after the widget is fully mounted and dependencies are resolved.
+    // Using a post-frame callback ensures the navigator route is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isLoading) {
+        _checkSessionOverride();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Container(
@@ -702,8 +714,6 @@ ${contextData['userContext']}
         ),
       );
     }
-
-    _checkSessionOverride();
 
     final allMessages = _activeSession?.messages ?? [];
     final messages = allMessages.where((msg) {
