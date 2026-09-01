@@ -24,7 +24,6 @@ class PhysiqoNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80,
       decoration: const BoxDecoration(
         color: AppTheme.background,
         border: Border(
@@ -33,43 +32,46 @@ class PhysiqoNavBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home,
-              label: context.tr('nav_home'),
-              isActive: currentIndex == 0,
-              onTap: () => onTap(0),
-            ),
-            _NavItem(
-              icon: Icons.fitness_center_outlined,
-              activeIcon: Icons.fitness_center,
-              label: context.tr('nav_moves'),
-              isActive: currentIndex == 1,
-              onTap: () => onTap(1),
-            ),
-            // Center AI Coach button — elevated, no label
-            _AiCoachButton(
-              isActive: currentIndex == 2,
-              onTap: () => onTap(2),
-            ),
-            _NavItem(
-              icon: Icons.camera_alt_outlined,
-              activeIcon: Icons.camera_alt,
-              label: context.tr('nav_body_scan'),
-              isActive: currentIndex == 3,
-              onTap: () => onTap(3),
-            ),
-            _NavItem(
-              icon: Icons.settings_outlined,
-              activeIcon: Icons.settings,
-              label: context.tr('nav_settings'),
-              isActive: currentIndex == 4,
-              onTap: () => onTap(4),
-            ),
-          ],
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home,
+                label: context.tr('nav_home'),
+                isActive: currentIndex == 0,
+                onTap: () => onTap(0),
+              ),
+              _NavItem(
+                icon: Icons.fitness_center_outlined,
+                activeIcon: Icons.fitness_center,
+                label: context.tr('nav_moves'),
+                isActive: currentIndex == 1,
+                onTap: () => onTap(1),
+              ),
+              // Center AI Coach button — elevated, no label
+              _AiCoachButton(
+                isActive: currentIndex == 2,
+                onTap: () => onTap(2),
+              ),
+              _NavItem(
+                icon: Icons.camera_alt_outlined,
+                activeIcon: Icons.camera_alt,
+                label: context.tr('nav_body_scan'),
+                isActive: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
+              _NavItem(
+                icon: Icons.settings_outlined,
+                activeIcon: Icons.settings,
+                label: context.tr('nav_settings'),
+                isActive: currentIndex == 4,
+                onTap: () => onTap(4),
+              ),
+            ],
+          ),
         ),
       ),
     );
