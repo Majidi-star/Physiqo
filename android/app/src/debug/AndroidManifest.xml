@@ -4,4 +4,10 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug-only: permit cleartext HTTP so local dev endpoints
+         (emulator loopback, LAN self-hosted) are reachable during development.
+         Release builds inherit only the main manifest, which omits this flag
+         and therefore enforces HTTPS. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>
