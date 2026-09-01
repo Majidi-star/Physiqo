@@ -77,7 +77,7 @@ class AiConfigService {
       final chatModels = <String>[];
       final visionModels = <String>[];
       for (final k in prefs.getKeys()) {
-        if (prefs.getBool(k) != true) continue;
+        if (prefs.get(k) != true) continue;
         if (k.startsWith('model_is_chat_${name}_')) {
           chatModels.add(k.substring('model_is_chat_${name}_'.length));
         } else if (k.startsWith('model_is_vision_${name}_')) {
