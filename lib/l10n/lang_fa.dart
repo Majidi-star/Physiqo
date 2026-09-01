@@ -259,6 +259,8 @@ final Map<String, String> langFa = {
       'ai_import_invalid': 'فایل انتخابی یک پیکربندی معتبر فیزیکو نیست',
       'ai_import_error': 'خطا در وارد کردن تنظیمات',
       'ai_export_error': 'خطا در خروجی گرفتن تنظیمات',
+      'ai_export_success': 'خروجی تنظیمات هوش مصنوعی با موفقیت گرفته شد',
+      'ai_export_canceled': 'خروجی لغو شد',
       'ai_config_key_warning': 'فایل خروجی شامل کلیدهای API شماست. آن را امن نگه دارید.',
       'ai_import_no_file': 'هیچ فایلی انتخاب نشده است',
       'ai_import_empty': 'ابتدا JSON تنظیمات را جای‌گذاری کنید',

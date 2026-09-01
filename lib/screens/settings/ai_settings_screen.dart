@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -96,20 +97,52 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
   Future<void> _exportConfig(BuildContext context) async {
     try {
       final json = await _configService.exportJson();
-      final dir = await getTemporaryDirectory();
-      final file = File(
-        '${dir.path}${Platform.pathSeparator}physiqo_ai_config_${DateTime.now().millisecondsSinceEpoch}.json',
-      );
-      await file.writeAsString(json);
+      final bytes = Uint8List.fromList(utf8.encode(json));
+      final fileName =
+          'physiqo_ai_config_${DateTime.now().millisecondsSinceEpoch}.json';
 
-      if (!context.mounted) return;
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path, mimeType: 'application/json')],
-          subject: 'Physiqo AI Config',
-        ),
-      );
-    } catch (_) {
+      if (kIsWeb ||
+          defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS) {
+        // Desktop / Web — share_plus does not support file sharing on
+        // these platforms, so use the native OS save dialog instead.
+        final savedUri = await FilePicker.saveFile(
+          fileName: fileName,
+          bytes: bytes,
+          mimeType: 'application/json',
+        );
+        if (!context.mounted) return;
+        if (savedUri == null) {
+          // User dismissed the save dialog — not an error.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr('ai_export_canceled'))),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('ai_export_success'))),
+        );
+      } else {
+        // Mobile (Android / iOS) — use the native share sheet.
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}${Platform.pathSeparator}$fileName');
+        await file.writeAsString(json);
+
+        if (!context.mounted) return;
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path, mimeType: 'application/json')],
+            subject: 'Physiqo AI Config',
+          ),
+        );
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('ai_export_success'))),
+        );
+      }
+    } catch (e) {
+      debugPrint('AI config export failed: $e');
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('ai_export_error'))),
@@ -313,11 +346,22 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                       clipBehavior: Clip.antiAlias,
                       child: Column(
                         children: [
-                          ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 8),
-                            leading: const Icon(Icons.settings_backup_restore, color: AppTheme.primary),
-                            title: Text(context.tr('ai_config_import_export'), style: AppTheme.bodyLg),
-                            subtitle: Text(context.tr('ai_config_import_export_desc'), style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingSm + 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.tr('ai_config_import_export'),
+                                  style: AppTheme.bodyLg.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  context.tr('ai_config_import_export_desc'),
+                                  style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary),
+                                ),
+                              ],
+                            ),
                           ),
                           const Divider(color: AppTheme.outline, height: 1, indent: 52),
                           ListTile(

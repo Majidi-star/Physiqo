@@ -259,6 +259,8 @@ final Map<String, String> langEn = {
       'ai_import_invalid': 'The selected file is not a valid Physiqo AI config',
       'ai_import_error': 'Failed to import configuration',
       'ai_export_error': 'Failed to export configuration',
+      'ai_export_success': 'AI configuration exported successfully',
+      'ai_export_canceled': 'Export canceled',
       'ai_config_key_warning': 'The exported file contains your API keys. Keep it secure.',
       'ai_import_no_file': 'No file selected',
       'ai_import_empty': 'Paste the config JSON first',
