@@ -1,4 +1,4 @@
-﻿# Physiqo AI Config Generator - LLM Prompt
+# Physiqo AI Config Generator - LLM Prompt
 
 Copy everything below the line and paste it into any LLM (ChatGPT, Claude, Gemini, etc.).
 Fill in the bracketed [...] placeholders with your actual values before sending.
@@ -24,6 +24,7 @@ You are generating a Physiqo AI configuration JSON file. The user will import th
     - "vision" means only vision uses a custom instruction (put it in vision).
 11. All numeric fields must be integers, not strings.
 12. enableAutoFailover must be a boolean (true/false), not a string.
+13. enableRaceMode must be a boolean (true/false), not a string. Defaults to false.
 
 ## Full JSON Schema (annotated example)
 
@@ -34,7 +35,8 @@ You are generating a Physiqo AI configuration JSON file. The user will import th
   "network": {
     "maxRetries": 3,
     "timeoutSeconds": 30,
-    "enableAutoFailover": true
+    "enableAutoFailover": true,
+    "enableRaceMode": false
   },
   "selection": {
     "activeChatProvider": "openai",
@@ -80,6 +82,7 @@ You are generating a Physiqo AI configuration JSON file. The user will import th
 | network | maxRetries | int | no | 3 | 1-10 recommended |
 | network | timeoutSeconds | int | no | 30 | 10-120 recommended |
 | network | enableAutoFailover | bool | no | true | If true, tries next fallback when a request fails |
+| network | enableRaceMode | bool | no | false | If true, sends each request to the top two distinct providers in parallel and uses the fastest healthy response (testing/debug only; increases API usage) |
 | selection | activeChatProvider | string/null | no | null | Must match a provider name |
 | selection | activeVisionProvider | string/null | no | null | Must match a provider name |
 | providers[] | name | string | YES | - | Unique identifier, no spaces |

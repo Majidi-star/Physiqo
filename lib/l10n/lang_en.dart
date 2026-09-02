@@ -264,6 +264,8 @@ final Map<String, String> langEn = {
       'ai_config_key_warning': 'The exported file contains your API keys. Keep it secure.',
       'ai_import_no_file': 'No file selected',
       'ai_import_empty': 'Paste the config JSON first',
+      'ai_race_mode_title': 'Testing / Race Mode',
+      'ai_race_mode_desc': 'Send each request to the top two providers in parallel and use the fastest healthy response. Increases API usage.',
       'pass_changed_success': 'Password changed successfully.',
       
       'workout_days_instruction': 'Select the days you intend to workout:',

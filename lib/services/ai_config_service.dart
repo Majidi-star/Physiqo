@@ -37,6 +37,7 @@ class AiConfigService {
   static const String _kMaxRetries = 'ai_max_retries';
   static const String _kTimeoutSeconds = 'ai_timeout_seconds';
   static const String _kAutoFailover = 'enable_auto_failover';
+  static const String _kRaceMode = 'enable_race_mode';
   static const String _kActiveChatProvider = 'active_chat_provider';
   static const String _kActiveVisionProvider = 'active_vision_provider';
   static const String _kActiveAiProvider = 'active_ai_provider';
@@ -109,6 +110,7 @@ class AiConfigService {
         'maxRetries': prefs.getInt(_kMaxRetries) ?? 3,
         'timeoutSeconds': prefs.getInt(_kTimeoutSeconds) ?? 30,
         'enableAutoFailover': prefs.getBool(_kAutoFailover) ?? true,
+        'enableRaceMode': prefs.getBool(_kRaceMode) ?? false,
       },
       'selection': {
         'activeChatProvider':
@@ -168,6 +170,8 @@ class AiConfigService {
         _kTimeoutSeconds, (network['timeoutSeconds'] as num?)?.toInt() ?? 30);
     await prefs.setBool(
         _kAutoFailover, network['enableAutoFailover'] as bool? ?? true);
+    await prefs.setBool(
+        _kRaceMode, network['enableRaceMode'] as bool? ?? false);
 
     // ---- Providers ----
     final providers = (decoded['providers'] as List?) ?? [];
@@ -338,7 +342,8 @@ class AiConfigService {
           k.startsWith('active_') ||
           k.startsWith('model_is_') ||
           k.startsWith('fallback_chain_') ||
-          k == _kAutoFailover;
+          k == _kAutoFailover ||
+          k == _kRaceMode;
     }).toList();
     for (final k in keysToRemove) {
       await prefs.remove(k);

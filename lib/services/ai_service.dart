@@ -27,6 +27,15 @@ class AiResponse {
   AiResponse({this.text, this.toolCalls, this.providerServed});
 }
 
+/// Internal value object holding a fully-built HTTP request for a candidate.
+class _BuiltRequest {
+  final Uri url;
+  final Map<String, dynamic> payload;
+  final Map<String, String> headers;
+  final bool isGeminiNative;
+  const _BuiltRequest(this.url, this.payload, this.headers, this.isGeminiNative);
+}
+
 class AiService {
   static const Map<String, List<String>> defaultChatModels = {
     'Gemini': ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro'],
@@ -215,6 +224,308 @@ class AiService {
     return candidates.isNotEmpty;
   }
 
+  // ---------------------------------------------------------------------------
+  // RACE MODE (testing / debug)
+  // ---------------------------------------------------------------------------
+
+  /// Picks the top two candidates that use *different* providers, suitable
+  /// for racing in parallel. Returns fewer than two when not enough distinct
+  /// providers are available (caller should fall back to sequential mode).
+  List<AiExecutionCandidate> _pickRaceCandidates(
+      List<AiExecutionCandidate> candidates) {
+    if (candidates.length < 2) return [];
+    final result = <AiExecutionCandidate>[];
+    final seenProviders = <String>{};
+    for (final c in candidates) {
+      if (seenProviders.add(c.provider)) {
+        result.add(c);
+        if (result.length == 2) break;
+      }
+    }
+    return result.length == 2 ? result : [];
+  }
+
+  void _logRequestInfo({
+    required String provider,
+    required String model,
+    required int latencyMs,
+    int? inputTokens,
+    int? outputTokens,
+    String? error,
+    String? raceTag,
+  }) {
+    final tag = raceTag != null ? ' [$raceTag]' : '';
+    if (error != null) {
+      debugPrint('🤖 [AI]$tag FAIL provider=$provider model=$model '
+          'latency=${latencyMs}ms error=$error');
+    } else {
+      debugPrint('🤖 [AI]$tag OK provider=$provider model=$model '
+          'latency=${latencyMs}ms '
+          'tokens_in=${inputTokens ?? '?'} tokens_out=${outputTokens ?? '?'}');
+    }
+  }
+
+  /// Builds the HTTP request (URL, payload, headers) for a single candidate.
+  _BuiltRequest _buildRequest(
+    AiExecutionCandidate candidate,
+    List formattedMessages,
+    List<Map<String, dynamic>>? toolsOverride, {
+    required bool isStream,
+  }) {
+    String baseUrl = candidate.baseUrl ?? '';
+    final isGeminiNative = (baseUrl.contains(
+            'generativelanguage.googleapis.com') ||
+        (candidate.provider.toLowerCase() == 'gemini'));
+
+    Uri url;
+    Map<String, dynamic> requestPayload;
+
+    if (isGeminiNative) {
+      if (baseUrl.endsWith('/openai')) {
+        baseUrl = baseUrl.replaceAll('/openai', '');
+      }
+      final modelName = candidate.modelId.startsWith('models/')
+          ? candidate.modelId.replaceFirst('models/', '')
+          : candidate.modelId;
+      url = isStream
+          ? Uri.parse(
+              '$baseUrl/models/$modelName:streamGenerateContent?alt=sse&key=${candidate.apiKey}')
+          : Uri.parse(
+              '$baseUrl/models/$modelName:generateContent?key=${candidate.apiKey}');
+      requestPayload = GeminiAdapter.buildNativePayload(
+          formattedMessages, modelName, toolsOverride);
+    } else {
+      url = Uri.parse('$baseUrl/chat/completions');
+      requestPayload = {
+        'model': candidate.modelId,
+        'messages': formattedMessages,
+        'tools': toolsOverride ?? AiTools.definitions,
+        if (isStream) 'stream': true,
+        if (isStream) 'max_tokens': 8192,
+      };
+    }
+
+    final headers = {
+      'Content-Type': 'application/json; charset=utf-8',
+      if (!isGeminiNative) 'Authorization': 'Bearer ${candidate.apiKey}',
+    };
+    if (isGeminiNative && candidate.apiKey != null) {
+      headers['x-goog-api-key'] = candidate.apiKey!;
+    }
+
+    return _BuiltRequest(url, requestPayload, headers, isGeminiNative);
+  }
+
+  /// Single-attempt non-streaming request against one candidate.
+  /// Throws on any error (caller handles retries / fallback).
+  Future<AiResponse> _sendSingleAttempt(
+    AiExecutionCandidate candidate,
+    List formattedMessages,
+    List<Map<String, dynamic>>? toolsOverride, {
+    String? chatId,
+    String? raceTag,
+  }) async {
+    final built = _buildRequest(
+        candidate, formattedMessages, toolsOverride, isStream: false);
+    final stopwatch = Stopwatch()..start();
+
+    final response = await _client.post(
+      built.url,
+      headers: built.headers,
+      body: jsonEncode(built.payload),
+    ).timeout(candidate.timeoutDuration);
+
+    if (response.statusCode != 200) {
+      stopwatch.stop();
+      final err = 'API Error: ${response.statusCode} - ${response.body}';
+      _logRequestInfo(
+        provider: candidate.provider,
+        model: candidate.modelId,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        error: err,
+        raceTag: raceTag,
+      );
+      throw Exception(err);
+    }
+
+    stopwatch.stop();
+    final responseBodyString = utf8.decode(response.bodyBytes);
+
+    int? inputTokens;
+    int? outputTokens;
+    try {
+      final usageData = jsonDecode(responseBodyString);
+      if (usageData['usage'] != null) {
+        inputTokens = usageData['usage']['prompt_tokens'] as int?;
+        outputTokens = usageData['usage']['completion_tokens'] as int?;
+      }
+    } catch (_) {}
+
+    AiLogger.instance.addLog(
+      requestPayload: built.payload,
+      responseRaw: responseBodyString,
+      latencyMs: stopwatch.elapsedMilliseconds,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      chatId: chatId,
+    );
+
+    _logRequestInfo(
+      provider: candidate.provider,
+      model: candidate.modelId,
+      latencyMs: stopwatch.elapsedMilliseconds,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      raceTag: raceTag,
+    );
+
+    final data = jsonDecode(responseBodyString);
+    return _parseNonStreamResponse(data, candidate, built.isGeminiNative);
+  }
+
+  /// Parses a non-streaming JSON response body into an [AiResponse].
+  AiResponse _parseNonStreamResponse(
+    dynamic data,
+    AiExecutionCandidate candidate,
+    bool isGeminiNative,
+  ) {
+    if (isGeminiNative) {
+      final candidatesData = data['candidates'] as List?;
+      if (candidatesData != null && candidatesData.isNotEmpty) {
+        final content = candidatesData[0]['content'];
+        if (content != null && content['parts'] != null) {
+          String textResponse = '';
+          List<AiToolCall> calls = [];
+          final parts = content['parts'] as List;
+          for (var part in parts) {
+            if (part['text'] != null) {
+              textResponse += part['text'];
+            }
+            if (part['functionCall'] != null) {
+              final func = part['functionCall'];
+              calls.add(AiToolCall(
+                id: func['name']?.toString() ??
+                    'call_${DateTime.now().millisecondsSinceEpoch}',
+                name: func['name'] as String,
+                arguments: (func['args'] is Map)
+                    ? (func['args'] as Map).cast<String, dynamic>()
+                    : <String, dynamic>{},
+              ));
+            }
+          }
+          if (textResponse.contains('<TOOLCALL>')) {
+            try {
+              final startIndex = textResponse.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+              final endIndex = textResponse.indexOf('</TOOLCALL>');
+              if (endIndex != -1) {
+                final jsonString = textResponse.substring(startIndex, endIndex).trim();
+                final beforeText = textResponse.substring(0, textResponse.indexOf('<TOOLCALL>')).trim();
+                final afterText = textResponse.substring(endIndex + '</TOOLCALL>'.length).trim();
+                String finalSurroundingText = '$beforeText\n\n$afterText'.trim();
+                final fallbackCalls = parseFallbackToolCalls(jsonString);
+                if (fallbackCalls.isNotEmpty) {
+                  calls.addAll(fallbackCalls);
+                  textResponse = finalSurroundingText;
+                }
+              }
+            } catch (_) {}
+          }
+          return AiResponse(text: textResponse.isEmpty ? null : textResponse, toolCalls: calls.isEmpty ? null : calls, providerServed: candidate.provider);
+        }
+      }
+    } else {
+      final choices = data['choices'] as List?;
+      if (choices != null && choices.isNotEmpty) {
+        final message = choices[0]['message'];
+        if (message['tool_calls'] != null) {
+          final calls = (message['tool_calls'] as List).map((call) {
+            final args = call['function']['arguments'] as String?;
+            return AiToolCall(
+              id: call['id'] as String,
+              name: call['function']['name'] as String,
+              arguments: args == null || args.trim().isEmpty
+                  ? <String, dynamic>{}
+                  : jsonDecode(args) as Map<String, dynamic>,
+            );
+          }).toList();
+          return AiResponse(text: message['content'], toolCalls: calls, providerServed: candidate.provider);
+        }
+        final content = message['content'] as String?;
+        if (content != null && content.contains('<TOOLCALL>')) {
+          try {
+            final startIndex = content.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+            final endIndex = content.indexOf('</TOOLCALL>');
+            if (endIndex != -1) {
+              final jsonString = content.substring(startIndex, endIndex).trim();
+              final beforeText = content.substring(0, content.indexOf('<TOOLCALL>')).trim();
+              final afterText = content.substring(endIndex + '</TOOLCALL>'.length).trim();
+              String? finalSurroundingText;
+              if (beforeText.isNotEmpty && afterText.isNotEmpty) {
+                finalSurroundingText = '$beforeText\n\n$afterText';
+              } else if (beforeText.isNotEmpty) {
+                finalSurroundingText = beforeText;
+              } else if (afterText.isNotEmpty) {
+                finalSurroundingText = afterText;
+              }
+              final fallbackCalls = parseFallbackToolCalls(jsonString);
+              if (fallbackCalls.isNotEmpty) {
+                return AiResponse(text: finalSurroundingText, toolCalls: fallbackCalls, providerServed: candidate.provider);
+              }
+            }
+          } catch (e) {
+            debugPrint('Failed to parse TOOLCALL block: $e');
+          }
+        }
+        if (content != null && content.trim().startsWith('{')) {
+          final fallbackCalls = parseFallbackToolCalls(content);
+          if (fallbackCalls.isNotEmpty) {
+            return AiResponse(text: null, toolCalls: fallbackCalls, providerServed: candidate.provider);
+          }
+        }
+        return AiResponse(text: content, toolCalls: null, providerServed: candidate.provider);
+      }
+    }
+    return AiResponse(text: '', toolCalls: null, providerServed: candidate.provider);
+  }
+
+  /// Races the top two distinct-provider candidates in parallel (non-streaming).
+  /// Returns the first successful response; the loser is discarded.
+  /// Throws if both fail.
+  Future<AiResponse> _raceSendMessage(
+    List<AiExecutionCandidate> candidates,
+    List formattedMessages,
+    List<Map<String, dynamic>>? toolsOverride, {
+    String? chatId,
+  }) async {
+    final raceCandidates = _pickRaceCandidates(candidates);
+    final completer = Completer<AiResponse>();
+    var failedCount = 0;
+    Object? lastError;
+
+    for (final candidate in raceCandidates) {
+      _sendSingleAttempt(
+        candidate,
+        formattedMessages,
+        toolsOverride,
+        chatId: chatId,
+        raceTag: 'race',
+      ).then((response) {
+        if (!completer.isCompleted) {
+          completer.complete(response);
+        }
+      }).catchError((e) {
+        failedCount++;
+        lastError = e;
+        if (failedCount == raceCandidates.length && !completer.isCompleted) {
+          completer.completeError(
+              lastError ?? Exception('All race candidates failed.'));
+        }
+      });
+    }
+
+    return completer.future;
+  }
+
   Future<AiResponse> sendMessage(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId, bool isInternal = false}) async {
     final hasImages = messages.any((msg) => msg.images != null && msg.images!.isNotEmpty);
     final candidates = await _getAllProviderCandidates(hasImages: hasImages);
@@ -326,6 +637,21 @@ IMPORTANT RULES:
     final prefs = await SharedPreferences.getInstance();
     final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
 
+    // ---- Race mode (testing / debug) ----
+    final raceMode = prefs.getBool('enable_race_mode') ?? false;
+    if (raceMode) {
+      final raceCandidates = _pickRaceCandidates(candidates);
+      if (raceCandidates.length == 2) {
+        return _raceSendMessage(
+          candidates,
+          formattedMessages,
+          toolsOverride,
+          chatId: chatId,
+        );
+      }
+      // Not enough distinct providers — fall through to sequential mode.
+    }
+
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
@@ -389,6 +715,14 @@ IMPORTANT RULES:
             AiLogger.instance.addLog(
               requestPayload: requestPayload,
               responseRaw: responseBodyString,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              inputTokens: inputTokens,
+              outputTokens: outputTokens,
+            );
+            
+            _logRequestInfo(
+              provider: candidate.provider,
+              model: candidate.modelId,
               latencyMs: stopwatch.elapsedMilliseconds,
               inputTokens: inputTokens,
               outputTokens: outputTokens,
@@ -530,6 +864,424 @@ IMPORTANT RULES:
     throw Exception('Failed to communicate with any AI provider (Offline or all providers failed).');
   }
 
+  /// Finalizes an SSE stream: processes accumulated tool calls, logs, and
+  /// yields the final done event.
+  Stream<AiStreamEvent> _finalizeSseStream(
+    AiExecutionCandidate candidate,
+    _BuiltRequest built,
+    Stopwatch stopwatch,
+    String fullText,
+    String rawToolCallsJsonBuffer,
+    Map<int, Map<String, dynamic>> nativeToolCallsAccumulator,
+    List<AiToolCall> finalToolCalls,
+    StringBuffer rawStreamLog, {
+    String? chatId,
+    String? raceTag,
+  }) async* {
+    String resultText = fullText;
+
+    if (nativeToolCallsAccumulator.isNotEmpty) {
+      for (var tc in nativeToolCallsAccumulator.values) {
+        try {
+          final argsStr = tc['arguments'] as String;
+          Map<String, dynamic> parsedArgs = {};
+          if (argsStr.trim().isNotEmpty) {
+            final decoded = jsonDecode(argsStr);
+            if (decoded is Map) {
+              parsedArgs = decoded.cast<String, dynamic>();
+            }
+          }
+          finalToolCalls.add(AiToolCall(id: tc['id'] as String, name: tc['name'] as String, arguments: parsedArgs));
+        } catch (e) {
+          debugPrint('Failed to decode native tool arguments: $e');
+        }
+      }
+    }
+
+    if (rawToolCallsJsonBuffer.isNotEmpty) {
+      try {
+        final startIndex = rawToolCallsJsonBuffer.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+        final endIndex = rawToolCallsJsonBuffer.indexOf('</TOOLCALL>');
+        String jsonString = rawToolCallsJsonBuffer.substring(startIndex, endIndex).trim();
+        if (jsonString.startsWith('```')) {
+          final firstNewline = jsonString.indexOf('\n');
+          if (firstNewline != -1) {
+            jsonString = jsonString.substring(firstNewline + 1);
+          }
+          if (jsonString.endsWith('```')) {
+            jsonString = jsonString.substring(0, jsonString.length - 3).trim();
+          }
+        }
+        final fallbackCalls = parseFallbackToolCalls(jsonString);
+        if (fallbackCalls.isNotEmpty) {
+          finalToolCalls.addAll(fallbackCalls);
+        }
+      } catch (e) {
+        debugPrint('Failed parsing streaming fallback: $e');
+      }
+    } else if (resultText.trim().startsWith('{')) {
+      final fallbackCalls = parseFallbackToolCalls(resultText);
+      if (fallbackCalls.isNotEmpty) {
+        finalToolCalls.addAll(fallbackCalls);
+        resultText = '';
+      }
+    }
+
+    stopwatch.stop();
+
+    int? inputTokens;
+    int? outputTokens;
+    try {
+      final rawLogText = rawStreamLog.toString();
+      final lines = rawLogText.split('\n');
+      for (var line in lines) {
+        if (line.startsWith('data: ')) {
+          final dataStr = line.substring(6).trim();
+          if (dataStr != '[DONE]' && dataStr.isNotEmpty) {
+            final chunk = jsonDecode(dataStr);
+            if (chunk['usage'] != null) {
+              inputTokens = chunk['usage']['prompt_tokens'] as int?;
+              outputTokens = chunk['usage']['completion_tokens'] as int?;
+              break;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    AiLogger.instance.addLog(
+      chatId: chatId,
+      requestPayload: built.payload,
+      responseRaw: rawStreamLog.toString(),
+      latencyMs: stopwatch.elapsedMilliseconds,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+    );
+    _logRequestInfo(
+      provider: candidate.provider,
+      model: candidate.modelId,
+      latencyMs: stopwatch.elapsedMilliseconds,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      raceTag: raceTag,
+    );
+
+    if (resultText.isEmpty && finalToolCalls.isEmpty) {
+      throw Exception('AI provider (${candidate.provider}) returned an empty response: no content and no tool calls.');
+    }
+
+    yield AiStreamEvent(deltaText: resultText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
+  }
+
+  /// SSE streaming path for [_streamWithCandidate] — continued from the JSON
+  /// content-type branch. Consumes the SSE stream, accumulates tool calls,
+  /// logs, and yields a final done event.
+  Stream<AiStreamEvent> _streamWithCandidateSse(
+    AiExecutionCandidate candidate,
+    _BuiltRequest built,
+    http.StreamedResponse response,
+    Stopwatch stopwatch, {
+    String? chatId,
+    String? raceTag,
+  }) async* {
+    String fullText = '';
+    String rawToolCallsJsonBuffer = '';
+    Map<int, Map<String, dynamic>> nativeToolCallsAccumulator = {};
+    List<AiToolCall> finalToolCalls = [];
+    final rawStreamLog = StringBuffer();
+
+    await for (final chunk in response.stream.transform(utf8.decoder)) {
+      rawStreamLog.write(chunk);
+      final lines = chunk.split('\n');
+      for (var line in lines) {
+        if (line.startsWith('data: ')) {
+          final dataStr = line.substring(6).trim();
+          if (dataStr == '[DONE]' || dataStr.isEmpty) continue;
+          try {
+            final chunkData = jsonDecode(dataStr);
+            if (built.isGeminiNative) {
+              final candidatesData = chunkData['candidates'] as List?;
+              if (candidatesData != null && candidatesData.isNotEmpty) {
+                final content = candidatesData[0]['content'];
+                if (content != null && content['parts'] != null) {
+                  for (var part in content['parts'] as List) {
+                    if (part['text'] != null) {
+                      fullText += part['text'];
+                      yield AiStreamEvent(deltaText: part['text'], providerServed: candidate.provider);
+                    }
+                  }
+                }
+              }
+            } else {
+              final choices = chunkData['choices'] as List?;
+              if (choices != null && choices.isNotEmpty) {
+                final delta = choices[0]['delta'];
+                if (delta != null) {
+                  if (delta['content'] != null) {
+                    final deltaText = delta['content'] as String;
+                    fullText += deltaText;
+                    if (deltaText.contains('<TOOLCALL>')) {
+                      rawToolCallsJsonBuffer += deltaText;
+                    } else if (rawToolCallsJsonBuffer.isNotEmpty) {
+                      rawToolCallsJsonBuffer += deltaText;
+                    } else {
+                      if (fullText.contains('<TOOLCALL>')) {
+                        final cleanText = fullText.substring(0, fullText.indexOf('<TOOLCALL>'));
+                        yield AiStreamEvent(deltaText: cleanText, providerServed: candidate.provider);
+                      } else if (fullText.trim().startsWith('{')) {
+                        // Buffered JSON block
+                      } else {
+                        int lastLeftAngle = fullText.lastIndexOf('<');
+                        if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
+                          yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
+                        } else {
+                          yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
+                        }
+                      }
+                    }
+                  }
+                  if (delta['tool_calls'] != null) {
+                    for (var tc in delta['tool_calls'] as List) {
+                      final index = tc['index'] as int? ?? 0;
+                      if (!nativeToolCallsAccumulator.containsKey(index)) {
+                        nativeToolCallsAccumulator[index] = {
+                          'id': tc['id'] as String? ?? '',
+                          'name': tc['function']?['name'] as String? ?? '',
+                          'arguments': '',
+                        };
+                      }
+                      if (tc['function']?['arguments'] != null) {
+                        nativeToolCallsAccumulator[index]!['arguments'] += tc['function']['arguments'] as String;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('Failed decoding SSE chunk: $e');
+          }
+        }
+      }
+    }
+
+    yield* _finalizeSseStream(candidate, built, stopwatch, fullText, rawToolCallsJsonBuffer, nativeToolCallsAccumulator, finalToolCalls, rawStreamLog, chatId: chatId, raceTag: raceTag);
+  }
+
+  /// Single-candidate streaming generator (one attempt, no retry).
+  /// Yields [AiStreamEvent]s for the given candidate. Throws on error.
+  Stream<AiStreamEvent> _streamWithCandidate(
+    AiExecutionCandidate candidate,
+    List formattedMessages,
+    List<Map<String, dynamic>>? toolsOverride, {
+    String? chatId,
+    String? raceTag,
+  }) async* {
+    final built = _buildRequest(
+        candidate, formattedMessages, toolsOverride, isStream: true);
+    final stopwatch = Stopwatch()..start();
+
+    final request = http.Request('POST', built.url)
+      ..headers.addAll(built.headers)
+      ..body = jsonEncode(built.payload);
+
+    final response =
+        await _client.send(request).timeout(candidate.timeoutDuration);
+
+    if (response.statusCode != 200) {
+      final errBody = await response.stream.bytesToString();
+      stopwatch.stop();
+      final err = 'API Error: ${response.statusCode} - $errBody';
+      _logRequestInfo(
+        provider: candidate.provider,
+        model: candidate.modelId,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        error: err,
+        raceTag: raceTag,
+      );
+      throw Exception(err);
+    }
+
+    String fullText = '';
+    List<AiToolCall> finalToolCalls = [];
+    final rawStreamLog = StringBuffer();
+
+    final contentType = response.headers['content-type'] ?? '';
+
+    if (contentType.contains('application/json')) {
+      stopwatch.stop();
+      final responseBodyString = await response.stream.bytesToString();
+      rawStreamLog.write(responseBodyString);
+
+      int? inputTokens;
+      int? outputTokens;
+      try {
+        final data = jsonDecode(responseBodyString);
+        if (data['usage'] != null) {
+          inputTokens = data['usage']['prompt_tokens'] as int?;
+          outputTokens = data['usage']['completion_tokens'] as int?;
+        }
+      } catch (_) {}
+
+      AiLogger.instance.addLog(
+        requestPayload: built.payload,
+        responseRaw: responseBodyString,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        chatId: chatId,
+      );
+      _logRequestInfo(
+        provider: candidate.provider,
+        model: candidate.modelId,
+        latencyMs: stopwatch.elapsedMilliseconds,
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        raceTag: raceTag,
+      );
+
+      final data = jsonDecode(responseBodyString);
+      if (built.isGeminiNative) {
+        final candidatesData = data['candidates'] as List?;
+        if (candidatesData != null && candidatesData.isNotEmpty) {
+          final content = candidatesData[0]['content'];
+          if (content != null && content['parts'] != null) {
+            String textResponse = '';
+            for (var part in content['parts'] as List) {
+              if (part['text'] != null) {
+                textResponse += part['text'];
+              }
+            }
+            fullText = textResponse;
+          }
+        }
+      } else {
+        final choices = data['choices'] as List?;
+        if (choices != null && choices.isNotEmpty) {
+          final message = choices[0]['message'];
+          if (message['tool_calls'] != null) {
+            finalToolCalls = (message['tool_calls'] as List).map((call) {
+              return AiToolCall(
+                id: call['id'] as String,
+                name: call['function']['name'] as String,
+                arguments: jsonDecode(call['function']['arguments'] as String),
+              );
+            }).toList();
+          }
+          final content = message['content'] as String?;
+          if (content != null) {
+            fullText = content;
+            if (fullText.contains('<TOOLCALL>')) {
+              try {
+                final startIndex = fullText.indexOf('<TOOLCALL>') + '<TOOLCALL>'.length;
+                final endIndex = fullText.indexOf('</TOOLCALL>');
+                final jsonString = fullText.substring(startIndex, endIndex).trim();
+                final fallbackCalls = parseFallbackToolCalls(jsonString);
+                if (fallbackCalls.isNotEmpty) {
+                  finalToolCalls.addAll(fallbackCalls);
+                }
+                fullText = fullText.substring(0, fullText.indexOf('<TOOLCALL>')) + fullText.substring(endIndex + '</TOOLCALL>'.length);
+              } catch (e) {
+                debugPrint('Failed parsing flat fallback: $e');
+              }
+            } else if (fullText.trim().startsWith('{')) {
+              final fallbackCalls = parseFallbackToolCalls(fullText);
+              if (fallbackCalls.isNotEmpty) {
+                finalToolCalls.addAll(fallbackCalls);
+                fullText = '';
+              }
+            }
+          }
+        }
+      }
+
+      if (fullText.isEmpty && finalToolCalls.isEmpty) {
+        throw Exception('AI provider (${candidate.provider}) returned an empty response.');
+      }
+      yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
+      return;
+    }
+
+    // ---- SSE streaming path (continued in part 2) ----
+    yield* _streamWithCandidateSse(
+      candidate,
+      built,
+      response,
+      stopwatch,
+      chatId: chatId,
+      raceTag: raceTag,
+    );
+  }
+
+  /// Races the top two distinct-provider candidates in parallel (streaming).
+  /// The first stream to emit actual content wins; the loser is cancelled.
+  Stream<AiStreamEvent> _raceSendMessageStream(
+    List<AiExecutionCandidate> candidates,
+    List formattedMessages,
+    List<Map<String, dynamic>>? toolsOverride, {
+    String? chatId,
+  }) async* {
+    final raceCandidates = _pickRaceCandidates(candidates);
+
+    final controller = StreamController<AiStreamEvent>();
+    var winnerDecided = false;
+    final subscriptions = <StreamSubscription>[];
+    var activeCount = raceCandidates.length;
+    Object? lastError;
+
+    for (final candidate in raceCandidates) {
+      final stream = _streamWithCandidate(
+        candidate,
+        formattedMessages,
+        toolsOverride,
+        chatId: chatId,
+        raceTag: 'race',
+      );
+
+      final sub = stream.listen(
+        (event) {
+          if (winnerDecided) return;
+          if (event.deltaText.isNotEmpty ||
+              event.isDone ||
+              (event.toolCalls != null && event.toolCalls!.isNotEmpty)) {
+            winnerDecided = true;
+          }
+          controller.add(event);
+          if (event.isDone) {
+            controller.close();
+          }
+        },
+        onError: (e) {
+          if (winnerDecided) return;
+          lastError = e;
+          activeCount--;
+          if (activeCount == 0 && !controller.isClosed) {
+            controller.addError(lastError ?? Exception('All race stream candidates failed.'));
+            controller.close();
+          }
+        },
+        onDone: () {
+          if (winnerDecided) return;
+          activeCount--;
+          if (activeCount == 0 && !controller.isClosed) {
+            controller.addError(lastError ?? Exception('All race stream candidates returned empty.'));
+            controller.close();
+          }
+        },
+        cancelOnError: true,
+      );
+      subscriptions.add(sub);
+    }
+
+    controller.onCancel = () {
+      for (final sub in subscriptions) {
+        sub.cancel();
+      }
+    };
+
+    yield* controller.stream;
+  }
+
   Stream<AiStreamEvent> sendMessageStream(List<ChatMessage> messages, {String systemPrompt = '', List<Map<String, dynamic>>? toolsOverride, String? chatId}) async* {
     final hasImages = messages.any((msg) => msg.images != null && msg.images!.isNotEmpty);
     final candidates = await _getAllProviderCandidates(hasImages: hasImages);
@@ -650,6 +1402,22 @@ IMPORTANT RULES:
     final prefs = await SharedPreferences.getInstance();
     final maxRetries = prefs.getInt('ai_max_retries') ?? 3;
 
+    // ---- Race mode (testing / debug) ----
+    final raceMode = prefs.getBool('enable_race_mode') ?? false;
+    if (raceMode) {
+      final raceCandidates = _pickRaceCandidates(candidates);
+      if (raceCandidates.length == 2) {
+        yield* _raceSendMessageStream(
+          candidates,
+          formattedMessages,
+          toolsOverride,
+          chatId: chatId,
+        );
+        return;
+      }
+      // Not enough distinct providers — fall through to sequential mode.
+    }
+
     for (var i = 0; i < candidates.length; i++) {
       final candidate = candidates[i];
       String baseUrl = candidate.baseUrl ?? '';
@@ -727,6 +1495,14 @@ IMPORTANT RULES:
             AiLogger.instance.addLog(
               requestPayload: requestPayload,
               responseRaw: responseBodyString,
+              latencyMs: stopwatch.elapsedMilliseconds,
+              inputTokens: inputTokens,
+              outputTokens: outputTokens,
+            );
+            
+            _logRequestInfo(
+              provider: candidate.provider,
+              model: candidate.modelId,
               latencyMs: stopwatch.elapsedMilliseconds,
               inputTokens: inputTokens,
               outputTokens: outputTokens,
@@ -987,6 +1763,14 @@ IMPORTANT RULES:
             chatId: chatId,
             requestPayload: requestPayload,
             responseRaw: rawStreamLog.toString(),
+            latencyMs: stopwatch.elapsedMilliseconds,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+          );
+
+          _logRequestInfo(
+            provider: candidate.provider,
+            model: candidate.modelId,
             latencyMs: stopwatch.elapsedMilliseconds,
             inputTokens: inputTokens,
             outputTokens: outputTokens,

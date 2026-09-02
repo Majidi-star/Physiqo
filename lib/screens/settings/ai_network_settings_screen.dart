@@ -14,6 +14,7 @@ class AINetworkSettingsScreen extends StatefulWidget {
 class _AINetworkSettingsScreenState extends State<AINetworkSettingsScreen> {
   int _maxRetries = 3;
   int _timeoutSeconds = 30;
+  bool _raceMode = false;
   bool _isLoading = true;
 
   @override
@@ -27,6 +28,7 @@ class _AINetworkSettingsScreenState extends State<AINetworkSettingsScreen> {
     setState(() {
       _maxRetries = prefs.getInt('ai_max_retries') ?? 3;
       _timeoutSeconds = prefs.getInt('ai_timeout_seconds') ?? 30;
+      _raceMode = prefs.getBool('enable_race_mode') ?? false;
       _isLoading = false;
     });
   }
@@ -35,6 +37,7 @@ class _AINetworkSettingsScreenState extends State<AINetworkSettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('ai_max_retries', _maxRetries);
     await prefs.setInt('ai_timeout_seconds', _timeoutSeconds);
+    await prefs.setBool('enable_race_mode', _raceMode);
   }
 
   @override
@@ -130,6 +133,33 @@ class _AINetworkSettingsScreenState extends State<AINetworkSettingsScreen> {
                                 setState(() => _timeoutSeconds = value);
                                 _saveSettings();
                               }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacingLg),
+                    Container(
+                      decoration: AppTheme.cardDecoration(),
+                      padding: const EdgeInsets.all(AppTheme.spacingMd),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(context.tr('ai_race_mode_title'),
+                              style: AppTheme.headlineMd),
+                          const SizedBox(height: 8),
+                          Text(context.tr('ai_race_mode_desc'),
+                              style: AppTheme.bodyMd
+                                  .copyWith(color: AppTheme.textSecondary)),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(context.tr('ai_race_mode_title'),
+                                style: AppTheme.bodyLg),
+                            value: _raceMode,
+                            activeThumbColor: AppTheme.primary,
+                            onChanged: (value) {
+                              setState(() => _raceMode = value);
+                              _saveSettings();
                             },
                           ),
                         ],
