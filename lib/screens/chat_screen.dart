@@ -213,7 +213,7 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       'has_images': _selectedImages.isNotEmpty,
       'image_count': _selectedImages.length,
       'message_length': text.length,
-      'message_text': TestLogger.instance.includeChatText ? text : null,
+      'message_text': TestLogger.instance.isEnabled ? text : null,
     });
 
     _generationCancelled = false;
@@ -256,8 +256,13 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
       orElse: () => ChatMessage(id: '', role: ChatMessageRole.user, content: '', timestamp: DateTime.now())
     );
     final language = orchestrator.detectLanguage(lastUserMsg.content);
-    
+
     AiLogger.instance.clearTimeline();
+
+    final taskId = TestLogger.instance.logTaskStart('chat_response', params: {
+      'loop_max': 8,
+    });
+    var taskSuccess = true;
 
     int loopCount = 0;
     while (true) {
@@ -313,6 +318,11 @@ ${contextData['userContext']}
         }
 
         AiLogger.instance.startTraceStep('LLM Stream Request', details: 'Waiting for stream...');
+        TestLogger.instance.logLlmRequest(
+          chatId: _activeSession!.id,
+          messageCount: historyToKeep.length,
+          hasImages: historyToKeep.any((m) => m.images != null && m.images!.isNotEmpty),
+        );
         final rawStream = _aiService.sendMessageStream(
           historyToKeep,
           systemPrompt: systemPrompt,
@@ -410,6 +420,12 @@ ${contextData['userContext']}
           if (finalContent.isNotEmpty) {
             final completedMsg = _activeSession!.messages.firstWhere((m) => m.id == streamingMsg.id, orElse: () => streamingMsg).copyWith(content: finalContent);
             await _repository.addMessage(_activeSession!.id, completedMsg);
+            TestLogger.instance.log('ai_response', <String, dynamic>{
+              'response_text': TestLogger.instance.isEnabled ? finalContent : null,
+              'response_length': finalContent.length,
+              'tool_call_count': finalToolCalls?.length ?? 0,
+              'loop_count': loopCount,
+            });
           } else {
             final msgs = List<ChatMessage>.from(_activeSession!.messages);
             msgs.removeWhere((m) => m.id == streamingMsg.id);
@@ -500,8 +516,13 @@ ${contextData['userContext']}
           }
         }
       } catch (e) {
+        taskSuccess = false;
         if (mounted && _activeSession != null && !_generationCancelled) {
           debugPrint('AiLoop Error: $e');
+          TestLogger.instance.log('ai_error', <String, dynamic>{
+            'error_message': TestLogger.instance.isEnabled ? e.toString() : null,
+            'loop_count': loopCount,
+          });
           final botMsg = ChatMessage(
             id: DateTime.now().microsecondsSinceEpoch.toString(),
             role: ChatMessageRole.system,
@@ -513,6 +534,8 @@ ${contextData['userContext']}
         break;
       }
     }
+
+    TestLogger.instance.logTaskComplete(taskId, success: taskSuccess);
     
     if (mounted) {
       setState(() {

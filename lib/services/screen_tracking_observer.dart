@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/session_recorder.dart';
 import '../services/test_logger.dart';
 
 /// Automatically logs screen views and exits as the user navigates.
@@ -24,6 +25,7 @@ class ScreenTrackingObserver extends NavigatorObserver {
     final name = _nameFor(route);
     final prev = previousRoute == null ? null : _nameFor(previousRoute);
     TestLogger.instance.logScreenView(name, previous: prev, navMethod: 'push');
+    SessionRecorder.instance.onScreenChanged(name);
     _active[route] = (name: name, enteredAt: DateTime.now());
   }
 
@@ -34,6 +36,7 @@ class ScreenTrackingObserver extends NavigatorObserver {
       final name = _nameFor(previousRoute);
       TestLogger.instance
           .logScreenView(name, previous: _nameFor(route), navMethod: 'pop');
+      SessionRecorder.instance.onScreenChanged(name);
       _active[previousRoute] = (name: name, enteredAt: DateTime.now());
     }
   }
@@ -44,6 +47,7 @@ class ScreenTrackingObserver extends NavigatorObserver {
     if (newRoute != null) {
       final name = _nameFor(newRoute);
       TestLogger.instance.logScreenView(name, navMethod: 'replace');
+      SessionRecorder.instance.onScreenChanged(name);
       _active[newRoute] = (name: name, enteredAt: DateTime.now());
     }
   }

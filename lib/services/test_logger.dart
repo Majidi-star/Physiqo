@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -6,6 +7,9 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'session_recorder.dart';
 
 /// Compile-time kill switch. Flip to `false` to rip out all telemetry with a
 /// single change (the call sites become cheap no-ops).
@@ -28,6 +32,10 @@ class TestLogger {
   static const int _maxBreadcrumb = 20;
   static const int _rageTapWindowMs = 1500;
   static const int _rageTapThreshold = 3;
+  static const int _hesitationThresholdMs = 5000;
+  static const int _performanceIntervalMs = 5000;
+
+  static const String _prefsEnabledKey = 'testing_mode_enabled';
 
   bool _enabled = false;
 
@@ -39,19 +47,67 @@ class TestLogger {
 
   final List<String> _breadcrumbTrail = <String>[];
   final List<({String id, int ts})> _rageTapBuffer = <({String id, int ts})>[];
+  final Map<String, DateTime> _activeTasks = <String, DateTime>{};
   int _sessionEventCount = 0;
+
+  Timer? _hesitationTimer;
+  Timer? _performanceTimer;
 
   /// Whether testing logs are currently enabled.
   bool get isEnabled => _enabled;
 
   /// Current session id (null until [init] completes).
   String? get currentSessionId => _sessionId;
-/// Initialize the logger: read prefs, open the session file, detect a prior
+
+  /// Toggle logging on or off at runtime (called from Settings).
+  /// When turning on mid-session, opens a fresh session file. When turning
+  /// off, closes the active sink so buffered events are flushed to disk.
+  Future<void> setEnabled(bool value) async {
+    if (!kEnableTestLogging) return;
+    if (value == _enabled) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsEnabledKey, value);
+    _enabled = value;
+
+    if (value) {
+      // Starting logging: open the logs directory + a fresh session file.
+      _logsDir = Directory(
+        '${(await getApplicationDocumentsDirectory()).path}/testing_logs',
+      );
+      if (!await _logsDir!.exists()) {
+        await _logsDir!.create(recursive: true);
+      }
+      _sessionStart = DateTime.now();
+      _sessionId = _generateUuid();
+      _seq = 0;
+      _sessionEventCount = 0;
+      final file = File('${_logsDir!.path}/session_$_sessionId.jsonl');
+      _sink = file.openWrite(mode: FileMode.append);
+      log('testing_mode_enabled', <String, dynamic>{});
+      registerUserActivity();
+      startPerformanceMonitor();
+      await SessionRecorder.instance.start();
+    } else {
+      // Stopping logging: flush and close the active sink.
+      log('testing_mode_disabled', <String, dynamic>{});
+      _cancelHesitationTimer();
+      stopPerformanceMonitor();
+      await SessionRecorder.instance.stop();
+      await _closeSink();
+      _sessionId = null;
+    }
+  }
+
+  /// Initialize the logger: read prefs, open the session file, detect a prior
   /// unclean close, run retention, and emit the launch event.
   Future<void> init({bool coldStart = true, int? launchDurationMs}) async {
     if (!kEnableTestLogging) return;
 
-    _enabled = true;
+    final prefs = await SharedPreferences.getInstance();
+    _enabled = prefs.getBool(_prefsEnabledKey) ?? true; // ON by default
+
+    if (!_enabled) return; // Logging is off — skip all file/sink setup.
 
     _logsDir = Directory(
       '${(await getApplicationDocumentsDirectory()).path}/testing_logs',
@@ -82,6 +138,10 @@ class TestLogger {
       'locale': Platform.localeName,
       'screen_size': size,
     });
+
+    registerUserActivity();
+    startPerformanceMonitor();
+    await SessionRecorder.instance.start();
   }
 
   /// The single logging chokepoint. No-ops when disabled. Never throws.
@@ -114,16 +174,19 @@ class TestLogger {
     String screen, {
     String? previous,
     String navMethod = 'button',
+    int? loadDurationMs,
   }) {
     _breadcrumbTrail.add(screen);
     if (_breadcrumbTrail.length > _maxBreadcrumb) {
       _breadcrumbTrail.removeAt(0);
     }
-    log('screen_view', <String, dynamic>{
+    final data = <String, dynamic>{
       'screen_name': screen,
       'previous_screen': previous,
       'nav_method': navMethod,
-    });
+    };
+    if (loadDurationMs != null) data['load_duration_ms'] = loadDurationMs;
+    log('screen_view', data);
   }
 
   /// Log a screen exit with its dwell time.
@@ -136,12 +199,18 @@ class TestLogger {
 
   /// Log a tap and run centralized rage-tap detection (3+ taps on the same
   /// element within 1.5s with no intervening navigation).
-  void logTap(String elementId, {String? label, String? screen}) {
-    log('tap', <String, dynamic>{
+  void logTap(String elementId, {String? label, String? screen, List<double>? coordinates}) {
+    registerUserActivity();
+    final data = <String, dynamic>{
       'screen_name': screen,
       'element_id': elementId,
       'element_label': label,
-    });
+    };
+    if (coordinates != null && coordinates.length >= 2) {
+      data['x'] = coordinates[0].round();
+      data['y'] = coordinates[1].round();
+    }
+    log('tap', data);
 
     final now = DateTime.now().millisecondsSinceEpoch;
     _rageTapBuffer.add((id: elementId, ts: now));
@@ -166,14 +235,194 @@ class TestLogger {
         : (stack.toString().split('\n').take(10).toList());
     log('app_error', <String, dynamic>{
       'error_message': error.toString(),
+      'error_type': error.runtimeType.toString(),
       'stack_trace_first_n_lines': stackLines,
       'screen_name': screen ?? _breadcrumbTrail.lastOrNull,
       'breadcrumb_trail': List<String>.of(_breadcrumbTrail),
     });
   }
+
+  /// Log a structured API/network error distinct from app errors.
+  void logApiError(String endpoint, Object error, {int? statusCode, int? latencyMs}) {
+    log('api_error', <String, dynamic>{
+      'endpoint': endpoint,
+      'error_message': error.toString(),
+      'status_code': statusCode,
+      'latency_ms': latencyMs,
+    });
+  }
+
+  // ─── LLM interaction tracking (metadata only — no raw prompt/response) ───
+
+  /// Log the start of an LLM request.
+  void logLlmRequest({String? chatId, int? messageCount, bool? hasImages, String? provider}) {
+    registerUserActivity();
+    log('llm_request', <String, dynamic>{
+      'chat_id': chatId,
+      'message_count': messageCount,
+      'has_images': hasImages,
+      'provider': provider,
+    });
+  }
+
+  /// Log the completion of an LLM request with latency/token metadata.
+  void logLlmResponse({
+    String? chatId,
+    required int latencyMs,
+    int? inputTokens,
+    int? outputTokens,
+    bool tokensEstimated = false,
+    String? error,
+    String? provider,
+    String? model,
+    String? raceTag,
+  }) {
+    log('llm_response', <String, dynamic>{
+      'chat_id': chatId,
+      'latency_ms': latencyMs,
+      'input_tokens': inputTokens,
+      'output_tokens': outputTokens,
+      'tokens_estimated': tokensEstimated,
+      'error': error,
+      'provider': provider,
+      'model': model,
+      'race_tag': raceTag,
+    });
+  }
+
+  // ─── Task flow tracking ───────────────────────────────────────────────
+
+  /// Mark the start of a user-facing task flow (e.g. body scan, send chat).
+  /// Returns the task id for pairing with [logTaskComplete].
+  String logTaskStart(String flowName, {Map<String, dynamic>? params}) {
+    final taskId = _generateUuid();
+    _activeTasks[taskId] = DateTime.now();
+    final data = <String, dynamic>{
+      'task_id': taskId,
+      'flow_name': flowName,
+    };
+    if (params != null) data['params'] = params;
+    log('task_start', data);
+    return taskId;
+  }
+
+  /// Mark the completion (or failure) of a task started with [logTaskStart].
+  void logTaskComplete(String taskId, {bool success = true, String? error, Map<String, dynamic>? result}) {
+    final startedAt = _activeTasks.remove(taskId);
+    final durationMs = startedAt == null
+        ? null
+        : DateTime.now().difference(startedAt).inMilliseconds;
+    final data = <String, dynamic>{
+      'task_id': taskId,
+      'success': success,
+      'duration_ms': durationMs,
+      'error': error,
+    };
+    if (result != null) data['result'] = result;
+    log('task_complete', data);
+  }
+
+  // ─── Hesitation detection ─────────────────────────────────────────────
+
+  /// Call this on any user activity (tap, scroll, key press) to reset the
+  /// hesitation timer. After [_hesitationThresholdMs] of inactivity, a
+  /// `user_hesitation` event is emitted.
+  void registerUserActivity() {
+    if (!kEnableTestLogging || !_enabled) return;
+    _hesitationTimer?.cancel();
+    _hesitationTimer = Timer(
+      const Duration(milliseconds: _hesitationThresholdMs),
+      _emitHesitation,
+    );
+  }
+
+  void _emitHesitation() {
+    log('user_hesitation', <String, dynamic>{
+      'inactive_threshold_ms': _hesitationThresholdMs,
+      'screen_name': _breadcrumbTrail.lastOrNull,
+    });
+    // Re-arm so repeated hesitations are tracked.
+    _hesitationTimer = Timer(
+      const Duration(milliseconds: _hesitationThresholdMs),
+      _emitHesitation,
+    );
+  }
+
+  void _cancelHesitationTimer() {
+    _hesitationTimer?.cancel();
+    _hesitationTimer = null;
+  }
+
+  // ─── Performance monitoring ───────────────────────────────────────────
+
+  int _framesInWindow = 0;
+  int _jankFramesInWindow = 0;
+  int _droppedFramesInWindow = 0;
+  static const int _frameIntervalMicros = 16667; // 60 FPS
+
+  /// Called from [SchedulerBinding.addTimingsCallback] for each rendered
+  /// frame. Accumulates counts that are flushed by the periodic sampler.
+  void recordFrameTiming(int totalMicros) {
+    if (!kEnableTestLogging || !_enabled) return;
+    _framesInWindow++;
+    if (totalMicros > _frameIntervalMicros) {
+      _jankFramesInWindow++;
+    }
+    if (totalMicros > _frameIntervalMicros * 2) {
+      _droppedFramesInWindow++;
+    }
+  }
+
+  /// Log a periodic performance sample (FPS, jank, memory).
+  void logPerformance({double? fps, int? jankFrames, int? droppedFrames, int? memoryRssKb}) {
+    log('app_performance', <String, dynamic>{
+      'fps': fps?.toStringAsFixed(1),
+      'jank_frames': jankFrames,
+      'dropped_frames': droppedFrames,
+      'memory_rss_kb': memoryRssKb,
+    });
+  }
+
+  /// Start a periodic timer that logs FPS, jank, and memory usage every
+  /// [_performanceIntervalMs]. Called from the app state on init.
+  void startPerformanceMonitor() {
+    if (!kEnableTestLogging || !_enabled) return;
+    _performanceTimer?.cancel();
+    _performanceTimer = Timer.periodic(
+      const Duration(milliseconds: _performanceIntervalMs),
+      (_) {
+        try {
+          final intervalSeconds = _performanceIntervalMs / 1000.0;
+          final frameCount = _framesInWindow;
+          final fps = frameCount / intervalSeconds;
+          final jank = _jankFramesInWindow;
+          final dropped = _droppedFramesInWindow;
+          // Reset accumulators for the next window.
+          _framesInWindow = 0;
+          _jankFramesInWindow = 0;
+          _droppedFramesInWindow = 0;
+          final rss = ProcessInfo.currentRss ~/ 1024;
+          logPerformance(
+            fps: frameCount > 0 ? fps : null,
+            jankFrames: jank,
+            droppedFrames: dropped,
+            memoryRssKb: rss,
+          );
+        } catch (_) {}
+      },
+    );
+  }
+
+  void stopPerformanceMonitor() {
+    _performanceTimer?.cancel();
+    _performanceTimer = null;
+  }
+
 /// Called when the app goes to background. Writes a clean-close marker.
   Future<void> onAppBackground() async {
     if (!_enabled) return;
+    _cancelHesitationTimer();
+    stopPerformanceMonitor();
     log('app_background', <String, dynamic>{
       'session_duration_ms':
           DateTime.now().difference(_sessionStart).inMilliseconds,
@@ -189,6 +438,8 @@ class TestLogger {
     final file = File('${_logsDir!.path}/session_$sessionId.jsonl');
     _sink = file.openWrite(mode: FileMode.append);
     log('app_foreground', <String, dynamic>{});
+    registerUserActivity();
+    startPerformanceMonitor();
   }
 
   /// Export all session logs as a single ZIP file.
@@ -212,6 +463,21 @@ class TestLogger {
         ),
       );
     }
+    // Include session-replay screenshots + index if present.
+    final screenshotsDir = Directory('${_logsDir!.path}/screenshots');
+    if (await screenshotsDir.exists()) {
+      for (final sf in screenshotsDir.listSync().whereType<File>()) {
+        try {
+          archive.addFile(
+            ArchiveFile(
+              'screenshots/${sf.uri.pathSegments.last}',
+              sf.lengthSync(),
+              sf.readAsBytesSync(),
+            ),
+          );
+        } catch (_) {}
+      }
+    }
     final bytes = ZipEncoder().encode(archive);
 
     final exportDir = Directory(
@@ -226,13 +492,20 @@ class TestLogger {
     return outFile;
   }
 
-  /// Delete all session logs.
+  /// Delete all session logs (including screenshots).
   Future<void> clearLogs() async {
     if (_logsDir == null || !await _logsDir!.exists()) return;
     await _closeSink();
     for (final f in _logsDir!.listSync().whereType<File>()) {
       try {
         await f.delete();
+      } catch (_) {}
+    }
+    // Also clear the screenshots subdirectory used by SessionRecorder.
+    final screenshotsDir = Directory('${_logsDir!.path}/screenshots');
+    if (await screenshotsDir.exists()) {
+      try {
+        await screenshotsDir.delete(recursive: true);
       } catch (_) {}
     }
     _sessionEventCount = 0;
@@ -248,6 +521,13 @@ class TestLogger {
       for (final f in _logsDir!.listSync().whereType<File>()) {
         if (f.path.endsWith('.jsonl')) {
           sessionCount++;
+          totalSizeBytes += f.lengthSync();
+        }
+      }
+      // Include screenshot storage in the total.
+      final screenshotsDir = Directory('${_logsDir!.path}/screenshots');
+      if (await screenshotsDir.exists()) {
+        for (final f in screenshotsDir.listSync().whereType<File>()) {
           totalSizeBytes += f.lengthSync();
         }
       }

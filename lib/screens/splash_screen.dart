@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../l10n/translations.dart';
 import '../utils/account_manager.dart';
-import 'settings/testing_diagnostics_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,8 +16,6 @@ class _SplashScreenState extends State<SplashScreen> {
   final List<bool> _startLetters = List.filled(7, false);
   bool _startPulse = false;
   bool _startSubtitle = false;
-  bool _startTestMode = false;
-  int _testModeTapCount = 0;
 
   @override
   void initState() {
@@ -50,10 +47,6 @@ class _SplashScreenState extends State<SplashScreen> {
       if (mounted) setState(() => _startSubtitle = true);
     });
 
-    Future.delayed(const Duration(milliseconds: 1600), () {
-      if (mounted) setState(() => _startTestMode = true);
-    });
-
     Future.delayed(const Duration(milliseconds: 2300), () {
       if (mounted) {
         if (AccountManager.accounts.isEmpty) {
@@ -65,14 +58,6 @@ class _SplashScreenState extends State<SplashScreen> {
     });
   }
 
-  void _onTestModeTap() {
-    _testModeTapCount++;
-    if (_testModeTapCount >= 5) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TestingDiagnosticsScreen()),
-      );
-    }
-  }
   @override
   Widget build(BuildContext context) {
     const String wordmark = 'Physiqo';
@@ -170,29 +155,6 @@ class _SplashScreenState extends State<SplashScreen> {
                   color: AppTheme.textSecondary,
                   fontSize: 14,
                   letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0.0, end: _startTestMode ? 1.0 : 0.0),
-              duration: const Duration(milliseconds: 500),
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value * 0.5,
-                  child: child!,
-                );
-              },
-              child: GestureDetector(
-                onTap: _onTestModeTap,
-                behavior: HitTestBehavior.opaque,
-                child: Text(
-                  context.tr('test_mode'),
-                  style: AppTheme.labelMd.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    letterSpacing: 0.3,
-                  ),
                 ),
               ),
             ),

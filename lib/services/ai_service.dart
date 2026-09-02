@@ -11,6 +11,7 @@ import '../models/ai_stream_event.dart';
 import 'ai_tools.dart';
 import 'gemini_adapter.dart';
 import 'ai_logger.dart';
+import 'test_logger.dart';
 import 'package:flutter/foundation.dart';
 
 class AiToolCall {
@@ -263,6 +264,18 @@ class AiService {
           'latency=${latencyMs}ms '
           'tokens_in=${inputTokens ?? '?'} tokens_out=${outputTokens ?? '?'}');
     }
+
+    // Bridge to on-device telemetry (metadata only — no raw prompt/response).
+    TestLogger.instance.logLlmResponse(
+      latencyMs: latencyMs,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      tokensEstimated: inputTokens == null || outputTokens == null,
+      error: error,
+      provider: provider,
+      model: model,
+      raceTag: raceTag,
+    );
   }
 
   /// Builds the HTTP request (URL, payload, headers) for a single candidate.

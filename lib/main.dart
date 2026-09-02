@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FrameTiming;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -21,6 +22,7 @@ import 'utils/account_manager.dart';
 import 'models/user_profile.dart';
 import 'repositories/exercise_repository.dart';
 import 'services/test_logger.dart';
+import 'services/session_recorder.dart';
 import 'services/screen_tracking_observer.dart';
 
 void main() {
@@ -56,6 +58,13 @@ void main() {
       debugPrint('Physiqo Error: ${details.exception}');
     };
 
+    // Catch errors that escape the Flutter framework (isolates, native, etc.).
+    WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+      TestLogger.instance.logError(error, stack);
+      debugPrint('Physiqo platform error: $error');
+      return true;
+    };
+
     runApp(const PhysiqoApp());
 
     TestLogger.instance.log('app_launch_complete', <String, dynamic>{
@@ -87,13 +96,23 @@ class _PhysiqoAppState extends State<PhysiqoApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addTimingsCallback(_onFrameTimings);
     _fetchLocale();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeTimingsCallback(_onFrameTimings);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Accumulate per-frame build+raster duration for FPS/jank sampling.
+  void _onFrameTimings(List<FrameTiming> timings) {
+    for (final t in timings) {
+      final total = t.buildDuration.inMicroseconds + t.rasterDuration.inMicroseconds;
+      TestLogger.instance.recordFrameTiming(total);
+    }
   }
 
   @override
@@ -175,7 +194,7 @@ class _PhysiqoAppState extends State<PhysiqoApp> with WidgetsBindingObserver {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) {
-        return child!;
+        return SessionRecorderScope(child: child!);
       },
       home: SplashScreen(key: UniqueKey()),
       routes: {
@@ -221,6 +240,8 @@ class _MainShellState extends State<MainShell> {
           const names = ['home', 'moves', 'chat', 'body', 'settings'];
           TestLogger.instance.logTap('nav_bar_${names[index]}',
               label: names[index], screen: 'main_shell');
+          // Mask screenshot capture when the chat tab is active (privacy).
+          SessionRecorder.instance.setMasked(names[index] == 'chat');
           setState(() {
             _currentIndex = index;
           });
