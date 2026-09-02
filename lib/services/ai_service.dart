@@ -990,77 +990,90 @@ IMPORTANT RULES:
     List<AiToolCall> finalToolCalls = [];
     final rawStreamLog = StringBuffer();
 
-    await for (final chunk in response.stream.transform(utf8.decoder)) {
-      rawStreamLog.write(chunk);
-      final lines = chunk.split('\n');
-      for (var line in lines) {
-        if (line.startsWith('data: ')) {
-          final dataStr = line.substring(6).trim();
-          if (dataStr == '[DONE]' || dataStr.isEmpty) continue;
-          try {
-            final chunkData = jsonDecode(dataStr);
-            if (built.isGeminiNative) {
-              final candidatesData = chunkData['candidates'] as List?;
-              if (candidatesData != null && candidatesData.isNotEmpty) {
-                final content = candidatesData[0]['content'];
-                if (content != null && content['parts'] != null) {
-                  for (var part in content['parts'] as List) {
-                    if (part['text'] != null) {
-                      fullText += part['text'];
-                      yield AiStreamEvent(deltaText: part['text'], providerServed: candidate.provider);
-                    }
+    final lineStream = response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .timeout(candidate.timeoutDuration);
+
+    await for (final line in lineStream) {
+      rawStreamLog.writeln(line);
+      if (line.startsWith('data: ')) {
+        final dataStr = line.substring(6).trim();
+        if (dataStr == '[DONE]' || dataStr.isEmpty) continue;
+        try {
+          final chunkData = jsonDecode(dataStr);
+          if (built.isGeminiNative) {
+            final candidatesData = chunkData['candidates'] as List?;
+            if (candidatesData != null && candidatesData.isNotEmpty) {
+              final content = candidatesData[0]['content'];
+              if (content != null && content['parts'] != null) {
+                for (var part in content['parts'] as List) {
+                  if (part['text'] != null) {
+                    fullText += part['text'];
+                    yield AiStreamEvent(deltaText: part['text'], providerServed: candidate.provider);
+                  }
+                  if (part['functionCall'] != null) {
+                    final func = part['functionCall'];
+                    finalToolCalls.add(AiToolCall(
+                      id: func['name']?.toString() ??
+                          'call_${DateTime.now().millisecondsSinceEpoch}',
+                      name: func['name'] as String,
+                      arguments: (func['args'] is Map)
+                          ? (func['args'] as Map).cast<String, dynamic>()
+                          : <String, dynamic>{},
+                    ));
                   }
                 }
               }
-            } else {
-              final choices = chunkData['choices'] as List?;
-              if (choices != null && choices.isNotEmpty) {
-                final delta = choices[0]['delta'];
-                if (delta != null) {
-                  if (delta['content'] != null) {
-                    final deltaText = delta['content'] as String;
-                    fullText += deltaText;
-                    if (deltaText.contains('<TOOLCALL>')) {
-                      rawToolCallsJsonBuffer += deltaText;
-                    } else if (rawToolCallsJsonBuffer.isNotEmpty) {
-                      rawToolCallsJsonBuffer += deltaText;
+            }
+          } else {
+            final choices = chunkData['choices'] as List?;
+            if (choices != null && choices.isNotEmpty) {
+              final delta = choices[0]['delta'];
+              if (delta != null) {
+                if (delta['content'] != null) {
+                  final deltaText = delta['content'] as String;
+                  fullText += deltaText;
+                  if (deltaText.contains('<TOOLCALL>')) {
+                    rawToolCallsJsonBuffer += deltaText;
+                  } else if (rawToolCallsJsonBuffer.isNotEmpty) {
+                    rawToolCallsJsonBuffer += deltaText;
+                  } else {
+                    if (fullText.contains('<TOOLCALL>')) {
+                      final cleanText = fullText.substring(0, fullText.indexOf('<TOOLCALL>'));
+                      yield AiStreamEvent(deltaText: cleanText, providerServed: candidate.provider);
+                    } else if (fullText.trim().startsWith('{')) {
+                      // Buffered JSON block
                     } else {
-                      if (fullText.contains('<TOOLCALL>')) {
-                        final cleanText = fullText.substring(0, fullText.indexOf('<TOOLCALL>'));
-                        yield AiStreamEvent(deltaText: cleanText, providerServed: candidate.provider);
-                      } else if (fullText.trim().startsWith('{')) {
-                        // Buffered JSON block
+                      int lastLeftAngle = fullText.lastIndexOf('<');
+                      if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
+                        yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
                       } else {
-                        int lastLeftAngle = fullText.lastIndexOf('<');
-                        if (lastLeftAngle != -1 && '<TOOLCALL>'.startsWith(fullText.substring(lastLeftAngle))) {
-                          yield AiStreamEvent(deltaText: fullText.substring(0, lastLeftAngle), providerServed: candidate.provider);
-                        } else {
-                          yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
-                        }
+                        yield AiStreamEvent(deltaText: fullText, providerServed: candidate.provider);
                       }
                     }
                   }
-                  if (delta['tool_calls'] != null) {
-                    for (var tc in delta['tool_calls'] as List) {
-                      final index = tc['index'] as int? ?? 0;
-                      if (!nativeToolCallsAccumulator.containsKey(index)) {
-                        nativeToolCallsAccumulator[index] = {
-                          'id': tc['id'] as String? ?? '',
-                          'name': tc['function']?['name'] as String? ?? '',
-                          'arguments': '',
-                        };
-                      }
-                      if (tc['function']?['arguments'] != null) {
-                        nativeToolCallsAccumulator[index]!['arguments'] += tc['function']['arguments'] as String;
-                      }
+                }
+                if (delta['tool_calls'] != null) {
+                  for (var tc in delta['tool_calls'] as List) {
+                    final index = tc['index'] as int? ?? 0;
+                    if (!nativeToolCallsAccumulator.containsKey(index)) {
+                      nativeToolCallsAccumulator[index] = {
+                        'id': tc['id'] as String? ?? '',
+                        'name': tc['function']?['name'] as String? ?? '',
+                        'arguments': '',
+                      };
+                    }
+                    if (tc['function']?['arguments'] != null) {
+                      nativeToolCallsAccumulator[index]!['arguments'] += tc['function']['arguments'] as String;
                     }
                   }
                 }
               }
             }
-          } catch (e) {
-            debugPrint('Failed decoding SSE chunk: $e');
           }
+        } catch (e) {
+          debugPrint('Failed decoding SSE chunk: $e');
         }
       }
     }
@@ -1151,6 +1164,17 @@ IMPORTANT RULES:
               if (part['text'] != null) {
                 textResponse += part['text'];
               }
+              if (part['functionCall'] != null) {
+                final func = part['functionCall'];
+                finalToolCalls.add(AiToolCall(
+                  id: func['name']?.toString() ??
+                      'call_${DateTime.now().millisecondsSinceEpoch}',
+                  name: func['name'] as String,
+                  arguments: (func['args'] is Map)
+                      ? (func['args'] as Map).cast<String, dynamic>()
+                      : <String, dynamic>{},
+                ));
+              }
             }
             fullText = textResponse;
           }
@@ -1238,13 +1262,20 @@ IMPORTANT RULES:
         raceTag: 'race',
       );
 
-      final sub = stream.listen(
+      StreamSubscription? sub;
+      sub = stream.listen(
         (event) {
           if (winnerDecided) return;
           if (event.deltaText.isNotEmpty ||
               event.isDone ||
               (event.toolCalls != null && event.toolCalls!.isNotEmpty)) {
             winnerDecided = true;
+            // Cancel all other (losing) subscriptions to free sockets/quota.
+            for (final other in subscriptions) {
+              if (other != sub) {
+                other.cancel();
+              }
+            }
           }
           controller.add(event);
           if (event.isDone) {
