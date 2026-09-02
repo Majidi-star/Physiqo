@@ -17,6 +17,7 @@ import '../services/ai_service.dart';
 import '../services/ai_tools.dart';
 import '../services/ai_orchestrator.dart';
 import '../services/ai_logger.dart';
+import '../services/test_logger.dart';
 import '../widgets/ai_debug_dialog.dart';
 import '../utils/farsi_formatter.dart';
 import '../models/user_profile.dart';
@@ -208,6 +209,13 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     final text = _controller.text.trim();
     if ((text.isEmpty && _selectedImages.isEmpty) || _activeSession == null || _isGenerating) return;
 
+    TestLogger.instance.log('chat_send', <String, dynamic>{
+      'has_images': _selectedImages.isNotEmpty,
+      'image_count': _selectedImages.length,
+      'message_length': text.length,
+      'message_text': TestLogger.instance.includeChatText ? text : null,
+    });
+
     _generationCancelled = false;
     final images = _selectedImages.isNotEmpty ? List<String>.from(_selectedImages) : null;
     final userMsg = ChatMessage(
@@ -389,7 +397,7 @@ ${contextData['userContext']}
         if (_generationCancelled || !mounted) break;
         
         if (mounted && _activeSession != null) {
-          if (finalContent.isEmpty && (finalToolCalls == null || finalToolCalls.isEmpty)) {
+          if ((finalContent?.isEmpty ?? true) && (finalToolCalls == null || finalToolCalls!.isEmpty)) {
             // Defensive backstop: the stream completed without any content or tool calls.
             // The service layer should already have thrown, but if it didn't, surface a
             // visible error instead of silently discarding the user's message.
