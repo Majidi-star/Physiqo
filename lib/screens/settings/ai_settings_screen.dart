@@ -9,7 +9,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../l10n/translations.dart';
 import '../../services/ai_config_service.dart';
-import '../../services/test_logger.dart';
 import '../../theme/app_theme.dart';
 import 'provider_management_screen.dart';
 import 'model_selection_screen.dart';
@@ -454,10 +453,6 @@ class _ImportConfigSheetState extends State<_ImportConfigSheet> {
 
   Future<void> _submit() async {
     final json = _tab == 0 ? _loadedJson : _pasteController.text;
-    TestLogger.instance.log('ai_settings_import', <String, dynamic>{
-      'source': _tab == 0 ? 'file' : 'paste',
-      'json_length': json?.length ?? 0,
-    });
     if (json == null || json.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('ai_import_empty'))),

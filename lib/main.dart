@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -20,52 +19,32 @@ import 'widgets/physiqo_nav_bar.dart';
 import 'utils/account_manager.dart';
 import 'models/user_profile.dart';
 import 'repositories/exercise_repository.dart';
-import 'services/test_logger.dart';
-import 'services/screen_tracking_observer.dart';
 
-void main() {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    final stopwatch = Stopwatch()..start();
-
-    await AccountManager.init();
-    await UserProfile.current().loadFromPrefs();
-    final prefs = await SharedPreferences.getInstance();
-    ExerciseRepository.init(prefs);
-
-    tz.initializeTimeZones();
-    String timeZoneName = 'Asia/Tehran';
-    try {
-      const platform = MethodChannel('com.physiqo.app/timezone');
-      final String? tzName = await platform.invokeMethod<String>('getLocalTimezone');
-      if (tzName != null) {
-        timeZoneName = tzName;
-      }
-    } catch (e) {
-      debugPrint('Could not get timezone, defaulting to $timeZoneName');
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await AccountManager.init();
+  await UserProfile.current().loadFromPrefs();
+  final prefs = await SharedPreferences.getInstance();
+  ExerciseRepository.init(prefs);
+  
+  tz.initializeTimeZones();
+  String timeZoneName = 'Asia/Tehran';
+  try {
+    const platform = MethodChannel('com.physiqo.app/timezone');
+    final String? tzName = await platform.invokeMethod<String>('getLocalTimezone');
+    if (tzName != null) {
+      timeZoneName = tzName;
     }
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
-
-    // Initialize on-device telemetry (always-on during testing phase).
-    await TestLogger.instance.init(launchDurationMs: null);
-
-    FlutterError.onError = (details) {
-      TestLogger.instance.logError(details.exception, details.stack);
-      FlutterError.presentError(details);
-      debugPrint('Physiqo Error: ${details.exception}');
-    };
-
-    runApp(const PhysiqoApp());
-
-    TestLogger.instance.log('app_launch_complete', <String, dynamic>{
-      'launch_duration_ms': stopwatch.elapsedMilliseconds,
-    });
-  }, (Object error, StackTrace stack) {
-    // Last-resort catch for uncaught async errors outside the Flutter tree.
-    TestLogger.instance.logError(error, stack);
-    debugPrint('Physiqo uncaught zone error: $error');
-  });
+  } catch (e) {
+    debugPrint('Could not get timezone, defaulting to $timeZoneName');
+  }
+  tz.setLocalLocation(tz.getLocation(timeZoneName));
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Physiqo Error: ${details.exception}');
+  };
+  runApp(const PhysiqoApp());
 }
 
 class PhysiqoApp extends StatefulWidget {
@@ -80,29 +59,13 @@ class PhysiqoApp extends StatefulWidget {
   State<PhysiqoApp> createState() => _PhysiqoAppState();
 }
 
-class _PhysiqoAppState extends State<PhysiqoApp> with WidgetsBindingObserver {
+class _PhysiqoAppState extends State<PhysiqoApp> {
   Locale _locale = const Locale('en', 'US');
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _fetchLocale();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      TestLogger.instance.onAppBackground();
-    } else if (state == AppLifecycleState.resumed) {
-      TestLogger.instance.onAppForeground();
-    }
   }
 
   Future<void> _fetchLocale() async {
@@ -143,10 +106,6 @@ class _PhysiqoAppState extends State<PhysiqoApp> with WidgetsBindingObserver {
     });
   }
 
-  /// Global navigator key.
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -154,8 +113,6 @@ class _PhysiqoAppState extends State<PhysiqoApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       locale: _locale,
-      navigatorKey: navigatorKey,
-      navigatorObservers: [ScreenTrackingObserver()],
       supportedLocales: const [
         Locale('en', 'US'),
         Locale('fa', 'IR'),
@@ -208,6 +165,25 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String) {
+      final indexMap = {
+        'home': 0,
+        'moves': 1,
+        'chat': 2,
+        'body': 3,
+        'settings': 4,
+      };
+      final targetIndex = indexMap[args];
+      if (targetIndex != null) {
+        _currentIndex = targetIndex;
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
@@ -218,9 +194,6 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: PhysiqoNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          const names = ['home', 'moves', 'chat', 'body', 'settings'];
-          TestLogger.instance.logTap('nav_bar_${names[index]}',
-              label: names[index], screen: 'main_shell');
           setState(() {
             _currentIndex = index;
           });
