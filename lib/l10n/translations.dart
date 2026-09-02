@@ -67,9 +67,7 @@ class Translations {
       'testing_report_hint': 'Describe what happened…',
       'testing_report_thanks': 'Thanks! Your note was attached to this session.',
       'testing_report_submit': 'Submit',
-      'testing_mode': 'Testing Mode',
-      'testing_mode_subtitle': 'Records detailed interaction logs on this device',
-      'testing_diagnostics': 'Testing & Diagnostics',
+      'test_mode': 'Test Mode',
     },
     'fa': {
       'settings_user_guide': 'راهنمای استفاده',
@@ -108,9 +106,7 @@ class Translations {
       'testing_report_hint': 'توضیح دهید چه اتفاقی افتاد…',
       'testing_report_thanks': 'ممنون! یادداشت شما به این نشست پیوست شد.',
       'testing_report_submit': 'ارسال',
-      'testing_mode': 'حالت تست',
-      'testing_mode_subtitle': 'ثبت لاگ‌های کامل تعاملات روی این دستگاه',
-      'testing_diagnostics': 'تست و تشخیص',
+      'test_mode': 'حالت تست',
     },
     'zh': {
       'settings_user_guide': '用户指南',

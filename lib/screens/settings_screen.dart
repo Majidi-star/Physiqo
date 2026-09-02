@@ -13,12 +13,9 @@ import 'settings/workout_days_screen.dart';
 import 'settings/language_screen.dart';
 import 'settings/about_screen.dart';
 import 'settings/guide_screen.dart';
-import 'settings/testing_diagnostics_screen.dart';
 import '../models/user_profile.dart';
 import '../utils/unit_utils.dart';
 import '../l10n/translations.dart';
-import '../services/test_logger.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -28,27 +25,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _testingMode = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTestingMode();
-  }
-
-  Future<void> _loadTestingMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _testingMode = prefs.getBool('testing_mode_enabled') ?? true;
-      });
-    }
-  }
-
-  Future<void> _toggleTestingMode(bool value) async {
-    setState(() => _testingMode = value);
-    await TestLogger.instance.setEnabled(value);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,18 +187,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                      icon: Icons.info_outline, 
                      label: context.tr('settings_about'),
                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen())),
-                   ),
-                   _SettingsToggleItem(
-                     icon: Icons.bug_report_outlined,
-                     label: context.tr('testing_mode'),
-                     subtitle: context.tr('testing_mode_subtitle'),
-                     value: _testingMode,
-                     onChanged: _toggleTestingMode,
-                   ),
-                   _SettingsItem(
-                     icon: Icons.science_outlined,
-                     label: context.tr('testing_diagnostics'),
-                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TestingDiagnosticsScreen())),
                    ),                ],
               ),
               const SizedBox(height: 100),
@@ -239,7 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _SettingsGroup extends StatelessWidget {
   final String title;
-  final List<Widget> items;
+  final List<_SettingsItem> items;
 
   const _SettingsGroup({required this.title, required this.items});
 
@@ -253,17 +217,14 @@ class _SettingsGroup extends StatelessWidget {
         Container(
           decoration: AppTheme.cardDecoration(),
           clipBehavior: Clip.antiAlias,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              children: [
-                for (int i = 0; i < items.length; i++) ...[
-                  items[i],
-                  if (i < items.length - 1)
-                    const Divider(color: AppTheme.outline, height: 1, indent: 52),
-                ],
+          child: Column(
+            children: [
+              for (int i = 0; i < items.length; i++) ...[
+                items[i],
+                if (i < items.length - 1)
+                  const Divider(color: AppTheme.outline, height: 1, indent: 52),
               ],
-            ),
+            ],
           ),
         ),
       ],
@@ -306,55 +267,6 @@ class _SettingsItem extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SettingsToggleItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SettingsToggleItem({
-    required this.icon,
-    required this.label,
-    this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 14),
-      child: Row(
-        children: [
-          Icon(icon, color: AppTheme.textPrimary, size: 22),
-          const SizedBox(width: AppTheme.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: AppTheme.bodyMd.copyWith(color: AppTheme.textPrimary)),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: AppTheme.bodyMd.copyWith(color: AppTheme.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppTheme.primary,
-          ),
-        ],
       ),
     );
   }

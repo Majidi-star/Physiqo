@@ -9,8 +9,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/physiqo_header.dart';
 import '../../l10n/translations.dart';
 import '../../services/ai_service.dart';
-import '../../services/test_logger.dart';
-import '../../services/session_recorder.dart';
 import '../../models/chat_message.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -52,14 +50,11 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
   void initState() {
     super.initState();
     _checkAndRequestPermission();
-    // Mask screenshot capture — body-scan photos are sensitive.
-    SessionRecorder.instance.setMasked(true);
   }
 
   @override
   void dispose() {
     _controller?.dispose();
-    SessionRecorder.instance.setMasked(false);
     super.dispose();
   }
 
@@ -209,8 +204,6 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
       return;
     }
 
-    final taskId = TestLogger.instance.logTaskStart('body_scan_analysis');
-
     final aiService = AiService();
     final isConfigured = await aiService.isProviderConfigured(hasImages: true);
     
@@ -218,7 +211,6 @@ class _ScanCaptureFlowState extends State<ScanCaptureFlow> {
     final isFa = Localizations.localeOf(context).languageCode == 'fa';
 
     if (!isConfigured) {
-      TestLogger.instance.logTaskComplete(taskId, success: false, error: 'provider_not_configured');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -440,14 +432,9 @@ Return your response strictly in the following JSON format. Do not write any tex
       };
 
       if (mounted) {
-        TestLogger.instance.logTaskComplete(taskId, success: true, result: {
-          'overall_score': overallScore,
-          'is_offline_estimate': analysisData['isOfflineEstimate'],
-        });
         Navigator.of(context).pushReplacementNamed('/analysis', arguments: analysisData);
       }
     } catch (e) {
-      TestLogger.instance.logTaskComplete(taskId, success: false, error: e.toString());
       debugPrint('Physiqo Camera: Error uploading or analyzing scan: $e');
       if (mounted) {
         final errMessage = e.toString();
