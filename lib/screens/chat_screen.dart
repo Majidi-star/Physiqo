@@ -181,7 +181,11 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
     final errStr = error.toString();
     final isFa = Localizations.localeOf(context).languageCode == 'fa';
     
-    if (errStr.contains('HandshakeException') || errStr.contains('cert') || errStr.contains('handshake') || errStr.contains('413')) {
+    if (errStr.contains('empty response') || errStr.contains('Empty AI response')) {
+      return isFa
+          ? 'پاسخ خالی از سمت هوش مصنوعی.\nسرور بدون ارائه هیچ محتوایی ارتباط را بست. این مشکل معمولاً به دلیل قطع شدن اتصال فیلترشکن (VPN) یا قطع میان‌دست شبکه رخ می‌دهد. لطفاً وضعیت فیلترشکن خود را بررسی کرده و مجدداً تلاش کنید.'
+          : 'Empty AI Response.\nThe server closed the connection without returning any content. This is usually caused by a dropped VPN/proxy connection or a network intermediary idle cutoff. Please check your VPN and try again.';
+    } else if (errStr.contains('HandshakeException') || errStr.contains('cert') || errStr.contains('handshake') || errStr.contains('413')) {
       return isFa 
           ? 'خطای امنیتی یا بارگذاری شبکه (TLS/SSL/413).\nاین خطا معمولاً به دلیل محدودیت‌های شدید اینترنتی یا قطع اتصال فیلترشکن (VPN) رخ می‌دهد. لطفاً وضعیت فیلترشکن خود را بررسی کرده یا آن را تغییر دهید و مجدداً تلاش کنید.'
           : 'Network Security/Payload Error (TLS/SSL Handshake or 413 failed).\nThis is typically caused by local internet restrictions or an unstable VPN connection. Please check or switch your VPN and try again.';
@@ -385,6 +389,16 @@ ${contextData['userContext']}
         if (_generationCancelled || !mounted) break;
         
         if (mounted && _activeSession != null) {
+          if (finalContent.isEmpty && (finalToolCalls == null || finalToolCalls.isEmpty)) {
+            // Defensive backstop: the stream completed without any content or tool calls.
+            // The service layer should already have thrown, but if it didn't, surface a
+            // visible error instead of silently discarding the user's message.
+            final msgs = List<ChatMessage>.from(_activeSession!.messages);
+            msgs.removeWhere((m) => m.id == streamingMsg.id);
+            _activeSession = _activeSession!.copyWith(messages: msgs);
+            _refreshActiveSession();
+            throw Exception('Empty AI response — the stream ended without content. This is usually a dropped VPN/proxy connection or a provider returning an empty body.');
+          }
           if (finalContent.isNotEmpty) {
             final completedMsg = _activeSession!.messages.firstWhere((m) => m.id == streamingMsg.id, orElse: () => streamingMsg).copyWith(content: finalContent);
             await _repository.addMessage(_activeSession!.id, completedMsg);

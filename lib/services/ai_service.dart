@@ -770,6 +770,9 @@ IMPORTANT RULES:
                  }
               }
             }
+            if (fullText.isEmpty && finalToolCalls.isEmpty) {
+              throw Exception('AI provider (${candidate.provider}) returned an empty response: no content and no tool calls. This usually indicates a dropped connection, an idle proxy/VPN cutoff, or a provider returning an empty body.');
+            }
             yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
             return;
           }
@@ -898,7 +901,7 @@ IMPORTANT RULES:
                   }
                 }
               } catch (e) {
-                // Ignore
+                debugPrint('Failed decoding SSE chunk: $e');
               }
             }
           }
@@ -988,6 +991,10 @@ IMPORTANT RULES:
             inputTokens: inputTokens,
             outputTokens: outputTokens,
           );
+
+          if (fullText.isEmpty && finalToolCalls.isEmpty) {
+            throw Exception('AI provider (${candidate.provider}) returned an empty response: no content and no tool calls. This usually indicates a dropped connection, an idle proxy/VPN cutoff, or a provider returning an empty body.');
+          }
 
           yield AiStreamEvent(deltaText: fullText, isDone: true, toolCalls: finalToolCalls.isEmpty ? null : finalToolCalls, providerServed: candidate.provider);
           return;
