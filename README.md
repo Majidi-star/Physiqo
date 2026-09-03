@@ -145,7 +145,7 @@ We believe in open, collaborative development. Whether you are a human developer
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-*Please read our [contributer.md](contributer.md) for detailed guidelines on coding standards, our global token optimization protocols, and our strict design rules.*
+*Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on coding standards, our global token optimization protocols, and our strict design rules.*
 
 ---
 

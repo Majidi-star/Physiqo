@@ -83,3 +83,6 @@ ios/Flutter/flutter_export_environment.sh
 *.p12
 *.cer
 *.mobileprovision
+
+# Gradle daemon artifacts (defense-in-depth; primary ignores live in android/.gitignore)
+android/.gradle/

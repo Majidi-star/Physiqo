@@ -9,16 +9,15 @@ Physiqo is a premium AI-powered fitness and bodybuilding Flutter app. Cinematic 
 | Framework | Flutter (Dart) |
 | Language | Persian/Farsi (RTL) |
 | Design Source | Stitch MCP (`projects/7928721753590883638`) |
-| Design Tokens | `c:\Projects\Physiqo\app\Design.md` |
+| Design Tokens | `DESIGN.md` (repo root) |
 | Font | Inter |
 
 ## File Map
 ```
-c:\Projects\Physiqo\
-  app/
-    Design.md          ← PRIMARY design token source (colors, typography, spacing, radii)
-  mcp_config_fix.json  ← Updated MCP config (use @playwright/mcp)
-  install_chromium.ps1 ← Playwright setup script (one-time)
+<repo root>\
+  DESIGN.md            ← PRIMARY design token source (colors, typography, spacing, radii)
+  workout-plan-generator.md ← AI coach knowledge module (grounding content)
+  docs/                ← supplementary project docs
 ```
 
 ## Design Tokens (from Design.md + Stitch)
@@ -92,5 +91,3 @@ Center AI button: circular waveform ring of dense radial orange spikes, no fille
 - **Metric/Imperial Toggle:** In onboarding Step 2, users choose their unit system (`metric` or `imperial`). It dynamically sets height/weight suffix labels (`cm`/`kg` vs `in`/`lbs`) and stores configuration properties.
 - **Docked Button Layout Rule:** To prevent vertical or horizontal overflows, Action Buttons must remain docked at the bottom of the screens, while input controls scroll dynamically inside `Expanded` SingleChildScrollViews.
 
-## MCP Config Fix
-The user's `mcp_config.json` needs updating. See `c:\Projects\Physiqo\mcp_config_fix.json` — replace content in `C:\Users\Amirhosein\.gemini\config\mcp_config.json` manually.

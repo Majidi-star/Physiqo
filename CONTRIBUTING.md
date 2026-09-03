@@ -1,4 +1,4 @@
-# Contributing to Physiqo (contributer.md)
+# Contributing to Physiqo (CONTRIBUTING.md)
 
 Thank you for contributing to Physiqo! Whether you are a human developer or an AI coding assistant, this document outlines the workflow and principles required to keep the project premium, fast, and secure.
 
@@ -9,7 +9,7 @@ Thank you for contributing to Physiqo! Whether you are a human developer or an A
 Ensure your development machine is prepared:
 1. **Flutter SDK:** Install stable Flutter SDK `^3.12.2` or later.
 2. **Device Setup:** Connect a physical device or launch an emulator (Android/iOS).
-3. **MCP Configuration (Optional):** Check [CLAUD.md](file:///d:/Physiqo/CLAUD.md) to set up Stitch MCP config fixes.
+3. **Design Rules (Optional):** Check [AGENTS.md](AGENTS.md) for design tokens, screen references, and strict UI rules.
 
 To run the application:
 ```bash

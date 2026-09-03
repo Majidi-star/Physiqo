@@ -36,13 +36,13 @@ Container(color: AppColors.primary, ...)
 3. `app/lib/providers/` — state management
 
 ### For any UI/screen change
-1. `app/Design.md` — colors, spacing, typography (source of truth)
+1. `DESIGN.md` — colors, spacing, typography (source of truth)
 2. Stitch MCP `get_screen` for the relevant screen ID (see AGENTS.md screen map)
-3. `app/lib/theme/` — theme constants
+3. `lib/theme/` — theme constants
 
 ### For navigation changes
 1. Nav bar: 5 items, RTL order, center AI button is special
-2. Check `app/lib/navigation/` for router setup
+2. Check `lib/navigation/` for router setup
 
 ## Grep Before Opening
 Always grep for these before opening files:
