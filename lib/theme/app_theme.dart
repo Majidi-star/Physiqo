@@ -51,6 +51,11 @@ class AppTheme {
   static const double spacingXl     = 32;
   static const double gutter        = 16;
 
+  // ─── Layout ────────────────────────────────────────────────────────
+  /// Height of the bottom navigation bar (PhysiqoNavBar), excluding the
+  /// device bottom SafeArea inset.
+  static const double navBarHeight  = 64;
+
   // ─── Border Radius ─────────────────────────────────────────────────
   static const double radiusSm      = 8;
   static const double radiusMd      = 12;  // Card standard

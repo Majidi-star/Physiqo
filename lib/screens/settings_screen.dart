@@ -218,14 +218,17 @@ class _SettingsGroup extends StatelessWidget {
         Container(
           decoration: AppTheme.cardDecoration(),
           clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (int i = 0; i < items.length; i++) ...[
-                items[i],
-                if (i < items.length - 1)
-                  const Divider(color: AppTheme.outline, height: 1, indent: 52),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                for (int i = 0; i < items.length; i++) ...[
+                  items[i],
+                  if (i < items.length - 1)
+                    const Divider(color: AppTheme.outline, height: 1, indent: 52),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],

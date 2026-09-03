@@ -94,6 +94,12 @@ class _ChatScreenState extends State<ChatScreen> with SingleTickerProviderStateM
         _isLoading = false;
       });
     }
+
+    // Check for a session override (e.g. "build plan" from the body scan
+    // analysis screen) once the repository is ready. didChangeDependencies
+    // only fires on dependency changes, so it can miss this while _isLoading
+    // is still true during the initial async load.
+    await _checkSessionOverride();
   }
 
   @override
@@ -389,7 +395,7 @@ ${contextData['userContext']}
         if (_generationCancelled || !mounted) break;
         
         if (mounted && _activeSession != null) {
-          if (finalContent.isEmpty && (finalToolCalls == null || finalToolCalls.isEmpty)) {
+          if (finalContent.isEmpty && (finalToolCalls == null || finalToolCalls!.isEmpty)) {
             // Defensive backstop: the stream completed without any content or tool calls.
             // The service layer should already have thrown, but if it didn't, surface a
             // visible error instead of silently discarding the user's message.

@@ -91,23 +91,6 @@ class _MovesScreenState extends State<MovesScreen> {
       initialIndex: widget.initialTab,
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _navigateToAddExercise,
-          backgroundColor: AppTheme.primary,
-          icon: const Icon(Icons.add, color: AppTheme.onPrimary),
-          label: Text(
-            context.tr('moves_add_exercise'),
-            style: const TextStyle(
-              color: AppTheme.onPrimary,
-              fontFamily: 'Vazirmatn',
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          ),
-        ),
         body: Container(
           decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
           child: SafeArea(
@@ -277,10 +260,26 @@ class _MovesScreenState extends State<MovesScreen> {
           // ─── Category chips ────────────────────────────
           _buildCategoryGrid(),
           const SizedBox(height: AppTheme.spacingLg),
-          // ─── Section title ─────────────────────────────
-          Text(
-            '${context.tr('moves_exercises_prefix')}${context.tr(AppTheme.muscleCategories[_selectedCategory]['label'] as String)}${context.tr('moves_exercises_suffix')}',
-            style: AppTheme.headlineMd,
+          // ─── Section title + add exercise ──────────────
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${context.tr('moves_exercises_prefix')}${context.tr(AppTheme.muscleCategories[_selectedCategory]['label'] as String)}${context.tr('moves_exercises_suffix')}',
+                  style: AppTheme.headlineMd,
+                ),
+              ),
+              const SizedBox(width: AppTheme.spacingMd),
+              IconButton(
+                onPressed: _navigateToAddExercise,
+                tooltip: context.tr('moves_add_exercise'),
+                icon: const Icon(Icons.add, color: AppTheme.onPrimary, size: 24),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  fixedSize: const Size(40, 40),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppTheme.spacingMd),
           // ─── Exercise list ─────────────────────────────

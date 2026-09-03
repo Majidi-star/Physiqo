@@ -33,7 +33,7 @@ class PhysiqoNavBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: AppTheme.navBarHeight,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
