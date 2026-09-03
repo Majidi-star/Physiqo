@@ -64,3 +64,19 @@ secrets.json
 # Graphify / AI tool artifacts
 graphify-out/
 scratch/
+
+# One-off dev scratch (never re-commit)
+_verify.ps1
+test_gemini.dart
+user inputs/
+analyze_output.txt
+
+# iOS generated build env (defense-in-depth; primary ignores live in ios/.gitignore)
+ios/Flutter/ephemeral/
+ios/Flutter/flutter_export_environment.sh
+
+# Certificates / signing material (never commit secrets)
+*.pem
+*.p12
+*.cer
+*.mobileprovision
