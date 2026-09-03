@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Kotlin compiler session artifacts
+android/.kotlin/
+
 # Sensitive API Keys & Environments
 .env
 .env.*
